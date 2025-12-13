@@ -155,25 +155,27 @@ const FancyLoader = () => {
 
 /* ---------- MediaCard (memo) ---------- */
 const MediaCard = React.memo(function MediaCard({ item }: { item: MediaItem }) {
+  useEffect(() => {
+    if (item.uri) Image.prefetch(item.uri); // précharge la prochaine image
+  }, [item.uri]);
+
   return (
     <View style={styles.card}>
-      <View style={styles.mediaContainer}>
-        {item.uri ? (
-          <Image
-              source={{ uri: item.uri }}
-              style={styles.media}
-              contentFit="cover"
-              transition={300}
-              cachePolicy="memory-disk"
-              priority="high"
-          />
-        ) : (
-          <View style={styles.mediaError}>
-            <Ionicons name="image-off" size={RESPONSIVE.iconXL} color="rgba(255,255,255,0.3)" />
-            <Text style={styles.errorText}>Photo non disponible</Text>
-          </View>
-        )}
-      </View>
+      {item.uri ? (
+        <Image
+          source={{ uri: item.uri }}
+          style={styles.media}
+          contentFit="cover"
+          transition={0} // éviter transition animée qui clignote
+          cachePolicy="memory" // uniquement en mémoire
+          priority="high"
+        />
+      ) : (
+        <View style={styles.mediaError}>
+          <Ionicons name="image-off" size={RESPONSIVE.iconXL} color="rgba(255,255,255,0.3)" />
+          <Text style={styles.errorText}>Photo non disponible</Text>
+        </View>
+      )}
     </View>
   );
 });
@@ -191,19 +193,17 @@ const SwipeableCard = ({
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const swipeDir = useSharedValue<SwipeDirection>(null);
-  const isAnimating = useSharedValue(false);
 
   const SWIPE_THRESHOLD_X = SCREEN_WIDTH * 0.25;
   const SWIPE_THRESHOLD_Y = SCREEN_HEIGHT * 0.15;
 
   const cardStyle = useAnimatedStyle(() => {
     if (!isTop) {
-      return {
-        transform: [],
-        zIndex: 5,
-        opacity: 1, // Force l'opacité à 1 pour éviter les clignotements
-      };
-    }
+        return {
+          zIndex: 5,
+          opacity: 1,
+        };
+      }
 
     const rotate = interpolate(
       translateX.value,
@@ -216,48 +216,29 @@ const SwipeableCard = ({
       transform: [
         { translateX: translateX.value },
         { translateY: translateY.value },
-        { rotate: `${rotate}deg` },
+        { rotate: `${rotate}deg` }
       ],
       zIndex: 10,
-      opacity: 1,
+      opacity: 1
     };
   });
 
-  const leftOverlayStyle = useAnimatedStyle(() => {
-    if (!isTop) return { opacity: 0 };
-    const isSwipingLeft = translateX.value < -SWIPE_THRESHOLD_X * 0.3 && Math.abs(translateY.value) < SWIPE_THRESHOLD_Y * 0.3;
-    const op = isSwipingLeft ? interpolate(
-      translateX.value,
-      [-SCREEN_WIDTH, -SWIPE_THRESHOLD_X * 0.3, 0],
-      [1, 0.8, 0],
-      Extrapolate.CLAMP
-    ) : 0;
-    return { opacity: op };
-  });
+  const overlayStyle = (dir: "left" | "right" | "top") =>
+    useAnimatedStyle(() => {
+      if (!isTop) return { opacity: 0 };
+      let op = 0;
+      if (dir === "left" && translateX.value < -SWIPE_THRESHOLD_X * 0.3 && Math.abs(translateY.value) < SWIPE_THRESHOLD_Y * 0.3)
+        op = interpolate(translateX.value, [-SCREEN_WIDTH, -SWIPE_THRESHOLD_X * 0.3, 0], [1, 0.8, 0], Extrapolate.CLAMP);
+      if (dir === "right" && translateX.value > SWIPE_THRESHOLD_X * 0.3 && Math.abs(translateY.value) < SWIPE_THRESHOLD_Y * 0.3)
+        op = interpolate(translateX.value, [0, SWIPE_THRESHOLD_X * 0.3, SCREEN_WIDTH], [0, 0.8, 1], Extrapolate.CLAMP);
+      if (dir === "top" && translateY.value < -SWIPE_THRESHOLD_Y * 0.3 && Math.abs(translateX.value) < SWIPE_THRESHOLD_X * 0.3)
+        op = interpolate(translateY.value, [-SCREEN_HEIGHT, -SWIPE_THRESHOLD_Y * 0.3, 0], [1, 0.8, 0], Extrapolate.CLAMP);
+      return { opacity: op };
+    });
 
-  const rightOverlayStyle = useAnimatedStyle(() => {
-    if (!isTop) return { opacity: 0 };
-    const isSwipingRight = translateX.value > SWIPE_THRESHOLD_X * 0.3 && Math.abs(translateY.value) < SWIPE_THRESHOLD_Y * 0.3;
-    const op = isSwipingRight ? interpolate(
-      translateX.value,
-      [0, SWIPE_THRESHOLD_X * 0.3, SCREEN_WIDTH],
-      [0, 0.8, 1],
-      Extrapolate.CLAMP
-    ) : 0;
-    return { opacity: op };
-  });
-
-  const topOverlayStyle = useAnimatedStyle(() => {
-    if (!isTop) return { opacity: 0 };
-    const isSwipingTop = translateY.value < -SWIPE_THRESHOLD_Y * 0.3 && Math.abs(translateX.value) < SWIPE_THRESHOLD_X * 0.3;
-    const op = isSwipingTop ? interpolate(
-      translateY.value,
-      [-SCREEN_HEIGHT, -SWIPE_THRESHOLD_Y * 0.3, 0],
-      [1, 0.8, 0],
-      Extrapolate.CLAMP
-    ) : 0;
-    return { opacity: op };
-  });
+  const leftOverlayStyle = overlayStyle("left");
+  const rightOverlayStyle = overlayStyle("right");
+  const topOverlayStyle = overlayStyle("top");
 
   const panGesture = Gesture.Pan()
     .enabled(isTop)
@@ -265,30 +246,21 @@ const SwipeableCard = ({
       translateX.value = e.translationX;
       translateY.value = e.translationY;
 
-      if (e.translationY < -SWIPE_THRESHOLD_Y) {
-        swipeDir.value = "top";
-      } else if (e.translationX < -SWIPE_THRESHOLD_X) {
-        swipeDir.value = "left";
-      } else if (e.translationX > SWIPE_THRESHOLD_X) {
-        swipeDir.value = "right";
-      } else {
-        swipeDir.value = null;
-      }
+      if (e.translationY < -SWIPE_THRESHOLD_Y) swipeDir.value = "top";
+      else if (e.translationX < -SWIPE_THRESHOLD_X) swipeDir.value = "left";
+      else if (e.translationX > SWIPE_THRESHOLD_X) swipeDir.value = "right";
+      else swipeDir.value = null;
     })
-    .onEnd((e) => {
-      if (e.translationY < -SWIPE_THRESHOLD_Y) {
-        translateY.value = withTiming(-SCREEN_HEIGHT * 1.5, { duration: 300 }, (finished) => {
-          if (finished) runOnJS(onSwipe)("top");
-        });
-      } else if (e.translationX < -SWIPE_THRESHOLD_X) {
-        translateX.value = withTiming(-SCREEN_WIDTH * 1.5, { duration: 300 }, (finished) => {
-          if (finished) runOnJS(onSwipe)("left");
-        });
-      } else if (e.translationX > SWIPE_THRESHOLD_X) {
-        translateX.value = withTiming(SCREEN_WIDTH * 1.5, { duration: 300 }, (finished) => {
-          if (finished) runOnJS(onSwipe)("right");
-        });
-      } else {
+    .onEnd(() => {
+      const triggerSwipe = (dx: number, dy: number, dir: Exclude<SwipeDirection, null>) => {
+        if (dx !== 0) translateX.value = withTiming(dx * 1.5, { duration: 300 }, (finished) => finished && runOnJS(onSwipe)(dir));
+        if (dy !== 0) translateY.value = withTiming(dy * 1.5, { duration: 300 }, (finished) => finished && runOnJS(onSwipe)(dir));
+      };
+
+      if (swipeDir.value === "left") triggerSwipe(-SCREEN_WIDTH, 0, "left");
+      else if (swipeDir.value === "right") triggerSwipe(SCREEN_WIDTH, 0, "right");
+      else if (swipeDir.value === "top") triggerSwipe(0, -SCREEN_HEIGHT, "top");
+      else {
         translateX.value = withSpring(0, { damping: 20, stiffness: 300 });
         translateY.value = withSpring(0, { damping: 20, stiffness: 300 });
         swipeDir.value = null;
@@ -298,7 +270,7 @@ const SwipeableCard = ({
 
   return (
     <GestureDetector gesture={panGesture}>
-      <Animated.View style={[styles.cardWrapper, cardStyle]}>
+      <Animated.View style={[styles.cardWrapper, cardStyle]} renderToHardwareTextureAndroid>
         <MediaCard item={item} />
         {isTop && (
           <>
@@ -411,34 +383,39 @@ const toggleVibrate = async () => {
           return;
         }
         const res = await MediaLibrary.getAssetsAsync({
-          mediaType: ["photo"],
-          first: BATCH_SIZE,
-          after: cursor,
-          sortBy: [["creationTime", false]],
-        });
-        const items: MediaItem[] = [];
-        await Promise.allSettled(
-          res.assets.map(async (asset) => {
-            if (trashCache.current.has(asset.id)) return null;
-            try {
-              const info = await MediaLibrary.getAssetInfoAsync(asset.id);
-              return {
-                id: asset.id,
-                uri: info.localUri || null,
-                type: "photo",
-                createdAt: asset.creationTime,
-                width: asset.width,
-                height: asset.height,
-              } as MediaItem;
-            } catch {
-              return null;
-            }
-          })
-        ).then((results) => {
-          results.forEach((r) => {
-            if (r.status === "fulfilled" && r.value) items.push(r.value);
-          });
-        });
+                  mediaType: ["photo"],
+                  first: BATCH_SIZE,
+                  after: cursor,
+                  sortBy: [["creationTime", false]],
+                });
+                const items: MediaItem[] = [];
+                await Promise.allSettled(
+                  res.assets.map(async (asset) => {
+                    if (trashCache.current.has(asset.id)) return null;
+                    try {
+                      const info = await MediaLibrary.getAssetInfoAsync(asset.id);
+                      // FIX Android/iOS : utiliser uri qui fonctionne sur les 2 plateformes
+                      const imageUri = Platform.OS === 'android'
+                        ? info.uri  // Android utilise info.uri
+                        : info.localUri || info.uri;  // iOS préfère localUri
+
+                      return {
+                        id: asset.id,
+                        uri: imageUri || null,
+                        type: "photo",
+                        createdAt: asset.creationTime,
+                        width: asset.width,
+                        height: asset.height,
+                      } as MediaItem;
+                    } catch {
+                      return null;
+                    }
+                  })
+                ).then((results) => {
+                  results.forEach((r) => {
+                    if (r.status === "fulfilled" && r.value) items.push(r.value);
+                  });
+                });
         setAssets((prev) => {
           const map = new Map(prev.map((p) => [p.id, p]));
           for (const it of items) {
@@ -511,11 +488,16 @@ const handleSwipe = useCallback(
     }
 
     const newIndex = currentIndex + 1;
-    setCurrentIndex(newIndex);
-    await persistIndex(newIndex);
+
+    // FIX 100% : attendre fin animation avant changement carte
+    setTimeout(() => {
+      setCurrentIndex(newIndex);
+      persistIndex(newIndex);
+    }, 320); // 300ms (withTiming) + 20ms marge
   },
   [currentIndex, assets, vibrateSwipe, addToTrashJS, addToFavoritesJS, persistIndex]
 );
+
 
 
   const resetGallery = useCallback(async () => {
@@ -630,19 +612,18 @@ const handleSwipe = useCallback(
           <View style={styles.stackWrap}>
             {bottomCard && (
               <SwipeableCard
-                key={`bottom-${bottomCard.id}`}
+                key={bottomCard.id}
                 item={bottomCard}
                 onSwipe={handleSwipe}
-                isTop={false}
+                isTop={false} // reste immobile
               />
             )}
-
             {topCard && (
               <SwipeableCard
-                key={`top-${topCard.id}`}
+                key={topCard.id}
                 item={topCard}
                 onSwipe={handleSwipe}
-                isTop={true}
+                isTop={true} // carte swipable
               />
             )}
           </View>

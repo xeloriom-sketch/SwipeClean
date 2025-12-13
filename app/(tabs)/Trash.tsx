@@ -42,7 +42,15 @@ const BackArrowIcon = ({ size = 32, color = "#000" }: { size?: number; color?: s
     </Svg>
 );
 
-const SelectAllIcon = ({ size = 32, color = "#000", selected = false }: { size?: number; color?: string; selected?: boolean }) => (
+const SelectAllIcon = ({
+    size = 32,
+    color = "#000",
+    selected = false,
+}: {
+    size?: number;
+    color?: string;
+    selected?: boolean;
+}) => (
     <Svg width={size} height={size} viewBox="0 0 32 32" fill="none">
         <Path
             d="M6 8H22V24H6V8Z"
@@ -71,14 +79,58 @@ const SelectAllIcon = ({ size = 32, color = "#000", selected = false }: { size?:
     </Svg>
 );
 
+// ==================== FIX: TrashItem SANS MEMO ====================
+const TrashItem = ({
+    item,
+    isSelected,
+    onToggle,
+    darkMode,
+}: {
+    item: Item;
+    isSelected: boolean;
+    onToggle: (id: string) => void;
+    darkMode: boolean;
+}) => {
+    return (
+        <TouchableOpacity
+            activeOpacity={0.7}
+            style={[
+                styles.card,
+                isSelected && styles.cardSelected,
+                darkMode && styles.cardDark,
+            ]}
+            onPress={() => onToggle(item.id)}
+        >
+            <Image
+                source={{ uri: item.uri }}
+                style={styles.thumb}
+                resizeMode="cover"
+                fadeDuration={0}
+            />
+
+            {/* Selection indicator */}
+            <View style={[styles.selectCircle, isSelected && styles.selectCircleActive]}>
+                {isSelected && <Ionicons name="checkmark" size={12} color="#fff" />}
+            </View>
+
+            {/* Video indicator */}
+            {item.type === "video" && (
+                <View style={styles.videoIcon}>
+                    <Ionicons name="play" size={10} color="#fff" />
+                </View>
+            )}
+        </TouchableOpacity>
+    );
+};
+
 export default function TrashScreen() {
     const [items, setItems] = useState<Item[]>([]);
     const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
     const [isLoading, setIsLoading] = useState(true);
     const [darkMode, setDarkMode] = useState(false);
 
-    const selectedCount = Object.values(selectedIds).filter(Boolean).length;
-    const allSelected = items.length > 0 && items.every((it) => selectedIds[it.id]);
+    const selectedCount = Object.values(selectedIds).filter((v) => v === true).length;
+    const allSelected = items.length > 0 && items.every((it) => selectedIds[it.id] === true);
 
     // Charger dark mode + items
     useEffect(() => {
@@ -93,7 +145,14 @@ export default function TrashScreen() {
                     setDarkMode(savedDarkMode === "true");
                 }
 
-                setItems(rawItems ? JSON.parse(rawItems) : []);
+                const loadedItems = rawItems ? JSON.parse(rawItems) : [];
+                setItems(loadedItems);
+
+                const initialSelection: Record<string, boolean> = {};
+                loadedItems.forEach((item: Item) => {
+                    initialSelection[item.id] = false;
+                });
+                setSelectedIds(initialSelection);
             } catch (e) {
                 console.error("Load error", e);
             } finally {
@@ -106,35 +165,32 @@ export default function TrashScreen() {
     const persist = async (arr: Item[]) => {
         await AsyncStorage.setItem(TRASH_KEY, JSON.stringify(arr));
         setItems(arr);
+
+        const newSelection: Record<string, boolean> = {};
+        arr.forEach((item) => {
+            newSelection[item.id] = false;
+        });
+        setSelectedIds(newSelection);
     };
 
     const toggleSelect = useCallback((id: string) => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setSelectedIds((prev) => {
-            const newState = { ...prev };
-            if (newState[id]) {
-                delete newState[id]; // Supprimer au lieu de mettre à false
-            } else {
-                newState[id] = true;
-            }
-            return newState;
-        });
+        setSelectedIds((prev) => ({
+            ...prev,
+            [id]: !prev[id],
+        }));
     }, []);
 
     const selectAll = useCallback(() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-        if (allSelected) {
-            // Désélectionner tout
-            setSelectedIds({});
-        } else {
-            // Sélectionner tout
+        setSelectedIds(() => {
             const next: Record<string, boolean> = {};
             items.forEach((it) => {
-                next[it.id] = true;
+                next[it.id] = !allSelected;
             });
-            setSelectedIds(next);
-        }
+            return next;
+        });
     }, [items, allSelected]);
 
     const restoreSelected = async () => {
@@ -142,69 +198,37 @@ export default function TrashScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         const rest = items.filter((it) => !selectedIds[it.id]);
         await persist(rest);
-        setSelectedIds({});
     };
 
     const deleteSelected = async () => {
         const toDelete = items.filter((it) => selectedIds[it.id]).map((i) => i.id);
         if (!toDelete.length) return;
+
         try {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             await MediaLibrary.deleteAssetsAsync(toDelete);
             const rest = items.filter((it) => !selectedIds[it.id]);
             await persist(rest);
-            setSelectedIds({});
         } catch (e) {
             console.warn("delete failed", e);
         }
     };
 
-    // Optimisation: getItemLayout pour améliorer les performances
-    const getItemLayout = useCallback((data: any, index: number) => {
-        const columnIndex = index % COLUMNS;
-        const rowIndex = Math.floor(index / COLUMNS);
-        return {
-            length: CARD_SIZE,
-            offset: rowIndex * (CARD_SIZE + GAP),
-            index,
-        };
-    }, []);
-
-    const renderItem = useCallback(({ item }: { item: Item }) => {
-        const isSelected = !!selectedIds[item.id];
-
-        return (
-            <TouchableOpacity
-                activeOpacity={0.7}
-                style={[
-                    styles.card,
-                    isSelected && styles.cardSelected,
-                    darkMode && styles.cardDark
-                ]}
-                onPress={() => toggleSelect(item.id)}
-            >
-                <Image
-                    source={{ uri: item.uri }}
-                    style={styles.thumb}
-                    // Fix Android: forcer le cache et le resizeMode
-                    resizeMode="cover"
-                    fadeDuration={0}
+    const renderItem = useCallback(
+        ({ item }: { item: Item }) => {
+            return (
+                <TrashItem
+                    item={item}
+                    isSelected={selectedIds[item.id] === true}
+                    onToggle={toggleSelect}
+                    darkMode={darkMode}
                 />
+            );
+        },
+        [selectedIds, toggleSelect, darkMode]
+    );
 
-                {/* Selection indicator */}
-                <View style={[styles.selectCircle, isSelected && styles.selectCircleActive]}>
-                    {isSelected && <Ionicons name="checkmark" size={12} color="#fff" />}
-                </View>
-
-                {/* Video indicator */}
-                {item.type === "video" && (
-                    <View style={styles.videoIcon}>
-                        <Ionicons name="play" size={10} color="#fff" />
-                    </View>
-                )}
-            </TouchableOpacity>
-        );
-    }, [selectedIds, toggleSelect, darkMode]);
+    const keyExtractor = useCallback((item: Item) => item.id, []);
 
     const EmptyState = () => (
         <View style={styles.emptyContainer}>
@@ -263,9 +287,8 @@ export default function TrashScreen() {
                 <View style={styles.statsBar}>
                     <Text style={[styles.statsText, darkMode && styles.statsTextDark]}>
                         {selectedCount > 0
-                            ? `${selectedCount} sélectionné${selectedCount > 1 ? 's' : ''}`
-                            : `${items.length} élément${items.length > 1 ? 's' : ''}`
-                        }
+                            ? `${selectedCount} sélectionné${selectedCount > 1 ? "s" : ""}`
+                            : `${items.length} élément${items.length > 1 ? "s" : ""}`}
                     </Text>
                 </View>
             )}
@@ -273,19 +296,18 @@ export default function TrashScreen() {
             {/* Grid */}
             <FlatList
                 data={items}
-                keyExtractor={(i) => i.id}
+                keyExtractor={keyExtractor}
                 numColumns={COLUMNS}
                 contentContainerStyle={styles.listContent}
                 columnWrapperStyle={styles.row}
                 renderItem={renderItem}
                 ListEmptyComponent={EmptyState}
                 showsVerticalScrollIndicator={false}
-                // Optimisations Android
-                removeClippedSubviews={Platform.OS === 'android'}
-                maxToRenderPerBatch={15}
-                updateCellsBatchingPeriod={50}
-                windowSize={10}
-                initialNumToRender={15}
+                removeClippedSubviews={false}
+                maxToRenderPerBatch={21}
+                updateCellsBatchingPeriod={100}
+                windowSize={7}
+                initialNumToRender={21}
             />
 
             {/* Bottom Actions */}
@@ -311,7 +333,7 @@ export default function TrashScreen() {
                             activeOpacity={0.8}
                         >
                             <LinearGradient
-                                colors={['#FF5555', '#CC3333']}
+                                colors={["#FF5555", "#CC3333"]}
                                 start={{ x: 0.0, y: 0.0 }}
                                 end={{ x: 1.0, y: 1.0 }}
                                 style={styles.btnDelete}
@@ -415,7 +437,6 @@ const styles = StyleSheet.create({
     thumb: {
         width: "100%",
         height: "100%",
-        backgroundColor: "#f0f0f0",
     },
     selectCircle: {
         position: "absolute",

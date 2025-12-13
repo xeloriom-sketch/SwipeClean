@@ -66,22 +66,22 @@ type MediaItem = {
 type SwipeDirection = "left" | "right" | "top" | null;
 
 /* ---------- SVG icons ---------- */
-const StarMenuIcon = ({ size = 40, color = "#000" }: { size?: number; color?: string }) => (
+const StarMenuIcon = ({ size = 40, darkMode }: { size?: number; darkMode: boolean }) => (
   <Svg width={size} height={size} viewBox="0 0 36 37" fill="none">
     <Path
       fillRule="evenodd"
       clipRule="evenodd"
       d="M35.9666 28.55V31.8834H27.6334V28.55H35.9666ZM25.9666 28.55V31.8834H22.6334V28.55H25.9666ZM15.9695 0L20.4109 10.6783L31.939 11.6025L23.1558 19.1263L23.8134 21.8833H20.9666L20.9695 25.2104V27.4013L15.9695 24.3474L6.09977 30.3758L8.7832 19.1263L0 11.6025L11.5281 10.6783L15.9695 0ZM35.9666 23.55V26.8834H27.6334V23.55H35.9666ZM25.9666 23.55V26.8834H22.6334V23.55H25.9666ZM35.9666 33.55V36.8834H27.6334V33.55H35.9666ZM25.9666 33.55V36.8834H22.6334V33.55H25.9666Z"
-      fill={color}
+      fill={darkMode ? "#E0E0E0" : "#000"}
     />
   </Svg>
 );
 
-const BackArrowIcon = ({ size = 32, color = "#000" }: { size?: number; color?: string }) => (
+const BackArrowIcon = ({ size = 32, darkMode }: { size?: number; darkMode: boolean }) => (
   <Svg width={size} height={size} viewBox="0 0 32 32" fill="none">
     <Path
       d="M20 8L12 16L20 24"
-      stroke={color}
+      stroke={darkMode ? "#E0E0E0" : "#000"}
       strokeWidth="3"
       strokeLinecap="round"
       strokeLinejoin="round"
@@ -165,29 +165,30 @@ const FancyLoader = () => {
 
 /* ---------- MediaCard (memo) ---------- */
 const MediaCard = React.memo(function MediaCard({ item }: { item: MediaItem }) {
+  useEffect(() => {
+    if (item.uri) Image.prefetch(item.uri); // précharge la prochaine image
+  }, [item.uri]);
+
   return (
     <View style={styles.card}>
-      <View style={styles.mediaContainer}>
-        {item.uri ? (
-          <Image
-              source={{ uri: item.uri }}
-              style={styles.media}
-              contentFit="cover"
-              transition={300}
-              cachePolicy="memory-disk"
-              priority="high"
-          />
-        ) : (
-          <View style={styles.mediaError}>
-            <Ionicons name="image-off" size={RESPONSIVE.iconXL} color="rgba(255,255,255,0.3)" />
-            <Text style={styles.errorText}>Photo non disponible</Text>
-          </View>
-        )}
-      </View>
+      {item.uri ? (
+        <Image
+          source={{ uri: item.uri }}
+          style={styles.media}
+          contentFit="cover"
+          transition={0} // éviter transition animée qui clignote
+          cachePolicy="memory" // uniquement en mémoire
+          priority="high"
+        />
+      ) : (
+        <View style={styles.mediaError}>
+          <Ionicons name="image-off" size={RESPONSIVE.iconXL} color="rgba(255,255,255,0.3)" />
+          <Text style={styles.errorText}>Photo non disponible</Text>
+        </View>
+      )}
     </View>
   );
 });
-
 
 /* ---------- Composant de carte animée individuelle ---------- */
 const SwipeableCard = ({
@@ -202,19 +203,17 @@ const SwipeableCard = ({
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const swipeDir = useSharedValue<SwipeDirection>(null);
-  const isAnimating = useSharedValue(false);
 
   const SWIPE_THRESHOLD_X = SCREEN_WIDTH * 0.25;
   const SWIPE_THRESHOLD_Y = SCREEN_HEIGHT * 0.15;
 
   const cardStyle = useAnimatedStyle(() => {
     if (!isTop) {
-      return {
-        transform: [],
-        zIndex: 5,
-        opacity: 1, // Force l'opacité à 1 pour éviter les clignotements
-      };
-    }
+        return {
+          zIndex: 5,
+          opacity: 1,
+        };
+      }
 
     const rotate = interpolate(
       translateX.value,
@@ -227,48 +226,29 @@ const SwipeableCard = ({
       transform: [
         { translateX: translateX.value },
         { translateY: translateY.value },
-        { rotate: `${rotate}deg` },
+        { rotate: `${rotate}deg` }
       ],
       zIndex: 10,
-      opacity: 1,
+      opacity: 1
     };
   });
 
-  const leftOverlayStyle = useAnimatedStyle(() => {
-    if (!isTop) return { opacity: 0 };
-    const isSwipingLeft = translateX.value < -SWIPE_THRESHOLD_X * 0.3 && Math.abs(translateY.value) < SWIPE_THRESHOLD_Y * 0.3;
-    const op = isSwipingLeft ? interpolate(
-      translateX.value,
-      [-SCREEN_WIDTH, -SWIPE_THRESHOLD_X * 0.3, 0],
-      [1, 0.8, 0],
-      Extrapolate.CLAMP
-    ) : 0;
-    return { opacity: op };
-  });
+  const overlayStyle = (dir: "left" | "right" | "top") =>
+    useAnimatedStyle(() => {
+      if (!isTop) return { opacity: 0 };
+      let op = 0;
+      if (dir === "left" && translateX.value < -SWIPE_THRESHOLD_X * 0.3 && Math.abs(translateY.value) < SWIPE_THRESHOLD_Y * 0.3)
+        op = interpolate(translateX.value, [-SCREEN_WIDTH, -SWIPE_THRESHOLD_X * 0.3, 0], [1, 0.8, 0], Extrapolate.CLAMP);
+      if (dir === "right" && translateX.value > SWIPE_THRESHOLD_X * 0.3 && Math.abs(translateY.value) < SWIPE_THRESHOLD_Y * 0.3)
+        op = interpolate(translateX.value, [0, SWIPE_THRESHOLD_X * 0.3, SCREEN_WIDTH], [0, 0.8, 1], Extrapolate.CLAMP);
+      if (dir === "top" && translateY.value < -SWIPE_THRESHOLD_Y * 0.3 && Math.abs(translateX.value) < SWIPE_THRESHOLD_X * 0.3)
+        op = interpolate(translateY.value, [-SCREEN_HEIGHT, -SWIPE_THRESHOLD_Y * 0.3, 0], [1, 0.8, 0], Extrapolate.CLAMP);
+      return { opacity: op };
+    });
 
-  const rightOverlayStyle = useAnimatedStyle(() => {
-    if (!isTop) return { opacity: 0 };
-    const isSwipingRight = translateX.value > SWIPE_THRESHOLD_X * 0.3 && Math.abs(translateY.value) < SWIPE_THRESHOLD_Y * 0.3;
-    const op = isSwipingRight ? interpolate(
-      translateX.value,
-      [0, SWIPE_THRESHOLD_X * 0.3, SCREEN_WIDTH],
-      [0, 0.8, 1],
-      Extrapolate.CLAMP
-    ) : 0;
-    return { opacity: op };
-  });
-
-  const topOverlayStyle = useAnimatedStyle(() => {
-    if (!isTop) return { opacity: 0 };
-    const isSwipingTop = translateY.value < -SWIPE_THRESHOLD_Y * 0.3 && Math.abs(translateX.value) < SWIPE_THRESHOLD_X * 0.3;
-    const op = isSwipingTop ? interpolate(
-      translateY.value,
-      [-SCREEN_HEIGHT, -SWIPE_THRESHOLD_Y * 0.3, 0],
-      [1, 0.8, 0],
-      Extrapolate.CLAMP
-    ) : 0;
-    return { opacity: op };
-  });
+  const leftOverlayStyle = overlayStyle("left");
+  const rightOverlayStyle = overlayStyle("right");
+  const topOverlayStyle = overlayStyle("top");
 
   const panGesture = Gesture.Pan()
     .enabled(isTop)
@@ -276,30 +256,21 @@ const SwipeableCard = ({
       translateX.value = e.translationX;
       translateY.value = e.translationY;
 
-      if (e.translationY < -SWIPE_THRESHOLD_Y) {
-        swipeDir.value = "top";
-      } else if (e.translationX < -SWIPE_THRESHOLD_X) {
-        swipeDir.value = "left";
-      } else if (e.translationX > SWIPE_THRESHOLD_X) {
-        swipeDir.value = "right";
-      } else {
-        swipeDir.value = null;
-      }
+      if (e.translationY < -SWIPE_THRESHOLD_Y) swipeDir.value = "top";
+      else if (e.translationX < -SWIPE_THRESHOLD_X) swipeDir.value = "left";
+      else if (e.translationX > SWIPE_THRESHOLD_X) swipeDir.value = "right";
+      else swipeDir.value = null;
     })
-    .onEnd((e) => {
-      if (e.translationY < -SWIPE_THRESHOLD_Y) {
-        translateY.value = withTiming(-SCREEN_HEIGHT * 1.5, { duration: 300 }, (finished) => {
-          if (finished) runOnJS(onSwipe)("top");
-        });
-      } else if (e.translationX < -SWIPE_THRESHOLD_X) {
-        translateX.value = withTiming(-SCREEN_WIDTH * 1.5, { duration: 300 }, (finished) => {
-          if (finished) runOnJS(onSwipe)("left");
-        });
-      } else if (e.translationX > SWIPE_THRESHOLD_X) {
-        translateX.value = withTiming(SCREEN_WIDTH * 1.5, { duration: 300 }, (finished) => {
-          if (finished) runOnJS(onSwipe)("right");
-        });
-      } else {
+    .onEnd(() => {
+      const triggerSwipe = (dx: number, dy: number, dir: Exclude<SwipeDirection, null>) => {
+        if (dx !== 0) translateX.value = withTiming(dx * 1.5, { duration: 300 }, (finished) => finished && runOnJS(onSwipe)(dir));
+        if (dy !== 0) translateY.value = withTiming(dy * 1.5, { duration: 300 }, (finished) => finished && runOnJS(onSwipe)(dir));
+      };
+
+      if (swipeDir.value === "left") triggerSwipe(-SCREEN_WIDTH, 0, "left");
+      else if (swipeDir.value === "right") triggerSwipe(SCREEN_WIDTH, 0, "right");
+      else if (swipeDir.value === "top") triggerSwipe(0, -SCREEN_HEIGHT, "top");
+      else {
         translateX.value = withSpring(0, { damping: 20, stiffness: 300 });
         translateY.value = withSpring(0, { damping: 20, stiffness: 300 });
         swipeDir.value = null;
@@ -309,7 +280,7 @@ const SwipeableCard = ({
 
   return (
     <GestureDetector gesture={panGesture}>
-      <Animated.View style={[styles.cardWrapper, cardStyle]}>
+      <Animated.View style={[styles.cardWrapper, cardStyle]} renderToHardwareTextureAndroid>
         <MediaCard item={item} />
         {isTop && (
           <>
@@ -337,9 +308,10 @@ const SwipeableCard = ({
 
 /* ---------- Main component ---------- */
 export default function GalleryScreen() {
-     const { id } = useLocalSearchParams(); // <-- ici
-        console.log("Gallery ID:", id);
-        const CARD_INDEX_KEY = `@gallery_last_index_v2_${id}`;
+  const { id } = useLocalSearchParams();
+  console.log("Gallery ID:", id);
+  const CARD_INDEX_KEY = `@gallery_last_index_v2_${id}`;
+
   const [assets, setAssets] = useState<MediaItem[]>([]);
   const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(true);
@@ -352,7 +324,6 @@ export default function GalleryScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
   const toggleMenu = () => setMenuOpen(v => !v);
   const closeMenu = () => setMenuOpen(false);
-  // 1️⃣ État pour vibration
   const [darkMode, setDarkMode] = useState(false);
   const [vibrateSwipe, setVibrateSwipe] = useState(true);
 
@@ -370,26 +341,25 @@ export default function GalleryScreen() {
     })();
   }, []);
 
-const toggleDarkMode = async () => {
-  try {
-    const newValue = !darkMode;
-    setDarkMode(newValue);
-    await AsyncStorage.setItem(DARK_MODE_KEY, newValue.toString());
-  } catch (err) {
-    console.log("Erreur sauvegarde Dark Mode:", err);
-  }
-};
+  const toggleDarkMode = async () => {
+    try {
+      const newValue = !darkMode;
+      setDarkMode(newValue);
+      await AsyncStorage.setItem(DARK_MODE_KEY, newValue.toString());
+    } catch (err) {
+      console.log("Erreur sauvegarde Dark Mode:", err);
+    }
+  };
 
-const toggleVibrate = async () => {
-  try {
-    const newValue = !vibrateSwipe;
-    setVibrateSwipe(newValue);
-    await AsyncStorage.setItem(VIBRATE_KEY, newValue.toString());
-  } catch (err) {
-    console.log("Erreur sauvegarde Vibration:", err);
-  }
-};
-
+  const toggleVibrate = async () => {
+    try {
+      const newValue = !vibrateSwipe;
+      setVibrateSwipe(newValue);
+      await AsyncStorage.setItem(VIBRATE_KEY, newValue.toString());
+    } catch (err) {
+      console.log("Erreur sauvegarde Vibration:", err);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -418,28 +388,40 @@ const toggleVibrate = async () => {
     async (force = false) => {
       if (isFetching.current || (!hasMore && !force)) return;
       isFetching.current = true;
+
       try {
         const { status } = await MediaLibrary.requestPermissionsAsync();
         if (status !== "granted") {
           isFetching.current = false;
           return;
         }
+
         const res = await MediaLibrary.getAssetsAsync({
-         mediaType: ["photo"],
-           first: BATCH_SIZE,
-           after: cursor,
-           sortBy: [["creationTime", false]],
-           album: id, // si tu veux filtrer par album
+          mediaType: ["photo"],
+          first: BATCH_SIZE,
+          after: cursor,
+          sortBy: [["creationTime", false]],
+          album: id as string,
         });
+
         const items: MediaItem[] = [];
+
         await Promise.allSettled(
           res.assets.map(async (asset) => {
             if (trashCache.current.has(asset.id)) return null;
+
             try {
               const info = await MediaLibrary.getAssetInfoAsync(asset.id);
+
+              // FIX Android/iOS : utiliser uri qui fonctionne sur les 2 plateformes
+              const imageUri =
+                Platform.OS === "android"
+                  ? info.uri
+                  : info.localUri || info.uri;
+
               return {
                 id: asset.id,
-                uri: info.localUri || null,
+                uri: imageUri || null,
                 type: "photo",
                 createdAt: asset.creationTime,
                 width: asset.width,
@@ -454,6 +436,7 @@ const toggleVibrate = async () => {
             if (r.status === "fulfilled" && r.value) items.push(r.value);
           });
         });
+
         setAssets((prev) => {
           const map = new Map(prev.map((p) => [p.id, p]));
           for (const it of items) {
@@ -469,7 +452,7 @@ const toggleVibrate = async () => {
         isFetching.current = false;
       }
     },
-    [cursor, hasMore]
+    [cursor, hasMore, id]
   );
 
   useEffect(() => {
@@ -484,7 +467,7 @@ const toggleVibrate = async () => {
     } catch (err) {
       logger.error("persistIndex", err);
     }
-  }, []);
+  }, [CARD_INDEX_KEY]);
 
   const addToTrashJS = useCallback(async (item: MediaItem) => {
     try {
@@ -508,37 +491,40 @@ const toggleVibrate = async () => {
     }
   }, []);
 
-    const handleSwipe = useCallback(
-      async (direction: Exclude<SwipeDirection, null>) => {
-        const item = assets[currentIndex];
-        if (!item) return;
+  const handleSwipe = useCallback(
+    async (direction: Exclude<SwipeDirection, null>) => {
+      const item = assets[currentIndex];
+      if (!item) return;
 
-        // Vibrer si activé
-        if (vibrateSwipe) {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        }
+      // Vibrer si activé
+      if (vibrateSwipe) {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      }
 
-        if (direction === "left") {
-          trashCache.current.add(item.id);
-          await addToTrashJS(item);
-        } else if (direction === "top") {
-          await addToFavoritesJS(item);
-        }
+      if (direction === "left") {
+        trashCache.current.add(item.id);
+        await addToTrashJS(item);
+      } else if (direction === "top") {
+        await addToFavoritesJS(item);
+      }
 
-        const newIndex = currentIndex + 1;
+      const newIndex = currentIndex + 1;
+
+      // FIX 100% : attendre fin animation avant changement carte
+      setTimeout(() => {
         setCurrentIndex(newIndex);
-        await persistIndex(newIndex);
-      },
-      [currentIndex, assets, vibrateSwipe, addToTrashJS, addToFavoritesJS, persistIndex]
-    );
-
+        persistIndex(newIndex);
+      }, 320); // 300ms (withTiming) + 20ms marge
+    },
+    [currentIndex, assets, vibrateSwipe, addToTrashJS, addToFavoritesJS, persistIndex]
+  );
 
   const resetGallery = useCallback(async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await AsyncStorage.removeItem(CARD_INDEX_KEY);
     setCurrentIndex(0);
     trashCache.current.clear();
-  }, []);
+  }, [CARD_INDEX_KEY]);
 
   const swipeLeft = () => handleSwipe("left");
   const swipeRight = () => handleSwipe("right");
@@ -570,10 +556,10 @@ const toggleVibrate = async () => {
 
       {/* ================= HEADER ================= */}
       <View style={styles.header}>
-      {/* Bouton retour */}
-      <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
-        <BackArrowIcon size={36} color={darkMode ? "#E0E0E0" : "#000"} />
-      </TouchableOpacity>
+        {/* Bouton retour */}
+        <TouchableOpacity style={styles.headerBtn} onPress={() => router.back()}>
+          <BackArrowIcon size={36} darkMode={darkMode} />
+        </TouchableOpacity>
 
         {/* Étoile centrée */}
         <View style={{ position: "absolute", left: 0, right: 0, alignItems: "center" }}>
@@ -591,30 +577,29 @@ const toggleVibrate = async () => {
             style={styles.headerBtn}
             onPress={resetGallery}
           >
-            <ReloadMenuIcon size={34} color="#000" darkMode={darkMode}/>
+            <ReloadMenuIcon size={34} darkMode={darkMode} />
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.headerBtn}
             onPress={() => router.push("/Trash")}
           >
-            <TrashXIcon size={34} color="#000" darkMode={darkMode}/>
+            <TrashXIcon size={34} darkMode={darkMode} />
           </TouchableOpacity>
         </View>
       </View>
 
-
       {/* ================= DROPDOWN MENU ================= */}
       {menuOpen && (
         <Pressable style={styles.menuOverlay} onPress={closeMenu}>
-          <View style={styles.menuPanel}>
+          <View style={[styles.menuPanel, { backgroundColor: darkMode ? "#0a0a0a" : "#fff" }]}>
 
             {/* Item Gallery */}
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
                 closeMenu();
-                router.push("/Gallery"); // Remplace par le chemin exact si nécessaire
+                router.push("/Gallery");
               }}
             >
               <Ionicons name="images-outline" size={20} color={darkMode ? "#E0E0E0" : "#000"} />
@@ -626,17 +611,16 @@ const toggleVibrate = async () => {
               style={styles.menuItem}
               onPress={() => {
                 closeMenu();
-                router.push("/Settings"); // Remplace par le chemin exact si nécessaire
+                router.push("/Settings");
               }}
             >
-              <Ionicons name="settings-outline" size={20} color="#000" />
-              <Text style={styles.menuText}>Paramètres</Text>
+              <Ionicons name="settings-outline" size={20} color={darkMode ? "#E0E0E0" : "#000"} />
+              <Text style={[styles.menuText, { color: darkMode ? "#E0E0E0" : "#000" }]}>Paramètres</Text>
             </TouchableOpacity>
 
           </View>
         </Pressable>
       )}
-
 
       {/* ================= MAIN UI ================= */}
       <Animated.View style={[styles.innerContainer, mainAnimatedStyle]}>
@@ -645,16 +629,15 @@ const toggleVibrate = async () => {
           <View style={styles.stackWrap}>
             {bottomCard && (
               <SwipeableCard
-                key={`bottom-${bottomCard.id}`}
+                key={bottomCard.id}
                 item={bottomCard}
                 onSwipe={handleSwipe}
                 isTop={false}
               />
             )}
-
             {topCard && (
               <SwipeableCard
-                key={`top-${topCard.id}`}
+                key={topCard.id}
                 item={topCard}
                 onSwipe={handleSwipe}
                 isTop={true}
@@ -666,11 +649,13 @@ const toggleVibrate = async () => {
         {/* ================= ACTION BUTTONS ================= */}
         <View style={styles.globalActions}>
           <TouchableOpacity onPress={swipeLeft} activeOpacity={0.85} style={styles.cardActionBtn}>
-            <View style={styles.btnNopeBackground}>
-              <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFill} />
-            </View>
-            <View style={styles.btnContent}>
-              <Ionicons name="close" size={30} color="white" />
+            <View style={styles.btnNopeContainer}>
+              <View style={styles.btnNopeBackground}>
+                <BlurView intensity={50} tint="light" style={StyleSheet.absoluteFill} />
+              </View>
+              <View style={styles.btnNope}>
+                <Ionicons name="close" size={40} color="white" />
+              </View>
             </View>
           </TouchableOpacity>
 
@@ -687,7 +672,7 @@ const toggleVibrate = async () => {
 
           <TouchableOpacity onPress={swipeRight} activeOpacity={0.85} style={styles.cardActionBtn}>
             <View style={styles.btnLike}>
-              <Ionicons name="heart" size={20} color="white" />
+              <Ionicons name="heart" size={30} color="white" />
             </View>
           </TouchableOpacity>
         </View>
@@ -699,7 +684,7 @@ const toggleVibrate = async () => {
 
 /* ---------- styles ---------- */
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#fff" },
+  container: { flex: 1, backgroundColor: "#121212" },
   innerContainer: { flex: 1, paddingHorizontal: 12, paddingBottom: 12 },
   loadingContent: { flex: 1, justifyContent: "center", alignItems: "center", zIndex: 10 },
   loadingText: { color: "#555", fontSize: 16, fontWeight: "600", letterSpacing: 0.5 },
@@ -714,7 +699,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     zIndex: 20
   },
-  headerBtn: { padding: 4},
+  headerBtn: { padding: 4 },
 
   swiperContainer: {
     flex: 1,
@@ -755,49 +740,57 @@ const styles = StyleSheet.create({
   errorText: { color: "rgba(255,255,255,0.5)", fontSize: 14, marginTop: 12 },
 
   globalActions: {
-      flexDirection: "row",
-      justifyContent: "space-evenly",
-      alignItems: "center",
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-      marginTop: 4
-    },
-    cardActionBtn: {
-      width: SCREEN_WIDTH * 0.22,
-      maxWidth: 70,
-      height: 70,
-      borderRadius: 100,
-      justifyContent: "center",
-      alignItems: "center"
-    },
-    btnNopeBackground: {
-      ...StyleSheet.absoluteFillObject,
-      backgroundColor: "red",
-      borderRadius: 100,
-      overflow: "hidden"
-    },
-    btnContent: {
-      justifyContent: "center",
-      alignItems: "center",
-      width: "100%",
-      height: "100%"
-    },
-    btnSuper: {
-      width: 60,
-      height: 60,
-      borderRadius: 100,
-      backgroundColor: "#00B8E6",
-      justifyContent: "center",
-      alignItems: "center"
-    },
-    btnLike: {
-      width: "100%",
-      height: "100%",
-      borderRadius: 100,
-      backgroundColor: "green",
-      justifyContent: "center",
-      alignItems: "center"
-    },
+    flexDirection: "row",
+    justifyContent: "space-evenly",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginTop: 4
+  },
+  cardActionBtn: {
+    width: SCREEN_WIDTH * 0.22,
+    maxWidth: 70,
+    height: 70,
+    borderRadius: 100,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  btnNopeBackground: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "red",
+    borderRadius: 100,
+    overflow: "hidden",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  btnNopeContainer: {
+    justifyContent: "center",
+    alignItems: "center",
+    width: "120%",
+    height: "120%"
+  },
+  btnNope: {
+    justifyContent: "center",
+    alignItems: "center",
+    width: "100%",
+    height: "100%",
+  },
+  btnSuper: {
+    width: 60,
+    height: 60,
+    borderRadius: 100,
+    backgroundColor: "#00B8E6",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  btnLike: {
+    width: "120%",
+    height: "120%",
+    borderRadius: 100,
+    backgroundColor: "green",
+    justifyContent: "center",
+    alignItems: "center"
+  },
 
   // Overlays centrés
   overlayCenter: {
@@ -822,42 +815,42 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 8,
   },
-// ==================== Dropdown Menu Styles ====================
-menuOverlay: {
-  ...StyleSheet.absoluteFillObject,
-  backgroundColor: "rgba(0,0,0,0.2)", // Fond semi-transparent derrière le menu
-  zIndex: 30,
-  justifyContent: "flex-start",
-  alignItems: "flex-start",
-},
 
-menuPanel: {
-  marginTop: 120, // Distance depuis le haut (ajuste selon ton header)
-  marginLeft: 12, // Décalage depuis la gauche
-  backgroundColor: "#fff",
-  borderRadius: 12,
-  paddingVertical: 8,
-  paddingHorizontal: 4,
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: 4 },
-  shadowOpacity: 0.2,
-  shadowRadius: 8,
-  elevation: 8,
-  minWidth: 150,
-},
+  // ==================== Dropdown Menu Styles ====================
+  menuOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(0,0,0,0.2)",
+    zIndex: 30,
+    justifyContent: "flex-start",
+    alignItems: "flex-start",
+  },
 
-menuItem: {
-  flexDirection: "row",
-  alignItems: "center",
-  paddingVertical: 10,
-  paddingHorizontal: 12,
-},
+  menuPanel: {
+    marginTop: 120,
+    marginLeft: 12,
+    backgroundColor: "#fff",
+    borderRadius: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 8,
+    minWidth: 150,
+  },
 
-menuText: {
-  marginLeft: 8,
-  fontSize: 16,
-  color: "#000",
-  fontWeight: "500",
-},
+  menuItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+  },
 
-});
+  menuText: {
+    marginLeft: 8,
+    fontSize: 16,
+    color: "#000",
+    fontWeight: "500",
+  },
+})
