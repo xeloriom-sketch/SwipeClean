@@ -493,7 +493,7 @@ const handleSwipe = useCallback(
     setTimeout(() => {
       setCurrentIndex(newIndex);
       persistIndex(newIndex);
-    }, 320); // 300ms (withTiming) + 20ms marge
+    }, 1); // 300ms (withTiming) + 20ms marge
   },
   [currentIndex, assets, vibrateSwipe, addToTrashJS, addToFavoritesJS, persistIndex]
 );
