@@ -3,13 +3,13 @@ import {
   View,
   Text,
   Dimensions,
-  Image,
   StyleSheet,
-  SafeAreaView,
   FlatList,
   TouchableOpacity,
   Platform,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Image } from "expo-image";
 import * as MediaLibrary from "expo-media-library";
 import Svg, { Path, Circle } from "react-native-svg";
 import { useRouter } from "expo-router";
@@ -69,22 +69,19 @@ const EmptyGalleryIcon = ({ size = 100, color = "#ccc" }) => (
 
 
 // Stack de cartes
-const GalleryCardStack = ({ uris, darkMode }) => {
-  const positions = ["leftCard", "centerCard", "rightCard"];
-  const images = uris?.slice(0, 3) || [];
+type StackProps = { uris: string[]; darkMode: boolean };
+const STACK_POS: (keyof typeof styles)[] = ["leftCard", "centerCard", "rightCard"];
 
+const GalleryCardStack = ({ uris, darkMode }: StackProps) => {
+  const images = (uris ?? []).slice(0, 3);
   return (
     <View style={styles.stackContainer}>
       {images.map((uri, i) => (
         <View
-          key={i}
-          style={[
-            styles.stackCard,
-            styles[positions[i]],
-            { backgroundColor: darkMode ? "#222" : "#111" },
-          ]}
+          key={uri}
+          style={[styles.stackCard, styles[STACK_POS[i]] as object, { backgroundColor: darkMode ? "#222" : "#111" }]}
         >
-          <Image source={{ uri }} style={styles.stackImage} />
+          <Image source={{ uri }} style={styles.stackImage} contentFit="cover" cachePolicy="memory-disk" recyclingKey={uri} />
         </View>
       ))}
     </View>

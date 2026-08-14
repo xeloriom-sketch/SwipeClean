@@ -182,7 +182,7 @@ const MediaCard = React.memo(function MediaCard({ item }: { item: MediaItem }) {
         />
       ) : (
         <View style={styles.mediaError}>
-          <Ionicons name="image-off" size={RESPONSIVE.iconXL} color="rgba(255,255,255,0.3)" />
+          <Ionicons name="alert-circle-outline" size={RESPONSIVE.iconXL} color="rgba(255,255,255,0.3)" />
           <Text style={styles.errorText}>Photo non disponible</Text>
         </View>
       )}

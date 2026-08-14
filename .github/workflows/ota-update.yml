@@ -1,0 +1,47 @@
+name: OTA Update
+
+on:
+  push:
+    branches:
+      - main
+      - preview
+
+jobs:
+  update:
+    name: Deploy OTA
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: yarn
+
+      - name: Install dependencies
+        run: yarn install --frozen-lockfile
+
+      - name: Setup EAS
+        uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Deploy OTA update (production)
+        if: github.ref == 'refs/heads/main'
+        run: |
+          eas update \
+            --channel production \
+            --message "Auto-update from commit ${{ github.sha }}" \
+            --non-interactive
+
+      - name: Deploy OTA update (preview)
+        if: github.ref == 'refs/heads/preview'
+        run: |
+          eas update \
+            --channel preview \
+            --message "Preview update from commit ${{ github.sha }}" \
+            --non-interactive

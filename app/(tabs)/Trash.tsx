@@ -181,7 +181,6 @@ export default function TrashScreen() {
       <FlashList
         data={items}
         numColumns={COLUMNS}
-        estimatedItemSize={CARD_SIZE}
         keyExtractor={(i) => i.id}
         renderItem={({ item }) => (
           <TrashItem
