@@ -7,6 +7,7 @@ import {
   FlatList,
   TouchableOpacity,
   Platform,
+  useColorScheme,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Image } from "expo-image";
@@ -14,6 +15,7 @@ import * as MediaLibrary from "expo-media-library";
 import Svg, { Path, Circle } from "react-native-svg";
 import { useRouter } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import AppLoader from "../../components/AppLoader";
 
 
 /*******************************************/
@@ -92,14 +94,16 @@ const GalleryCardStack = ({ uris, darkMode }: StackProps) => {
 // ----------------- MAIN ------------------
 
 export default function GalleryScreen() {
+  const systemScheme = useColorScheme();
   const [galleries, setGalleries] = useState<Gallery[]>([]);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(systemScheme === "dark");
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
     (async () => {
       const stored = await AsyncStorage.getItem(DARK_MODE_KEY);
-      setDarkMode(stored === "true");
+      if (stored !== null) setDarkMode(stored === "true");
     })();
   }, []);
 
@@ -153,11 +157,14 @@ export default function GalleryScreen() {
     );
 
     setGalleries(galleriesData.filter(Boolean) as Gallery[]);
+    setLoading(false);
   };
 
   useEffect(() => {
     fetchGalleries();
   }, []);
+
+  if (loading) return <AppLoader dark={darkMode} />;
 
   const renderItem = ({ item }: { item: Gallery }) => (
     <TouchableOpacity

@@ -7,9 +7,11 @@ import {
   StatusBar,
   Dimensions,
   TouchableOpacity,
-  ActivityIndicator,
   FlatList,
   Platform,
+  useColorScheme,
+  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -17,6 +19,8 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { Image } from "expo-image";
+import * as MediaLibrary from "expo-media-library";
+import AppLoader from "../../components/AppLoader";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -132,9 +136,11 @@ const FullscreenViewer = ({
 
 /* ---- Screen ---- */
 export default function FavoritesScreen() {
+  const systemScheme = useColorScheme();
   const [images, setImages] = useState<Item[]>([]);
   const [loading, setLoading] = useState(true);
-  const [darkMode, setDarkMode] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [darkMode, setDarkMode] = useState(systemScheme === "dark");
   const [selectedUri, setSelectedUri] = useState<string | null>(null);
 
   useEffect(() => {
@@ -159,22 +165,40 @@ export default function FavoritesScreen() {
     [images]
   );
 
+  const exportToAlbum = useCallback(async () => {
+    if (images.length === 0) return;
+    setExporting(true);
+    try {
+      const { status } = await MediaLibrary.requestPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("Permission requise", "Autoriser l'accès à la photothèque pour exporter.");
+        return;
+      }
+      const albumName = "SwipeClean — Favoris";
+      const ids = images.map((i) => i.id);
+      let album = await MediaLibrary.getAlbumAsync(albumName);
+      if (!album) {
+        album = await MediaLibrary.createAlbumAsync(albumName, ids[0], false);
+        if (ids.length > 1) {
+          await MediaLibrary.addAssetsToAlbumAsync(ids.slice(1), album.id, false);
+        }
+      } else {
+        await MediaLibrary.addAssetsToAlbumAsync(ids, album.id, false);
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Alert.alert("Exporté !", `${ids.length} photo${ids.length > 1 ? "s" : ""} ajoutée${ids.length > 1 ? "s" : ""} dans l'album "${albumName}".`);
+    } catch {
+      Alert.alert("Erreur", "Impossible d'exporter les favoris.");
+    } finally {
+      setExporting(false);
+    }
+  }, [images]);
+
   const bg = darkMode ? "#0d0d0d" : "#F8F8F8";
   const textColor = darkMode ? "#fff" : "#0d0d0d";
   const subColor = darkMode ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.38)";
 
-  if (loading) {
-    return (
-      <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
-        <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
-        <ActivityIndicator
-          style={{ flex: 1 }}
-          size="large"
-          color={darkMode ? "#fff" : "#000"}
-        />
-      </SafeAreaView>
-    );
-  }
+  if (loading) return <AppLoader dark={darkMode} />;
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
@@ -199,7 +223,22 @@ export default function FavoritesScreen() {
           )}
         </View>
 
-        <View style={{ width: 36 }} />
+        {images.length > 0 ? (
+          <TouchableOpacity
+            style={styles.headerBtn}
+            onPress={exportToAlbum}
+            disabled={exporting}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            {exporting ? (
+              <ActivityIndicator size="small" color={textColor} />
+            ) : (
+              <Ionicons name="share-outline" size={26} color={textColor} />
+            )}
+          </TouchableOpacity>
+        ) : (
+          <View style={{ width: 36 }} />
+        )}
       </View>
 
       {/* Grid */}

@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import { getUnlocked, type Achievement } from "../../utils/achievements";
 
 const TRASH_KEY = "@app_trash";
 const FAVORITES_KEY = "@app_favorites";
@@ -36,14 +37,16 @@ export default function StatsScreen() {
   const [favCount, setFavCount] = useState(0);
   const [totalSwiped, setTotalSwiped] = useState(0);
   const [trashSize, setTrashSize] = useState(0);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
 
   useEffect(() => {
     (async () => {
-      const [dm, trashRaw, favRaw, indexRaw] = await Promise.all([
+      const [dm, trashRaw, favRaw, indexRaw, achiev] = await Promise.all([
         AsyncStorage.getItem(DARK_MODE_KEY),
         AsyncStorage.getItem(TRASH_KEY),
         AsyncStorage.getItem(FAVORITES_KEY),
         AsyncStorage.getItem(CARD_INDEX_KEY),
+        getUnlocked(),
       ]);
       setDarkMode(dm === "true");
 
@@ -55,6 +58,7 @@ export default function StatsScreen() {
       setFavCount(favs.length);
 
       setTotalSwiped(indexRaw ? Number(indexRaw) : 0);
+      setAchievements(achiev);
     })();
   }, []);
 
@@ -138,6 +142,24 @@ export default function StatsScreen() {
             </View>
           </>
         )}
+
+        <Text style={[styles.sectionLabel, { color: sub, marginTop: 24 }]}>SUCCÈS</Text>
+        <View style={[styles.achievCard, { backgroundColor: card, borderColor: border }]}>
+          {achievements.map((a) => (
+            <View key={a.id} style={[styles.achievRow, { opacity: a.unlockedAt ? 1 : 0.35 }]}>
+              <Text style={styles.achievEmoji}>{a.emoji}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={[styles.achievTitle, { color: text }]}>{a.title}</Text>
+                <Text style={[styles.achievDesc, { color: sub }]}>{a.desc}</Text>
+              </View>
+              {a.unlockedAt ? (
+                <Ionicons name="checkmark-circle" size={20} color="#4CFF5E" />
+              ) : (
+                <Ionicons name="lock-closed-outline" size={18} color={sub} />
+              )}
+            </View>
+          ))}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -235,4 +257,27 @@ const styles = StyleSheet.create({
   },
   spaceValue: { fontSize: 28, fontWeight: "800", letterSpacing: -0.8 },
   spaceSub: { fontSize: 12, marginTop: 2 },
+
+  achievCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+  },
+  achievRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(128,128,128,0.15)",
+  },
+  achievEmoji: { fontSize: 24, width: 32 },
+  achievTitle: { fontSize: 14, fontWeight: "600" },
+  achievDesc: { fontSize: 12, marginTop: 1 },
 });

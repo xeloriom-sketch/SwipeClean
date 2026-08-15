@@ -1,5 +1,5 @@
 // app/(tabs)/index.tsx
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -23,7 +23,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
 import { Audio } from "expo-av";
+import * as Notifications from "expo-notifications";
 import AppLoader from "../../components/AppLoader";
+import { checkSwipeMilestones, checkAndUnlock, type Achievement } from "../../utils/achievements";
 
 // react-native-video requires a native build — not available in Expo Go
 let VideoPlayer: React.ComponentType<any> | null = null;
@@ -52,6 +54,8 @@ import Animated, {
   useAnimatedStyle,
   withSpring,
   withTiming,
+  withDelay,
+  withSequence,
   runOnJS,
   interpolate,
   Extrapolate,
@@ -71,6 +75,9 @@ const DARK_MODE_KEY = "@app_dark_mode";
 const VIBRATE_KEY = "@app_vibrate_swipe";
 const ONBOARDED_KEY = "@app_onboarded";
 const SORT_KEY = "@app_sort_order";
+const SOUND_KEY = "@app_sound";
+const AUTO_DARK_KEY = "@app_dark_auto";
+const AUTO_TRASH_DAYS_KEY = "@app_auto_trash_days";
 const BATCH_SIZE = 40;
 const PRELOAD_THRESHOLD = 5;
 const SPLASH_MIN_MS = 0;
@@ -145,11 +152,25 @@ const FancyLoader = ({ dark }: { dark: boolean }) => <AppLoader dark={dark} />;
 const MediaCard = React.memo(function MediaCard({
   item,
   isTop,
+  imageScale,
+  imagePanX,
+  imagePanY,
 }: {
   item: MediaItem;
   isTop: boolean;
+  imageScale: SharedValue<number>;
+  imagePanX: SharedValue<number>;
+  imagePanY: SharedValue<number>;
 }) {
   const [isMuted, setIsMuted] = useState(true);
+
+  const zoomStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: imageScale.value },
+      { translateX: imagePanX.value },
+      { translateY: imagePanY.value },
+    ],
+  }));
 
   useEffect(() => {
     setIsMuted(true);
@@ -233,14 +254,16 @@ const MediaCard = React.memo(function MediaCard({
 
   return (
     <View style={styles.card}>
-      <Image
-        source={{ uri: item.uri }}
-        style={styles.media}
-        contentFit="cover"
-        transition={0}
-        cachePolicy="memory"
-        priority="high"
-      />
+      <Animated.View style={[StyleSheet.absoluteFill, zoomStyle]}>
+        <Image
+          source={{ uri: item.uri }}
+          style={styles.media}
+          contentFit="cover"
+          transition={0}
+          cachePolicy="memory"
+          priority="high"
+        />
+      </Animated.View>
       <LinearGradient
         colors={["transparent", "rgba(0,0,0,0.55)"]}
         style={styles.photoInfoGradient}
@@ -270,6 +293,11 @@ const SwipeableCard = ({
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const swipeDir = useSharedValue<SwipeDirection>(null);
+  const imageScale = useSharedValue(1);
+  const imagePanX = useSharedValue(0);
+  const imagePanY = useSharedValue(0);
+  const isZoomedIn = useSharedValue(false);
+  const savedScale = useSharedValue(1);
 
   const SWIPE_THRESHOLD_X = SCREEN_WIDTH * 0.25;
   const SWIPE_THRESHOLD_Y = SCREEN_HEIGHT * 0.15;
@@ -379,9 +407,32 @@ const SwipeableCard = ({
     return { opacity: 0 };
   });
 
+  const pinchGesture = Gesture.Pinch()
+    .onUpdate((e) => {
+      const next = Math.min(Math.max(savedScale.value * e.scale, 1), 4);
+      imageScale.value = next;
+      isZoomedIn.value = next > 1.05;
+    })
+    .onEnd(() => {
+      if (imageScale.value < 1.15) {
+        imageScale.value = withSpring(1, { damping: 15 });
+        imagePanX.value = withSpring(0, { damping: 15 });
+        imagePanY.value = withSpring(0, { damping: 15 });
+        savedScale.value = 1;
+        isZoomedIn.value = false;
+      } else {
+        savedScale.value = imageScale.value;
+      }
+    });
+
   const panGesture = Gesture.Pan()
     .enabled(isTop)
     .onUpdate((e) => {
+      if (isZoomedIn.value) {
+        imagePanX.value = e.translationX / Math.max(imageScale.value, 1);
+        imagePanY.value = e.translationY / Math.max(imageScale.value, 1);
+        return;
+      }
       translateX.value = e.translationX;
       translateY.value = e.translationY;
 
@@ -407,6 +458,11 @@ const SwipeableCard = ({
       }
     })
     .onEnd(() => {
+      if (isZoomedIn.value) {
+        imagePanX.value = withSpring(imagePanX.value, { damping: 18 });
+        imagePanY.value = withSpring(imagePanY.value, { damping: 18 });
+        return;
+      }
       if (swipeDir.value === "left") {
         stackProgress.value = withTiming(1, { duration: 320 });
         translateX.value = withTiming(-SCREEN_WIDTH * 1.5, { duration: 320 }, (done) => {
@@ -433,14 +489,17 @@ const SwipeableCard = ({
         stackProgress.value = withSpring(0, { damping: 18, stiffness: 260 });
         swipeDir.value = null;
       }
-    })
+    });
+
+  const combinedGesture = Gesture.Simultaneous(panGesture, pinchGesture);
+
   return (
-    <GestureDetector gesture={panGesture}>
+    <GestureDetector gesture={combinedGesture}>
       <Animated.View
         style={[styles.cardWrapper, cardStyle]}
         renderToHardwareTextureAndroid
       >
-        <MediaCard item={item} isTop={isTop} />
+        <MediaCard item={item} isTop={isTop} imageScale={imageScale} imagePanX={imagePanX} imagePanY={imagePanY} />
         {isTop && (
           <>
             <Animated.View
@@ -512,6 +571,37 @@ async function initSounds() {
   } catch {}
 }
 
+/* ---- Animated action button ---- */
+const AnimatedActionBtn = React.memo(function AnimatedActionBtn({
+  onPress,
+  btnStyle,
+  iconName,
+  iconSize,
+  iconColor,
+}: {
+  onPress: () => void;
+  btnStyle: object | object[];
+  iconName: string;
+  iconSize: number;
+  iconColor: string;
+}) {
+  const sc = useSharedValue(1);
+  const animStyle = useAnimatedStyle(() => ({ transform: [{ scale: sc.value }] }));
+  return (
+    <Animated.View style={[btnStyle, animStyle]}>
+      <TouchableOpacity
+        onPress={onPress}
+        onPressIn={() => { sc.value = withSpring(0.84, { damping: 14, stiffness: 500 }); }}
+        onPressOut={() => { sc.value = withSpring(1, { damping: 11, stiffness: 380 }); }}
+        activeOpacity={1}
+        style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
+      >
+        <Ionicons name={iconName as any} size={iconSize} color={iconColor} />
+      </TouchableOpacity>
+    </Animated.View>
+  );
+});
+
 async function playSwipeSound(type: "delete" | "keep" | "star") {
   try {
     const sound = preloadedSounds[type];
@@ -519,6 +609,131 @@ async function playSwipeSound(type: "delete" | "keep" | "star") {
     await sound.setPositionAsync(0);
     await sound.playAsync();
   } catch {}
+}
+
+/* ---- Confetti ---- */
+const CONFETTI_COLORS = ["#FF4458","#4CFF5E","#00C9FF","#FFD60A","#FF9F0A","#BF5AF2","#FF6B6B","#4ECDC4"];
+
+type ParticleCfg = { x: number; color: string; size: number; duration: number; delay: number; spin: number; drift: number };
+
+const ConfettiParticle = React.memo(function ConfettiParticle({ x, color, size, duration, delay, spin, drift }: ParticleCfg) {
+  const y = useSharedValue(-20);
+  const rot = useSharedValue(spin);
+  const op = useSharedValue(0);
+
+  useEffect(() => {
+    y.value = withDelay(delay, withTiming(SCREEN_HEIGHT + 60, { duration }));
+    rot.value = withDelay(delay, withTiming(spin + 720, { duration }));
+    op.value = withDelay(delay, withSequence(
+      withTiming(1, { duration: 80 }),
+      withTiming(1, { duration: duration - 160 }),
+      withTiming(0, { duration: 80 })
+    ));
+  }, []);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [
+      { translateX: x + drift * (y.value / SCREEN_HEIGHT) },
+      { translateY: y.value },
+      { rotate: `${rot.value}deg` },
+    ],
+    opacity: op.value,
+  }));
+
+  return (
+    <Animated.View
+      style={[{ position: "absolute", top: 0, left: 0, width: size, height: size * 0.55, backgroundColor: color, borderRadius: 2 }, style]}
+    />
+  );
+});
+
+function Confetti({ active }: { active: boolean }) {
+  const particles = useMemo<ParticleCfg[]>(() =>
+    Array.from({ length: 40 }, () => ({
+      x: Math.random() * SCREEN_WIDTH,
+      color: CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)],
+      size: 6 + Math.random() * 9,
+      duration: 2200 + Math.random() * 2000,
+      delay: Math.random() * 1600,
+      spin: Math.random() * 360,
+      drift: (Math.random() - 0.5) * 130,
+    })),
+  []);
+
+  if (!active) return null;
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {particles.map((p, i) => <ConfettiParticle key={i} {...p} />)}
+    </View>
+  );
+}
+
+/* ---- Achievement Toast ---- */
+const AchievementToast = ({ achievement, onDone }: { achievement: Achievement; onDone: () => void }) => {
+  const ty = useSharedValue(-90);
+  const op = useSharedValue(0);
+
+  useEffect(() => {
+    ty.value = withSpring(0, { damping: 14, stiffness: 200 });
+    op.value = withTiming(1, { duration: 280 });
+    const timer = setTimeout(() => {
+      ty.value = withTiming(-90, { duration: 280 });
+      op.value = withTiming(0, { duration: 280 });
+      setTimeout(onDone, 290);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const style = useAnimatedStyle(() => ({
+    transform: [{ translateY: ty.value }],
+    opacity: op.value,
+  }));
+
+  return (
+    <Animated.View style={[achieveStyles.toast, style]}>
+      <Text style={achieveStyles.emoji}>{achievement.emoji}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={achieveStyles.title}>{achievement.title}</Text>
+        <Text style={achieveStyles.desc}>{achievement.desc}</Text>
+      </View>
+    </Animated.View>
+  );
+};
+
+const achieveStyles = StyleSheet.create({
+  toast: {
+    position: "absolute",
+    top: 60,
+    left: 20,
+    right: 20,
+    backgroundColor: "rgba(20,20,28,0.96)",
+    borderRadius: 18,
+    padding: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    zIndex: 9999,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 14,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.1)",
+  },
+  emoji: { fontSize: 32 },
+  title: { color: "#fff", fontSize: 15, fontWeight: "700" },
+  desc: { color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 2 },
+});
+
+function fireAchievementNotif(a: Achievement) {
+  Notifications.scheduleNotificationAsync({
+    content: {
+      title: `${a.emoji} Succès débloqué !`,
+      body: `${a.title} — ${a.desc}`,
+    },
+    trigger: null,
+  }).catch(() => {});
 }
 
 /* ---- GalleryScreen ---- */
@@ -539,25 +754,35 @@ export default function GalleryScreen() {
   const [vibrateSwipe, setVibrateSwipe] = useState(true);
   const [sortOldest, setSortOldest] = useState(false);
   const [trashCount, setTrashCount] = useState(0);
-  const lastAction = useRef<{ item: MediaItem; direction: Exclude<SwipeDirection, null>; index: number } | null>(null);
-  const [showUndo, setShowUndo] = useState(false);
-  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+  const [darkAuto, setDarkAuto] = useState(false);
+  const [pendingAchievement, setPendingAchievement] = useState<Achievement | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
 
   // Load preferences
   useEffect(() => {
     (async () => {
       try {
-        const [dm, vb, so] = await Promise.all([
+        const [dm, vb, so, snd, dkAuto] = await Promise.all([
           AsyncStorage.getItem(DARK_MODE_KEY),
           AsyncStorage.getItem(VIBRATE_KEY),
           AsyncStorage.getItem(SORT_KEY),
+          AsyncStorage.getItem(SOUND_KEY),
+          AsyncStorage.getItem(AUTO_DARK_KEY),
         ]);
         if (dm !== null) setDarkMode(dm === "true");
         if (vb !== null) setVibrateSwipe(vb === "true");
         if (so !== null) setSortOldest(so === "oldest");
+        if (snd !== null) setSoundEnabled(snd !== "false");
+        if (dkAuto !== null) setDarkAuto(dkAuto === "true");
       } catch {}
     })();
   }, []);
+
+  // Auto dark mode — sync to system scheme when enabled
+  useEffect(() => {
+    if (darkAuto) setDarkMode(systemScheme === "dark");
+  }, [systemScheme, darkAuto]);
 
   // Audio mode — play sounds even when iOS silent switch is off, preload sounds
   useEffect(() => {
@@ -578,11 +803,31 @@ export default function GalleryScreen() {
           return;
         }
 
-        const trashRaw = await AsyncStorage.getItem(TRASH_KEY);
+        // Auto-empty trash if configured
+        const [trashRaw, autoTrashRaw] = await Promise.all([
+          AsyncStorage.getItem(TRASH_KEY),
+          AsyncStorage.getItem(AUTO_TRASH_DAYS_KEY),
+        ]);
+        const autoTrashDays = autoTrashRaw ? Number(autoTrashRaw) : 0;
+
         if (trashRaw) {
-          const trashArr = JSON.parse(trashRaw) as MediaItem[];
+          let trashArr = JSON.parse(trashRaw) as Array<MediaItem & { trashedAt?: number }>;
+
+          if (autoTrashDays > 0) {
+            const cutoff = Date.now() - autoTrashDays * 24 * 60 * 60 * 1000;
+            const toDelete = trashArr.filter((i) => i.trashedAt && i.trashedAt < cutoff);
+            if (toDelete.length > 0) {
+              try {
+                await MediaLibrary.deleteAssetsAsync(toDelete.map((i) => i.id));
+              } catch {}
+              trashArr = trashArr.filter((i) => !i.trashedAt || i.trashedAt >= cutoff);
+              await AsyncStorage.setItem(TRASH_KEY, JSON.stringify(trashArr));
+            }
+          }
+
           trashArr.forEach((t) => trashCache.current.add(t.id));
           setTrashCount(trashArr.length);
+          Notifications.setBadgeCountAsync(trashArr.length).catch(() => {});
         }
         const saved = await AsyncStorage.getItem(CARD_INDEX_KEY);
         if (saved) setCurrentIndex(Number(saved));
@@ -677,10 +922,12 @@ export default function GalleryScreen() {
   const addToTrash = useCallback(async (item: MediaItem) => {
     try {
       const raw = await AsyncStorage.getItem(TRASH_KEY);
-      const arr: MediaItem[] = raw ? JSON.parse(raw) : [];
-      const next = [item, ...arr].slice(0, 1000);
+      const arr: Array<MediaItem & { trashedAt?: number }> = raw ? JSON.parse(raw) : [];
+      const itemWithDate = { ...item, trashedAt: Date.now() };
+      const next = [itemWithDate, ...arr].slice(0, 1000);
       await AsyncStorage.setItem(TRASH_KEY, JSON.stringify(next));
       setTrashCount(next.length);
+      Notifications.setBadgeCountAsync(next.length).catch(() => {});
     } catch (err) {
       logger.error("addToTrash", err);
     }
@@ -724,22 +971,27 @@ export default function GalleryScreen() {
       if (!item) return;
 
       triggerHaptics(direction);
-      if (direction !== "bottom") {
+      if (soundEnabled && direction !== "bottom") {
         playSwipeSound(direction === "left" ? "delete" : direction === "right" ? "keep" : "star");
       }
+
+      const showAchievement = (a: Achievement | null) => {
+        if (!a) return;
+        setPendingAchievement(a);
+        fireAchievementNotif(a);
+      };
 
       if (direction === "left") {
         trashCache.current.add(item.id);
         addToTrash(item);
+        checkAndUnlock("first_trash").then(showAchievement);
       } else if (direction === "top") {
         addToFavorites(item);
+        checkAndUnlock("first_fav").then(showAchievement);
       }
 
-      // Save for undo
-      lastAction.current = { item, direction, index: currentIndex };
-      if (undoTimer.current) clearTimeout(undoTimer.current);
-      setShowUndo(true);
-      undoTimer.current = setTimeout(() => setShowUndo(false), 3000);
+      const newSwipeTotal = currentIndex + 1;
+      checkSwipeMilestones(newSwipeTotal).then(showAchievement);
 
       const newIndex = currentIndex + 1;
       setCurrentIndex(newIndex);
@@ -748,36 +1000,6 @@ export default function GalleryScreen() {
     },
     [currentIndex, assets, triggerHaptics, addToTrash, addToFavorites, persistIndex]
   );
-
-  const handleUndo = useCallback(async () => {
-    const action = lastAction.current;
-    if (!action) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    if (undoTimer.current) clearTimeout(undoTimer.current);
-    setShowUndo(false);
-    lastAction.current = null;
-
-    if (action.direction === "left") {
-      trashCache.current.delete(action.item.id);
-      try {
-        const raw = await AsyncStorage.getItem(TRASH_KEY);
-        const arr: MediaItem[] = raw ? JSON.parse(raw) : [];
-        const next = arr.filter((i) => i.id !== action.item.id);
-        await AsyncStorage.setItem(TRASH_KEY, JSON.stringify(next));
-        setTrashCount(next.length);
-      } catch {}
-    } else if (action.direction === "top") {
-      try {
-        const raw = await AsyncStorage.getItem(FAVORITES_KEY);
-        const arr: MediaItem[] = raw ? JSON.parse(raw) : [];
-        await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(arr.filter((i) => i.id !== action.item.id)));
-      } catch {}
-    }
-    const prevIndex = action.index;
-    setCurrentIndex(prevIndex);
-    persistIndex(prevIndex);
-    stackProgress.value = 0;
-  }, [persistIndex]);
 
   const resetGallery = useCallback(async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -809,12 +1031,14 @@ export default function GalleryScreen() {
           styles.container,
           { backgroundColor: darkMode ? "#121212" : "#F5F5F5" },
         ]}
+        onLayout={() => setShowConfetti(true)}
       >
+        <Confetti active={showConfetti} />
         <View style={styles.emptyContainer}>
           <Ionicons
             name="checkmark-circle"
             size={90}
-            color="rgba(255,255,255,0.45)"
+            color={darkMode ? "rgba(76,255,94,0.6)" : "rgba(76,200,94,0.5)"}
           />
           <Text
             style={[
@@ -823,6 +1047,9 @@ export default function GalleryScreen() {
             ]}
           >
             Tout est traité !
+          </Text>
+          <Text style={{ color: darkMode ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.4)", fontSize: 15, marginTop: 8, textAlign: "center" }}>
+            {trashCount > 0 ? `${trashCount} photo${trashCount > 1 ? "s" : ""} dans la corbeille` : "Aucune photo à supprimer"}
           </Text>
           <TouchableOpacity
             onPress={resetGallery}
@@ -846,6 +1073,14 @@ export default function GalleryScreen() {
       ]}
     >
       <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
+
+      {/* ACHIEVEMENT TOAST */}
+      {pendingAchievement && (
+        <AchievementToast
+          achievement={pendingAchievement}
+          onDone={() => setPendingAchievement(null)}
+        />
+      )}
 
       {/* HEADER */}
       <View style={styles.header}>
@@ -995,41 +1230,32 @@ export default function GalleryScreen() {
           </View>
         </View>
 
-        {/* UNDO PILL */}
-        {showUndo && (
-          <TouchableOpacity onPress={handleUndo} style={[styles.undoPill, { backgroundColor: darkMode ? "rgba(40,40,40,0.95)" : "rgba(255,255,255,0.95)" }]} activeOpacity={0.85}>
-            <Ionicons name="arrow-undo" size={15} color={darkMode ? "#fff" : "#000"} />
-            <Text style={[styles.undoText, { color: darkMode ? "#fff" : "#000" }]}>Annuler</Text>
-          </TouchableOpacity>
-        )}
-
         {/* ACTION BUTTONS */}
         <View style={styles.globalActions}>
-          <TouchableOpacity
+          <AnimatedActionBtn
             onPress={() => handleSwipe("left")}
-            activeOpacity={0.7}
-            style={[styles.actionBtn, styles.actionBtnDelete]}
-          >
-            <Ionicons name="close" size={BTN_ICON} color="#FF4458" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
+            btnStyle={[styles.actionBtn, styles.actionBtnDelete]}
+            iconName="close"
+            iconSize={BTN_ICON}
+            iconColor="#FF4458"
+          />
+          <AnimatedActionBtn
             onPress={() => handleSwipe("top")}
-            activeOpacity={0.7}
-            style={[styles.actionBtn, styles.actionBtnStar]}
-          >
-            <Ionicons name="star" size={BTN_ICON - 6} color="#00C9FF" />
-          </TouchableOpacity>
-
-          <TouchableOpacity
+            btnStyle={[styles.actionBtn, styles.actionBtnStar]}
+            iconName="star"
+            iconSize={BTN_ICON - 6}
+            iconColor="#00C9FF"
+          />
+          <AnimatedActionBtn
             onPress={() => handleSwipe("right")}
-            activeOpacity={0.7}
-            style={[styles.actionBtn, styles.actionBtnKeep]}
-          >
-            <Ionicons name="heart" size={BTN_ICON - 4} color="#4CFF5E" />
-          </TouchableOpacity>
+            btnStyle={[styles.actionBtn, styles.actionBtnKeep]}
+            iconName="heart"
+            iconSize={BTN_ICON - 4}
+            iconColor="#4CFF5E"
+          />
         </View>
       </Animated.View>
+
     </SafeAreaView>
   );
 }
@@ -1314,23 +1540,4 @@ const styles = StyleSheet.create({
     fontWeight: "800",
   },
 
-  undoPill: {
-    alignSelf: "center",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    marginBottom: 6,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  undoText: {
-    fontSize: 13,
-    fontWeight: "600",
-  },
 });
