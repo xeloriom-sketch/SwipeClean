@@ -282,22 +282,31 @@ body.js .rv.in{opacity:1;transform:none;}
 .d1{transition-delay:.08s}.d2{transition-delay:.18s}.d3{transition-delay:.28s}.d4{transition-delay:.4s}
 @media(prefers-reduced-motion:reduce){body.js .rv{opacity:1;transform:none;transition:none;}}
 
-/* S2 — Trois gestes (List2 style) */
-.s2{background:#F9F9F9;color:#1D1D1F;padding:120px 24px;}
-.s2-w{max-width:1100px;margin:0 auto;padding:0 8px;}
+/* ─── HERO SCROLL INDICATOR ─── */
+.hero-scroll{position:absolute;bottom:34px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(29,29,31,.25);z-index:15;opacity:0;}
+.hero-scroll-line{width:1px;height:44px;background:linear-gradient(180deg,rgba(29,29,31,.25) 0%,transparent 100%);animation:sline 1.8s ease-in-out infinite;}
+@keyframes sline{0%{transform:scaleY(0);transform-origin:top;}50%{transform:scaleY(1);transform-origin:top;}51%{transform:scaleY(1);transform-origin:bottom;}100%{transform:scaleY(0);transform-origin:bottom;}}
+
+/* S2 — Trois gestes (numbered editorial) */
+.s2{background:#fff;color:#1D1D1F;padding:120px 24px;}
+.s2-w{max-width:1100px;margin:0 auto;}
 .s2-hl{font-size:clamp(30px,4vw,54px);font-weight:600;letter-spacing:-.03em;line-height:1.06;color:#1D1D1F;margin-bottom:52px;text-wrap:balance;}
 .s2-hl em{font-style:normal;color:#000;}
 .glist{display:flex;flex-direction:column;}
 .gsep{height:1px;background:#E5E5EA;}
-.grow{display:grid;grid-template-columns:220px 1fr auto;align-items:center;gap:32px;padding:28px 0;}
+.grow{display:grid;grid-template-columns:60px 210px 1fr auto;align-items:center;gap:28px;padding:26px 12px;border-radius:14px;cursor:default;transition:background .2s;}
+.grow:hover{background:rgba(29,29,31,.03);}
+.grow-num{font-size:clamp(22px,2.8vw,36px);font-weight:800;letter-spacing:-.05em;color:rgba(29,29,31,.1);line-height:1;transition:color .22s;font-variant-numeric:tabular-nums;}
+.grow:hover .grow-num{color:rgba(29,29,31,.75);}
 .grow-icon-col{display:flex;align-items:center;gap:14px;}
-.gicon{width:56px;height:56px;border-radius:12px;background:#EBEBEB;border:1px solid #D8D8D8;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.gicon{width:52px;height:52px;border-radius:12px;background:#F2F2F2;border:1px solid #E0E0E0;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s,transform .2s;}
+.grow:hover .gicon{background:#E8E8E8;transform:scale(1.06);}
 .gicon-t{font-size:15px;font-weight:700;color:#1D1D1F;margin-bottom:3px;}
 .gicon-cat{font-size:12px;color:#86868B;font-weight:500;}
-.grow-desc{font-size:clamp(15px,1.6vw,19px);font-weight:600;color:#1D1D1F;line-height:1.4;}
+.grow-desc{font-size:clamp(15px,1.5vw,18px);font-weight:600;color:#1D1D1F;line-height:1.45;}
 .grow-btn{display:inline-flex;align-items:center;gap:7px;padding:10px 22px;border:1px solid #C8C8C8;border-radius:100px;font-size:13px;font-weight:600;color:#1D1D1F;white-space:nowrap;transition:all .25s;text-decoration:none;}
-.grow-btn:hover{background:#1D1D1F;color:#fff;border-color:#1D1D1F;}
-@media(max-width:720px){.grow{grid-template-columns:1fr;gap:14px;padding:20px 0;}.grow-btn{width:fit-content;}}
+.grow:hover .grow-btn{background:#1D1D1F;color:#fff;border-color:#1D1D1F;}
+@media(max-width:800px){.grow{grid-template-columns:40px 1fr;gap:12px;padding:20px 8px;}.grow-desc,.grow-btn{display:none;}}
 
 /* S3 — Explication (AboutSection3 style) */
 .s3{padding:100px 24px;background:#fff;}
@@ -350,27 +359,28 @@ body.js .rv.in{opacity:1;transform:none;}
 .feat-item p{font-size:12px;color:#86868B;line-height:1.5;}
 
 /* Stats */
-.stats{background:#fff;border-top:1px solid #E5E5EA;border-bottom:1px solid #E5E5EA;padding:0 24px 80px;}
-.stats-inner{max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:2px;}
-.stat-box{padding:40px 32px;background:#FAFAFA;border:1px solid #EBEBEB;}
-.stat-box:first-child{border-radius:20px 0 0 20px;}
-.stat-box:last-child{border-radius:0 20px 20px 0;}
-.stat-n{font-size:clamp(34px,4.5vw,56px);font-weight:600;letter-spacing:-.04em;color:#1D1D1F;line-height:1;}
-.stat-n em{font-style:normal;color:#000;}
-.stat-l{font-size:13px;color:#86868B;margin-top:8px;font-weight:500;}
+.stats{background:#fff;border-top:1px solid #E5E5EA;border-bottom:1px solid #E5E5EA;padding:80px 24px;}
+.stats-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);}
+.stat-box{padding:40px 48px;background:transparent;border:none;border-right:1px solid #E5E5EA;}
+.stat-box:last-child{border-right:none;}
+.stat-n{font-size:clamp(48px,6vw,80px);font-weight:700;letter-spacing:-.055em;color:#1D1D1F;line-height:1;}
+.stat-n em{font-style:normal;color:#1D1D1F;}
+.stat-l{font-size:11px;color:#86868B;margin-top:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
 
 /* Reviews */
-.s5{padding:140px 0;background:#FBFBFD;overflow:hidden;}
+.s5{padding:120px 0;background:#FBFBFD;overflow:hidden;}
 .s5-h{max-width:1100px;margin:0 auto 56px;padding:0 24px;}
 .s5-hl{font-size:clamp(32px,3.8vw,50px);font-weight:600;letter-spacing:-.028em;line-height:1.07;}
 .s5-sub{font-size:17px;color:#6E6E73;margin-top:12px;}
-.ts-track{display:flex;width:max-content;animation:mqa 68s linear infinite;}
+.ts-track{display:flex;width:max-content;animation:mqa 72s linear infinite;}
 .ts-track:hover{animation-play-state:paused;}
-.tc{width:300px;flex-shrink:0;background:#fff;border-radius:20px;padding:22px;margin-right:12px;box-shadow:0 2px 16px rgba(29,29,31,.07);}
-.tc-stars{font-size:12px;letter-spacing:1px;color:#1D1D1F;margin-bottom:10px;}
-.tc-txt{font-size:13.5px;line-height:1.7;color:#6E6E73;}
-.tc-foot{display:flex;align-items:center;gap:10px;margin-top:16px;}
-.tc-av{width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0;}
+.tc{width:320px;flex-shrink:0;background:#fff;border-radius:22px;padding:26px 26px 22px;margin-right:14px;box-shadow:0 1px 0 rgba(29,29,31,.06),0 4px 24px rgba(29,29,31,.06);border:1px solid rgba(29,29,31,.05);transition:transform .3s,box-shadow .3s;}
+.tc:hover{transform:translateY(-4px);box-shadow:0 1px 0 rgba(29,29,31,.06),0 12px 40px rgba(29,29,31,.1);}
+.tc::before{content:'\201C';font-size:52px;line-height:.7;font-weight:800;color:rgba(29,29,31,.07);display:block;margin-bottom:10px;letter-spacing:-.02em;}
+.tc-stars{font-size:11px;letter-spacing:2px;color:#1D1D1F;margin-bottom:10px;}
+.tc-txt{font-size:14px;line-height:1.75;color:#6E6E73;}
+.tc-foot{display:flex;align-items:center;gap:10px;margin-top:18px;padding-top:16px;border-top:1px solid #F0F0F0;}
+.tc-av{width:38px;height:38px;border-radius:50%;overflow:hidden;flex-shrink:0;}
 .tc-av img{width:100%;height:100%;object-fit:cover;display:block;}
 .tc-name{font-size:13px;font-weight:700;color:#1D1D1F;}
 .tc-sub{font-size:10.5px;color:#86868B;}
@@ -379,6 +389,7 @@ body.js .rv.in{opacity:1;transform:none;}
 .s6{padding:140px 24px;background:#F5F5F7;}
 .s6-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:16px;}
 .s6-dk{background:linear-gradient(160deg,#0A0A0A,#1A1A1A);border-radius:28px;padding:48px;min-height:520px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;}
+.s6-dk::after{content:'SW';position:absolute;bottom:-40px;right:-16px;font-size:260px;font-weight:900;letter-spacing:-.08em;color:rgba(255,255,255,.025);pointer-events:none;z-index:0;line-height:1;user-select:none;}
 .s6-aura{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 30% 20%,rgba(255,255,255,.04),transparent 55%),radial-gradient(ellipse at 80% 80%,rgba(255,255,255,.02),transparent 45%);}
 .s6-topimg{position:absolute;top:0;inset-x:0;height:50%;overflow:hidden;}
 .s6-topimg img{width:100%;height:100%;object-fit:cover;opacity:.38;filter:saturate(.5);}
@@ -590,6 +601,13 @@ body.js .rv.in{opacity:1;transform:none;}
 
     </div>
   </div>
+
+  <!-- Scroll indicator -->
+  <div class="hero-scroll" id="heroScroll">
+    <span>Scroll</span>
+    <div class="hero-scroll-line"></div>
+  </div>
+
 </section>
 
 <!-- BELOW FOLD -->
@@ -605,6 +623,7 @@ body.js .rv.in{opacity:1;transform:none;}
     <div class="glist">
       <div class="gsep"></div>
       <div class="grow rv d1">
+        <span class="grow-num">01</span>
         <div class="grow-icon-col">
           <div class="gicon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="#1D1D1F" stroke-width="2.5" stroke-linecap="round"/></svg></div>
           <div><h3 class="gicon-t">Supprimer</h3><p class="gicon-cat">Swipe gauche</p></div>
@@ -614,6 +633,7 @@ body.js .rv.in{opacity:1;transform:none;}
       </div>
       <div class="gsep"></div>
       <div class="grow rv d2">
+        <span class="grow-num">02</span>
         <div class="grow-icon-col">
           <div class="gicon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="#1D1D1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           <div><h3 class="gicon-t">Garder</h3><p class="gicon-cat">Swipe droite</p></div>
@@ -623,6 +643,7 @@ body.js .rv.in{opacity:1;transform:none;}
       </div>
       <div class="gsep"></div>
       <div class="grow rv d3">
+        <span class="grow-num">03</span>
         <div class="grow-icon-col">
           <div class="gicon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="#1D1D1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           <div><h3 class="gicon-t">Favoris</h3><p class="gicon-cat">Swipe haut</p></div>
@@ -875,6 +896,10 @@ if(typeof gsap!=='undefined'&&typeof ScrollTrigger!=='undefined'){
   gsap.fromTo('#cinHeroBtns',
     {opacity:0,y:36,filter:'blur(14px)'},
     {opacity:1,y:0,filter:'blur(0px)',duration:1.4,ease:'expo.out',delay:2.1}
+  );
+  gsap.fromTo('#heroScroll',
+    {opacity:0,y:10},
+    {opacity:1,y:0,duration:1.2,ease:'power2.out',delay:3.2}
   );
 
   /* Scroll-pinned timeline */
