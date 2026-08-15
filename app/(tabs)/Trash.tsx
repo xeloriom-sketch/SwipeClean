@@ -8,6 +8,7 @@ import {
   StatusBar,
   Dimensions,
   Platform,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -143,15 +144,28 @@ export default function TrashScreen() {
     await persist(items.filter(i => !selectedIds[i.id]));
   };
 
-  const deleteSelected = async () => {
+  const deleteSelected = () => {
     const ids = items.filter(i => selectedIds[i.id]).map(i => i.id);
     if (!ids.length) return;
 
-    try {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-      await MediaLibrary.deleteAssetsAsync(ids);
-      await persist(items.filter(i => !selectedIds[i.id]));
-    } catch {}
+    Alert.alert(
+      "Supprimer définitivement ?",
+      `${ids.length} photo${ids.length > 1 ? "s" : ""} seront supprimée${ids.length > 1 ? "s" : ""} définitivement. Cette action est irréversible.`,
+      [
+        { text: "Annuler", style: "cancel" },
+        {
+          text: "Supprimer",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+              await MediaLibrary.deleteAssetsAsync(ids);
+              await persist(items.filter(i => !selectedIds[i.id]));
+            } catch {}
+          },
+        },
+      ]
+    );
   };
 
   return (
@@ -191,7 +205,6 @@ export default function TrashScreen() {
           data={items}
           numColumns={COLUMNS}
           keyExtractor={(i) => i.id}
-          estimatedItemSize={CARD_SIZE}
           renderItem={({ item }) => (
             <TrashItem
               item={item}

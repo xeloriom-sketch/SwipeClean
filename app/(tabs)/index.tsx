@@ -69,6 +69,8 @@ const FAVORITES_KEY = "@app_favorites";
 const CARD_INDEX_KEY = "@gallery_last_index_v2";
 const DARK_MODE_KEY = "@app_dark_mode";
 const VIBRATE_KEY = "@app_vibrate_swipe";
+const ONBOARDED_KEY = "@app_onboarded";
+const SORT_KEY = "@app_sort_order";
 const BATCH_SIZE = 40;
 const PRELOAD_THRESHOLD = 5;
 const SPLASH_MIN_MS = 0;
@@ -93,9 +95,10 @@ type MediaItem = {
   width?: number;
   height?: number;
   duration?: number;
+  fileSize?: number;
 };
 
-type SwipeDirection = "left" | "right" | "top" | null;
+type SwipeDirection = "left" | "right" | "top" | "bottom" | null;
 
 /* ---- SVG Icons ---- */
 const ReloadMenuIcon = ({ size = 40, darkMode }: { size?: number; darkMode: boolean }) => (
@@ -224,6 +227,10 @@ const MediaCard = React.memo(function MediaCard({
     );
   }
 
+  const dateStr = new Date(item.createdAt).toLocaleDateString("fr-FR", { day: "2-digit", month: "short", year: "numeric" });
+  const dimsStr = item.width && item.height ? `${item.width}×${item.height}` : "";
+  const sizeStr = item.fileSize ? `${(item.fileSize / 1_048_576).toFixed(1)} Mo` : "";
+
   return (
     <View style={styles.card}>
       <Image
@@ -234,6 +241,16 @@ const MediaCard = React.memo(function MediaCard({
         cachePolicy="memory"
         priority="high"
       />
+      <LinearGradient
+        colors={["transparent", "rgba(0,0,0,0.55)"]}
+        style={styles.photoInfoGradient}
+        pointerEvents="none"
+      >
+        <Text style={styles.photoInfoDate}>{dateStr}</Text>
+        <Text style={styles.photoInfoSub}>
+          {[dimsStr, sizeStr].filter(Boolean).join("  ·  ")}
+        </Text>
+      </LinearGradient>
     </View>
   );
 });
@@ -344,6 +361,24 @@ const SwipeableCard = ({
     return { opacity: 0 };
   });
 
+  const bottomOverlayStyle = useAnimatedStyle(() => {
+    if (!isTop) return { opacity: 0 };
+    if (
+      translateY.value > SWIPE_THRESHOLD_Y * 0.3 &&
+      Math.abs(translateX.value) < SWIPE_THRESHOLD_X * 0.5
+    ) {
+      return {
+        opacity: interpolate(
+          translateY.value,
+          [0, SWIPE_THRESHOLD_Y * 0.3, SCREEN_HEIGHT],
+          [0, 0.7, 1],
+          Extrapolate.CLAMP
+        ),
+      };
+    }
+    return { opacity: 0 };
+  });
+
   const panGesture = Gesture.Pan()
     .enabled(isTop)
     .onUpdate((e) => {
@@ -358,6 +393,11 @@ const SwipeableCard = ({
         Math.abs(e.translationX) < SWIPE_THRESHOLD_X
       ) {
         swipeDir.value = "top";
+      } else if (
+        e.translationY > SWIPE_THRESHOLD_Y &&
+        Math.abs(e.translationX) < SWIPE_THRESHOLD_X
+      ) {
+        swipeDir.value = "bottom";
       } else if (e.translationX < -SWIPE_THRESHOLD_X) {
         swipeDir.value = "left";
       } else if (e.translationX > SWIPE_THRESHOLD_X) {
@@ -381,6 +421,11 @@ const SwipeableCard = ({
         stackProgress.value = withTiming(1, { duration: 320 });
         translateY.value = withTiming(-SCREEN_HEIGHT * 1.5, { duration: 320 }, (done) => {
           if (done) runOnJS(onSwipe)("top");
+        });
+      } else if (swipeDir.value === "bottom") {
+        stackProgress.value = withTiming(1, { duration: 280 });
+        translateY.value = withTiming(SCREEN_HEIGHT * 1.5, { duration: 280 }, (done) => {
+          if (done) runOnJS(onSwipe)("bottom");
         });
       } else {
         translateX.value = withSpring(0, { damping: 18, stiffness: 260 });
@@ -428,13 +473,16 @@ const SwipeableCard = ({
               style={[styles.overlayCenter, topOverlayStyle]}
               pointerEvents="none"
             >
-              <View
-                style={[
-                  styles.overlayCircle,
-                  { backgroundColor: "rgba(0, 180, 230, 0.92)" },
-                ]}
-              >
+              <View style={[styles.overlayCircle, { backgroundColor: "rgba(0, 180, 230, 0.92)" }]}>
                 <Ionicons name="star" size={60} color="#FFF" />
+              </View>
+            </Animated.View>
+            <Animated.View
+              style={[styles.overlayCenter, bottomOverlayStyle]}
+              pointerEvents="none"
+            >
+              <View style={[styles.overlayCircle, { backgroundColor: "rgba(110, 110, 120, 0.92)" }]}>
+                <Ionicons name="play-skip-forward" size={52} color="#FFF" />
               </View>
             </Animated.View>
           </>
@@ -489,17 +537,24 @@ export default function GalleryScreen() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(systemScheme === "dark");
   const [vibrateSwipe, setVibrateSwipe] = useState(true);
+  const [sortOldest, setSortOldest] = useState(false);
+  const [trashCount, setTrashCount] = useState(0);
+  const lastAction = useRef<{ item: MediaItem; direction: Exclude<SwipeDirection, null>; index: number } | null>(null);
+  const [showUndo, setShowUndo] = useState(false);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Load preferences
   useEffect(() => {
     (async () => {
       try {
-        const [dm, vb] = await Promise.all([
+        const [dm, vb, so] = await Promise.all([
           AsyncStorage.getItem(DARK_MODE_KEY),
           AsyncStorage.getItem(VIBRATE_KEY),
+          AsyncStorage.getItem(SORT_KEY),
         ]);
         if (dm !== null) setDarkMode(dm === "true");
         if (vb !== null) setVibrateSwipe(vb === "true");
+        if (so !== null) setSortOldest(so === "oldest");
       } catch {}
     })();
   }, []);
@@ -516,11 +571,18 @@ export default function GalleryScreen() {
     const t0 = Date.now();
     (async () => {
       try {
+        // First launch → onboarding
+        const onboarded = await AsyncStorage.getItem(ONBOARDED_KEY);
+        if (!onboarded) {
+          router.replace("/Onboarding");
+          return;
+        }
+
         const trashRaw = await AsyncStorage.getItem(TRASH_KEY);
         if (trashRaw) {
-          (JSON.parse(trashRaw) as MediaItem[]).forEach((t) =>
-            trashCache.current.add(t.id)
-          );
+          const trashArr = JSON.parse(trashRaw) as MediaItem[];
+          trashArr.forEach((t) => trashCache.current.add(t.id));
+          setTrashCount(trashArr.length);
         }
         const saved = await AsyncStorage.getItem(CARD_INDEX_KEY);
         if (saved) setCurrentIndex(Number(saved));
@@ -551,7 +613,7 @@ export default function GalleryScreen() {
           mediaType: ["photo", "video"],
           first: BATCH_SIZE,
           after: cursor,
-          sortBy: [["creationTime", false]],
+          sortBy: [["creationTime", !sortOldest]],
         });
 
         const items: MediaItem[] = [];
@@ -572,6 +634,7 @@ export default function GalleryScreen() {
                 width: asset.width,
                 height: asset.height,
                 duration: asset.duration,
+                fileSize: (info as any).fileSize,
               } as MediaItem;
             } catch {
               return null;
@@ -596,7 +659,7 @@ export default function GalleryScreen() {
         isFetching.current = false;
       }
     },
-    [cursor, hasMore]
+    [cursor, hasMore, sortOldest]
   );
 
   useEffect(() => {
@@ -615,10 +678,9 @@ export default function GalleryScreen() {
     try {
       const raw = await AsyncStorage.getItem(TRASH_KEY);
       const arr: MediaItem[] = raw ? JSON.parse(raw) : [];
-      await AsyncStorage.setItem(
-        TRASH_KEY,
-        JSON.stringify([item, ...arr].slice(0, 1000))
-      );
+      const next = [item, ...arr].slice(0, 1000);
+      await AsyncStorage.setItem(TRASH_KEY, JSON.stringify(next));
+      setTrashCount(next.length);
     } catch (err) {
       logger.error("addToTrash", err);
     }
@@ -649,6 +711,8 @@ export default function GalleryScreen() {
         setTimeout(() => Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light), 90);
       } else if (direction === "top") {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else if (direction === "bottom") {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       }
     },
     [vibrateSwipe]
@@ -660,7 +724,9 @@ export default function GalleryScreen() {
       if (!item) return;
 
       triggerHaptics(direction);
-      playSwipeSound(direction === "left" ? "delete" : direction === "right" ? "keep" : "star");
+      if (direction !== "bottom") {
+        playSwipeSound(direction === "left" ? "delete" : direction === "right" ? "keep" : "star");
+      }
 
       if (direction === "left") {
         trashCache.current.add(item.id);
@@ -669,14 +735,49 @@ export default function GalleryScreen() {
         addToFavorites(item);
       }
 
+      // Save for undo
+      lastAction.current = { item, direction, index: currentIndex };
+      if (undoTimer.current) clearTimeout(undoTimer.current);
+      setShowUndo(true);
+      undoTimer.current = setTimeout(() => setShowUndo(false), 3000);
+
       const newIndex = currentIndex + 1;
       setCurrentIndex(newIndex);
       persistIndex(newIndex);
-      // Reset stackProgress only after React has finished re-rendering the new card
       InteractionManager.runAfterInteractions(() => { stackProgress.value = 0; });
     },
     [currentIndex, assets, triggerHaptics, addToTrash, addToFavorites, persistIndex]
   );
+
+  const handleUndo = useCallback(async () => {
+    const action = lastAction.current;
+    if (!action) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    setShowUndo(false);
+    lastAction.current = null;
+
+    if (action.direction === "left") {
+      trashCache.current.delete(action.item.id);
+      try {
+        const raw = await AsyncStorage.getItem(TRASH_KEY);
+        const arr: MediaItem[] = raw ? JSON.parse(raw) : [];
+        const next = arr.filter((i) => i.id !== action.item.id);
+        await AsyncStorage.setItem(TRASH_KEY, JSON.stringify(next));
+        setTrashCount(next.length);
+      } catch {}
+    } else if (action.direction === "top") {
+      try {
+        const raw = await AsyncStorage.getItem(FAVORITES_KEY);
+        const arr: MediaItem[] = raw ? JSON.parse(raw) : [];
+        await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(arr.filter((i) => i.id !== action.item.id)));
+      } catch {}
+    }
+    const prevIndex = action.index;
+    setCurrentIndex(prevIndex);
+    persistIndex(prevIndex);
+    stackProgress.value = 0;
+  }, [persistIndex]);
 
   const resetGallery = useCallback(async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -778,7 +879,16 @@ export default function GalleryScreen() {
             style={styles.headerBtn}
             onPress={() => router.push("/Trash")}
           >
-            <TrashXIcon size={34} darkMode={darkMode} />
+            <View>
+              <TrashXIcon size={34} darkMode={darkMode} />
+              {trashCount > 0 && (
+                <View style={styles.trashBadge}>
+                  <Text style={styles.trashBadgeText}>
+                    {trashCount > 99 ? "99+" : trashCount}
+                  </Text>
+                </View>
+              )}
+            </View>
           </TouchableOpacity>
         </View>
       </View>
@@ -820,6 +930,23 @@ export default function GalleryScreen() {
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
+                router.push("/Stats");
+                setMenuOpen(false);
+              }}
+            >
+              <Ionicons
+                name="bar-chart-outline"
+                size={20}
+                color={darkMode ? "#E0E0E0" : "#000"}
+              />
+              <Text style={[styles.menuText, { color: darkMode ? "#E0E0E0" : "#000" }]}>
+                Statistiques
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
                 router.push("/Settings");
                 setMenuOpen(false);
               }}
@@ -844,8 +971,18 @@ export default function GalleryScreen() {
 
       {/* MAIN */}
       <Animated.View style={[styles.innerContainer, mainAnimatedStyle]}>
-        {/* Spacer — progress row removed */}
-        <View style={{ height: 8 }} />
+        {/* Progress row */}
+        <View style={styles.progressRow}>
+          <View style={[styles.progressTrack, { backgroundColor: darkMode ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)" }]}>
+            <View style={[styles.progressFill, {
+              width: assets.length > 0 ? `${Math.min(100, (currentIndex / assets.length) * 100)}%` as any : "0%",
+              backgroundColor: darkMode ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.35)",
+            }]} />
+          </View>
+          <Text style={[styles.progressCountText, { color: darkMode ? "rgba(255,255,255,0.38)" : "rgba(0,0,0,0.3)" }]}>
+            {currentIndex}/{assets.length}{hasMore ? "+" : ""}
+          </Text>
+        </View>
 
         {/* Card stack */}
         <View style={styles.swiperContainer}>
@@ -870,6 +1007,14 @@ export default function GalleryScreen() {
             )}
           </View>
         </View>
+
+        {/* UNDO PILL */}
+        {showUndo && (
+          <TouchableOpacity onPress={handleUndo} style={[styles.undoPill, { backgroundColor: darkMode ? "rgba(40,40,40,0.95)" : "rgba(255,255,255,0.95)" }]} activeOpacity={0.85}>
+            <Ionicons name="arrow-undo" size={15} color={darkMode ? "#fff" : "#000"} />
+            <Text style={[styles.undoText, { color: darkMode ? "#fff" : "#000" }]}>Annuler</Text>
+          </TouchableOpacity>
+        )}
 
         {/* ACTION BUTTONS */}
         <View style={styles.globalActions}>
@@ -935,15 +1080,6 @@ const styles = StyleSheet.create({
   },
   headerBtn: { padding: 4 },
 
-  progressRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 4,
-    marginBottom: 6,
-    height: 22,
-  },
-  progressText: { fontSize: 13, fontWeight: "500" },
   typeBadge: {
     flexDirection: "row",
     alignItems: "center",
@@ -1124,5 +1260,90 @@ const styles = StyleSheet.create({
     bottom: 50,
     width: "100%",
     alignItems: "center",
+  },
+
+  progressRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 4,
+    marginBottom: 6,
+    height: 22,
+  },
+  progressTrack: {
+    flex: 1,
+    height: 3,
+    borderRadius: 2,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: "100%",
+    borderRadius: 2,
+  },
+  progressCountText: {
+    fontSize: 11,
+    fontWeight: "600",
+    letterSpacing: 0.3,
+    minWidth: 54,
+    textAlign: "right",
+  },
+
+  photoInfoGradient: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+    paddingTop: 40,
+  },
+  photoInfoDate: {
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: "600",
+    letterSpacing: 0.1,
+  },
+  photoInfoSub: {
+    color: "rgba(255,255,255,0.65)",
+    fontSize: 11,
+    marginTop: 2,
+  },
+
+  trashBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: "#FF4458",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 3,
+  },
+  trashBadgeText: {
+    color: "#fff",
+    fontSize: 9,
+    fontWeight: "800",
+  },
+
+  undoPill: {
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    marginBottom: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  undoText: {
+    fontSize: 13,
+    fontWeight: "600",
   },
 });

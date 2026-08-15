@@ -17,9 +17,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
+import { isNotificationsEnabled, setNotificationsEnabled } from "../../utils/notifications";
 
 const DARK_MODE_KEY = "@app_dark_mode";
 const VIBRATE_KEY = "@app_vibrate_swipe";
+export const SORT_KEY = "@app_sort_order"; // "newest" | "oldest"
 
 const { width, height } = Dimensions.get("window");
 
@@ -37,14 +39,21 @@ if (
 export default function SettingsScreen() {
   const [darkMode, setDarkMode] = useState(false);
   const [vibrateSwipe, setVibrateSwipe] = useState(true);
+  const [notifications, setNotifications] = useState(true);
+  const [sortOldest, setSortOldest] = useState(false);
   const [showAbout, setShowAbout] = useState(false);
 
   useEffect(() => {
     (async () => {
-      const dm = await AsyncStorage.getItem(DARK_MODE_KEY);
-      const vs = await AsyncStorage.getItem(VIBRATE_KEY);
+      const [dm, vs, so] = await Promise.all([
+        AsyncStorage.getItem(DARK_MODE_KEY),
+        AsyncStorage.getItem(VIBRATE_KEY),
+        AsyncStorage.getItem(SORT_KEY),
+      ]);
       if (dm !== null) setDarkMode(dm === "true");
       if (vs !== null) setVibrateSwipe(vs === "true");
+      if (so !== null) setSortOldest(so === "oldest");
+      setNotifications(await isNotificationsEnabled());
     })();
   }, []);
 
@@ -58,6 +67,18 @@ export default function SettingsScreen() {
     const newVal = !vibrateSwipe;
     setVibrateSwipe(newVal);
     await AsyncStorage.setItem(VIBRATE_KEY, newVal.toString());
+  };
+
+  const toggleNotifications = async () => {
+    const newVal = !notifications;
+    setNotifications(newVal);
+    await setNotificationsEnabled(newVal);
+  };
+
+  const toggleSortOrder = async () => {
+    const newVal = !sortOldest;
+    setSortOldest(newVal);
+    await AsyncStorage.setItem(SORT_KEY, newVal ? "oldest" : "newest");
   };
 
   const toggleAbout = () => {
@@ -106,6 +127,32 @@ export default function SettingsScreen() {
             Vibration swipe
           </Text>
           <Switch value={vibrateSwipe} onValueChange={toggleVibrate} />
+        </View>
+
+        {/* Notifications */}
+        <View style={styles.optionRow}>
+          <View>
+            <Text style={[styles.optionText, darkMode && styles.darkText]}>
+              Notifications
+            </Text>
+            <Text style={[styles.optionSub, darkMode && { color: "rgba(255,255,255,0.4)" }]}>
+              Rappel quotidien à 10h
+            </Text>
+          </View>
+          <Switch value={notifications} onValueChange={toggleNotifications} />
+        </View>
+
+        {/* Tri */}
+        <View style={styles.optionRow}>
+          <View>
+            <Text style={[styles.optionText, darkMode && styles.darkText]}>
+              Trier par anciennes d'abord
+            </Text>
+            <Text style={[styles.optionSub, darkMode && { color: "rgba(255,255,255,0.4)" }]}>
+              Par défaut : les plus récentes
+            </Text>
+          </View>
+          <Switch value={sortOldest} onValueChange={toggleSortOrder} />
         </View>
 
         {/* About */}
@@ -188,6 +235,11 @@ const styles = StyleSheet.create({
   optionText: {
     fontSize: wp(4.2),
     fontWeight: "500",
+  },
+  optionSub: {
+    fontSize: wp(3.2),
+    color: "rgba(0,0,0,0.4)",
+    marginTop: 2,
   },
 
   aboutContainer: {
