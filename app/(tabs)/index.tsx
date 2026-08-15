@@ -11,7 +11,6 @@ import {
   StatusBar,
   Pressable,
   useColorScheme,
-  InteractionManager,
 } from "react-native";
 import { router } from "expo-router";
 import * as MediaLibrary from "expo-media-library";
@@ -298,25 +297,29 @@ const SwipeableCard = ({
   const imagePanY = useSharedValue(0);
   const isZoomedIn = useSharedValue(false);
   const savedScale = useSharedValue(1);
+  const mountProgress = useSharedValue(isTop ? 1 : 0);
+
+  useEffect(() => {
+    if (!isTop) {
+      mountProgress.value = withSpring(1, { damping: 14, stiffness: 55 });
+    }
+  }, []);
 
   const SWIPE_THRESHOLD_X = SCREEN_WIDTH * 0.25;
   const SWIPE_THRESHOLD_Y = SCREEN_HEIGHT * 0.15;
 
   const cardStyle = useAnimatedStyle(() => {
     if (!isTop) {
-      const s = interpolate(
-        stackProgress.value,
-        [0, 1],
-        [0.95, 1.0],
-        Extrapolate.CLAMP
-      );
-      const op = interpolate(
-        stackProgress.value,
-        [0, 1],
-        [0.75, 1.0],
-        Extrapolate.CLAMP
-      );
-      return { transform: [{ scale: s }], opacity: op, zIndex: 5 };
+      const s = interpolate(stackProgress.value, [0, 1], [0.95, 1.0], Extrapolate.CLAMP);
+      const mp = mountProgress.value;
+      return {
+        transform: [
+          { translateY: 30 * (1 - mp) },
+          { scale: s * (0.87 + 0.13 * mp) },
+        ],
+        opacity: mp * 0.82,
+        zIndex: 5,
+      };
     }
     const rotate = interpolate(
       translateX.value,
@@ -466,22 +469,34 @@ const SwipeableCard = ({
       if (swipeDir.value === "left") {
         stackProgress.value = withTiming(1, { duration: 320 });
         translateX.value = withTiming(-SCREEN_WIDTH * 1.5, { duration: 320 }, (done) => {
-          if (done) runOnJS(onSwipe)("left");
+          if (done) {
+            runOnJS(onSwipe)("left");
+            stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
+          }
         });
       } else if (swipeDir.value === "right") {
         stackProgress.value = withTiming(1, { duration: 320 });
         translateX.value = withTiming(SCREEN_WIDTH * 1.5, { duration: 320 }, (done) => {
-          if (done) runOnJS(onSwipe)("right");
+          if (done) {
+            runOnJS(onSwipe)("right");
+            stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
+          }
         });
       } else if (swipeDir.value === "top") {
         stackProgress.value = withTiming(1, { duration: 320 });
         translateY.value = withTiming(-SCREEN_HEIGHT * 1.5, { duration: 320 }, (done) => {
-          if (done) runOnJS(onSwipe)("top");
+          if (done) {
+            runOnJS(onSwipe)("top");
+            stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
+          }
         });
       } else if (swipeDir.value === "bottom") {
         stackProgress.value = withTiming(1, { duration: 280 });
         translateY.value = withTiming(SCREEN_HEIGHT * 1.5, { duration: 280 }, (done) => {
-          if (done) runOnJS(onSwipe)("bottom");
+          if (done) {
+            runOnJS(onSwipe)("bottom");
+            stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
+          }
         });
       } else {
         translateX.value = withSpring(0, { damping: 18, stiffness: 260 });
@@ -745,6 +760,7 @@ export default function GalleryScreen() {
   const isFetching = useRef(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const trashCache = useRef<Set<string>>(new Set());
+  const fetchedIds = useRef<Set<string>>(new Set());
   const containerOpacity = useSharedValue(0);
   const containerScale = useSharedValue(0.98);
   const stackProgress = useSharedValue(0);
@@ -864,7 +880,8 @@ export default function GalleryScreen() {
         const items: MediaItem[] = [];
         await Promise.allSettled(
           res.assets.map(async (asset) => {
-            if (trashCache.current.has(asset.id)) return null;
+            if (trashCache.current.has(asset.id) || fetchedIds.current.has(asset.id)) return null;
+            fetchedIds.current.add(asset.id);
             try {
               const info = await MediaLibrary.getAssetInfoAsync(asset.id);
               const uri =
@@ -996,7 +1013,6 @@ export default function GalleryScreen() {
       const newIndex = currentIndex + 1;
       setCurrentIndex(newIndex);
       persistIndex(newIndex);
-      InteractionManager.runAfterInteractions(() => { stackProgress.value = 0; });
     },
     [currentIndex, assets, triggerHaptics, addToTrash, addToFavorites, persistIndex]
   );
@@ -1006,6 +1022,7 @@ export default function GalleryScreen() {
     await AsyncStorage.removeItem(CARD_INDEX_KEY);
     stackProgress.value = 0;
     trashCache.current.clear();
+    fetchedIds.current.clear();
     setAssets([]);
     setCursor(undefined);
     setHasMore(true);
