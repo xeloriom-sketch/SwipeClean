@@ -1,5 +1,5 @@
 // app/(tabs)/Onboarding.tsx
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -20,9 +20,10 @@ import Animated, {
   withDelay,
   interpolate,
   Extrapolate,
-  runOnJS,
   cancelAnimation,
+  runOnJS,
 } from "react-native-reanimated";
+import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -32,284 +33,268 @@ import * as Haptics from "expo-haptics";
 const { width, height } = Dimensions.get("window");
 const ONBOARDED_KEY = "@app_onboarded";
 
-const CARD_W = width * 0.6;
-const CARD_H = CARD_W * 1.42;
-
-type Step = {
-  key: string;
-  color: string;
-  glow: string;
-  icon: string;
-  gesture: string;
-  direction: "left" | "right" | "up" | "down";
-  title: string;
-  desc: string;
-  cardGradient: [string, string];
-};
-
-const STEPS: Step[] = [
+/* ─── Step definitions ─────────────────────────────────────── */
+const STEPS = [
   {
     key: "delete",
-    color: "#FF4458",
-    glow: "rgba(255,68,88,0.22)",
-    icon: "close",
-    gesture: "← Swipe gauche",
-    direction: "left",
-    title: "Supprimer",
-    desc: "Envoyez les photos indésirables à la corbeille. Récupérables jusqu'à suppression définitive.",
-    cardGradient: ["#2A0A0F", "#1A0508"],
+    color: "#FF3B5C",
+    dark: "#1C0008",
+    icon: "close" as const,
+    label: "SWIPE GAUCHE",
+    title: "Supprimez\nsans regret.",
+    desc: "Glissez à gauche pour envoyer une photo à la corbeille. Elle reste récupérable jusqu'à suppression définitive.",
+    anim: "shake",
   },
   {
     key: "keep",
-    color: "#4CFF5E",
-    glow: "rgba(76,255,94,0.2)",
-    icon: "heart",
-    gesture: "→ Swipe droite",
-    direction: "right",
-    title: "Garder",
-    desc: "Conservez vos meilleurs souvenirs. La photo reste dans votre galerie, intacte.",
-    cardGradient: ["#081A0A", "#040E06"],
+    color: "#30D158",
+    dark: "#001408",
+    icon: "heart" as const,
+    label: "SWIPE DROITE",
+    title: "Gardez ce\nqui compte.",
+    desc: "Glissez à droite pour conserver vos souvenirs précieux. La photo reste dans votre galerie, intacte.",
+    anim: "pulse",
   },
   {
     key: "star",
-    color: "#00B4D8",
-    glow: "rgba(0,180,216,0.2)",
-    icon: "star",
-    gesture: "↑ Swipe haut",
-    direction: "up",
-    title: "Favoris",
-    desc: "Mettez en avant vos clichés préférés. Retrouvez-les instantanément dans les Favoris.",
-    cardGradient: ["#020F18", "#010A12"],
+    color: "#0A84FF",
+    dark: "#00061A",
+    icon: "star" as const,
+    label: "SWIPE HAUT",
+    title: "Créez vos\nfavoris.",
+    desc: "Glissez vers le haut pour épingler vos meilleures photos. Retrouvez-les instantanément.",
+    anim: "spin",
   },
   {
     key: "skip",
-    color: "#A0A0A8",
-    glow: "rgba(160,160,168,0.15)",
-    icon: "play-skip-forward",
-    gesture: "↓ Swipe bas",
-    direction: "down",
-    title: "Passer",
-    desc: "Vous hésitez ? Passez à la suivante et décidez plus tard.",
-    cardGradient: ["#111114", "#0A0A0C"],
+    color: "#EBEBF5",
+    dark: "#0D0D10",
+    icon: "play-skip-forward" as const,
+    label: "SWIPE BAS",
+    title: "Passez si\nvous hésitez.",
+    desc: "Pas sûr ? Glissez vers le bas pour passer à la suivante. Aucune décision forcée.",
+    anim: "slide",
   },
 ];
 
-/* ---- Animated demo card ---- */
-function DemoCard({ step }: { step: Step }) {
-  const tx = useSharedValue(0);
-  const ty = useSharedValue(0);
-  const rot = useSharedValue(0);
-  const cardOpacity = useSharedValue(1);
-  const iconScale = useSharedValue(0);
-  const iconOpacity = useSharedValue(0);
-  const glowScale = useSharedValue(0.7);
-  const glowOpacity = useSharedValue(0);
+/* ─── Ripple rings ─────────────────────────────────────────── */
+function Ripples({ color }: { color: string }) {
+  const rings = [0, 1, 2].map(() => ({
+    scale: useSharedValue(0.6),
+    opacity: useSharedValue(0),
+  }));
 
   useEffect(() => {
-    // Reset
-    cancelAnimation(tx);
-    cancelAnimation(ty);
-    cancelAnimation(rot);
-    cancelAnimation(cardOpacity);
-    cancelAnimation(iconScale);
-    cancelAnimation(iconOpacity);
-    cancelAnimation(glowScale);
-    cancelAnimation(glowOpacity);
+    rings.forEach((r, i) => {
+      cancelAnimation(r.scale);
+      cancelAnimation(r.opacity);
+      r.scale.value = 0.6;
+      r.opacity.value = 0;
 
-    tx.value = 0;
-    ty.value = 0;
-    rot.value = 0;
-    cardOpacity.value = 1;
-    iconScale.value = 0;
-    iconOpacity.value = 0;
-    glowScale.value = 0.7;
-    glowOpacity.value = 0;
-
-    const DX = step.direction === "left" ? -width * 1.2
-             : step.direction === "right" ? width * 1.2
-             : 0;
-    const DY = step.direction === "up" ? -height * 0.9
-             : step.direction === "down" ? height * 0.9
-             : 0;
-    const ROT = step.direction === "left" ? -22
-              : step.direction === "right" ? 22
-              : 0;
-
-    const runCycle = () => {
-      // Hold 0.8s, then animate out
-      tx.value = withDelay(800, withTiming(DX, { duration: 520 }));
-      ty.value = withDelay(800, withTiming(DY, { duration: 520 }));
-      rot.value = withDelay(800, withTiming(ROT, { duration: 520 }));
-      cardOpacity.value = withDelay(900, withTiming(0, { duration: 400 }));
-
-      iconScale.value = withDelay(950, withSpring(1, { damping: 14, stiffness: 280 }));
-      iconOpacity.value = withDelay(950, withTiming(1, { duration: 200 }));
-
-      glowOpacity.value = withDelay(800, withTiming(1, { duration: 300 }));
-      glowScale.value = withDelay(800, withSpring(1.2, { damping: 12, stiffness: 120 }));
-
-      // Reset after exit
-      setTimeout(() => {
-        tx.value = 0;
-        ty.value = 0;
-        rot.value = 0;
-        cardOpacity.value = 0;
-        iconScale.value = 0;
-        iconOpacity.value = 0;
-        glowOpacity.value = 0;
-        glowScale.value = 0.7;
-
-        // Fade back in
-        cardOpacity.value = withTiming(1, { duration: 350 });
-      }, 1480);
-    };
-
-    runCycle();
-    const interval = setInterval(runCycle, 2400);
-    return () => clearInterval(interval);
-  }, [step.key]);
-
-  const cardStyle = useAnimatedStyle(() => ({
-    transform: [
-      { translateX: tx.value },
-      { translateY: ty.value },
-      { rotate: `${rot.value}deg` },
-    ],
-    opacity: cardOpacity.value,
-  }));
-
-  const iconStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: iconScale.value }],
-    opacity: iconOpacity.value,
-  }));
-
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: glowOpacity.value,
-    transform: [{ scale: glowScale.value }],
-  }));
+      r.scale.value = withDelay(
+        i * 500,
+        withRepeat(withTiming(2.2, { duration: 2000 }), -1, false)
+      );
+      r.opacity.value = withDelay(
+        i * 500,
+        withRepeat(
+          withSequence(
+            withTiming(0.35, { duration: 200 }),
+            withTiming(0, { duration: 1800 })
+          ),
+          -1,
+          false
+        )
+      );
+    });
+    return () => rings.forEach((r) => { cancelAnimation(r.scale); cancelAnimation(r.opacity); });
+  }, [color]);
 
   return (
-    <View style={styles.demoArea}>
-      {/* Glow */}
-      <Animated.View style={[styles.glow, { backgroundColor: step.glow }, glowStyle]} />
-
-      {/* Photo card */}
-      <Animated.View style={[styles.demoCard, cardStyle]}>
-        <LinearGradient
-          colors={step.cardGradient}
-          style={StyleSheet.absoluteFill}
-        />
-        {/* Simulated photo content */}
-        <View style={styles.fakePhoto}>
-          <LinearGradient
-            colors={[step.color + "18", step.color + "04"]}
-            style={styles.fakePhotoInner}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 1 }}
+    <>
+      {rings.map((r, i) => {
+        const s = useAnimatedStyle(() => ({
+          opacity: r.opacity.value,
+          transform: [{ scale: r.scale.value }],
+        }));
+        return (
+          <Animated.View
+            key={i}
+            pointerEvents="none"
+            style={[styles.ring, { borderColor: color }, s]}
           />
+        );
+      })}
+    </>
+  );
+}
+
+/* ─── Main icon ────────────────────────────────────────────── */
+function StepIcon({ step }: { step: typeof STEPS[0] }) {
+  const v = useSharedValue(0);
+
+  useEffect(() => {
+    cancelAnimation(v);
+    v.value = 0;
+
+    if (step.anim === "shake") {
+      v.value = withRepeat(
+        withSequence(
+          withTiming(-18, { duration: 80 }),
+          withTiming(18, { duration: 80 }),
+          withTiming(-12, { duration: 70 }),
+          withTiming(12, { duration: 70 }),
+          withTiming(0, { duration: 60 }),
+          withTiming(0, { duration: 900 })
+        ),
+        -1,
+        false
+      );
+    } else if (step.anim === "pulse") {
+      v.value = withRepeat(
+        withSequence(
+          withSpring(1.25, { damping: 6, stiffness: 200 }),
+          withSpring(1, { damping: 8, stiffness: 160 }),
+          withTiming(1, { duration: 800 })
+        ),
+        -1,
+        false
+      );
+    } else if (step.anim === "spin") {
+      v.value = withRepeat(withTiming(360, { duration: 3000 }), -1, false);
+    } else if (step.anim === "slide") {
+      v.value = withRepeat(
+        withSequence(
+          withTiming(28, { duration: 350 }),
+          withTiming(0, { duration: 200 }),
+          withTiming(0, { duration: 900 })
+        ),
+        -1,
+        false
+      );
+    }
+    return () => cancelAnimation(v);
+  }, [step.key]);
+
+  const iconStyle = useAnimatedStyle(() => {
+    if (step.anim === "shake") return { transform: [{ translateX: v.value }] };
+    if (step.anim === "pulse") return { transform: [{ scale: v.value === 0 ? 1 : v.value }] };
+    if (step.anim === "spin") return { transform: [{ rotate: `${v.value}deg` }] };
+    if (step.anim === "slide") return { transform: [{ translateX: v.value }] };
+    return {};
+  });
+
+  return (
+    <View style={styles.iconWrap}>
+      <Ripples color={step.color} />
+      <View style={[styles.iconBg, { backgroundColor: step.color + "22" }]}>
+        <View style={[styles.iconInner, { backgroundColor: step.color + "18", borderColor: step.color + "40" }]}>
+          <Animated.View style={iconStyle}>
+            <Ionicons name={step.icon} size={86} color={step.color} />
+          </Animated.View>
         </View>
-        {/* Bottom info strip */}
-        <LinearGradient
-          colors={["transparent", "rgba(0,0,0,0.7)"]}
-          style={styles.fakeInfoBar}
-        >
-          <View style={[styles.fakeInfoLine, { width: "55%", backgroundColor: "rgba(255,255,255,0.2)" }]} />
-          <View style={[styles.fakeInfoLine, { width: "35%", backgroundColor: "rgba(255,255,255,0.1)", marginTop: 6 }]} />
-        </LinearGradient>
-        {/* Border */}
-        <View style={[styles.demoCardBorder, { borderColor: step.color + "30" }]} />
-      </Animated.View>
-
-      {/* Animated icon circle */}
-      <Animated.View style={[styles.iconCircle, { backgroundColor: step.color + "EE" }, iconStyle]}>
-        <Ionicons name={step.icon as any} size={52} color="#fff" />
-      </Animated.View>
-
-      {/* Directional hint arrows */}
-      <DirectionArrows step={step} />
+      </View>
     </View>
   );
 }
 
-function DirectionArrows({ step }: { step: Step }) {
-  const opacity = useSharedValue(0);
-
-  useEffect(() => {
-    cancelAnimation(opacity);
-    opacity.value = 0;
-    opacity.value = withRepeat(
-      withSequence(
-        withDelay(400, withTiming(1, { duration: 400 })),
-        withTiming(0.3, { duration: 600 }),
-        withTiming(1, { duration: 400 }),
-        withTiming(0, { duration: 400 }),
-      ),
-      -1,
-      false
-    );
-    return () => cancelAnimation(opacity);
-  }, [step.key]);
-
-  const arrowStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
-
-  const arrows = {
-    left: [
-      { icon: "chevron-back" as const, style: { left: 4 } },
-      { icon: "chevron-back" as const, style: { left: 14 } },
-    ],
-    right: [
-      { icon: "chevron-forward" as const, style: { right: 14 } },
-      { icon: "chevron-forward" as const, style: { right: 4 } },
-    ],
-    up: [
-      { icon: "chevron-up" as const, style: { top: 4 } },
-      { icon: "chevron-up" as const, style: { top: 14 } },
-    ],
-    down: [
-      { icon: "chevron-down" as const, style: { bottom: 14 } },
-      { icon: "chevron-down" as const, style: { bottom: 4 } },
-    ],
-  };
-
-  const dir = step.direction;
-  const isH = dir === "left" || dir === "right";
+/* ─── Floating particles ───────────────────────────────────── */
+function Particles({ color }: { color: string }) {
+  const dots = [
+    { size: 6, x: 0.12, y: 0.22, dur: 4200 },
+    { size: 4, x: 0.85, y: 0.18, dur: 5100 },
+    { size: 8, x: 0.78, y: 0.72, dur: 3800 },
+    { size: 5, x: 0.14, y: 0.68, dur: 4700 },
+    { size: 3, x: 0.55, y: 0.12, dur: 5800 },
+    { size: 6, x: 0.92, y: 0.45, dur: 4300 },
+  ];
 
   return (
-    <Animated.View
-      style={[
-        styles.arrowsWrap,
-        isH ? styles.arrowsH : styles.arrowsV,
-        arrowStyle,
-      ]}
-    >
-      {arrows[dir].map((a, i) => (
-        <Ionicons
-          key={i}
-          name={a.icon}
-          size={24}
-          color={step.color}
-          style={{ opacity: i === 0 ? 0.45 : 1 }}
-        />
-      ))}
-    </Animated.View>
+    <>
+      {dots.map((d, i) => {
+        const ty = useSharedValue(0);
+        const op = useSharedValue(0);
+
+        useEffect(() => {
+          ty.value = withDelay(
+            i * 400,
+            withRepeat(
+              withSequence(
+                withTiming(-18, { duration: d.dur }),
+                withTiming(0, { duration: d.dur })
+              ),
+              -1,
+              true
+            )
+          );
+          op.value = withDelay(
+            i * 400,
+            withRepeat(
+              withSequence(
+                withTiming(0.5, { duration: d.dur / 2 }),
+                withTiming(0.1, { duration: d.dur / 2 })
+              ),
+              -1,
+              true
+            )
+          );
+          return () => { cancelAnimation(ty); cancelAnimation(op); };
+        }, [color]);
+
+        const s = useAnimatedStyle(() => ({
+          transform: [{ translateY: ty.value }],
+          opacity: op.value,
+        }));
+
+        return (
+          <Animated.View
+            key={i}
+            pointerEvents="none"
+            style={[
+              styles.particle,
+              s,
+              {
+                width: d.size,
+                height: d.size,
+                borderRadius: d.size / 2,
+                backgroundColor: color,
+                left: d.x * width,
+                top: d.y * height,
+              },
+            ]}
+          />
+        );
+      })}
+    </>
   );
 }
 
-/* ---- Main screen ---- */
+/* ─── Screen ───────────────────────────────────────────────── */
 export default function OnboardingScreen() {
-  const [step, setStep] = React.useState(0);
-  const slideX = useSharedValue(0);
+  const [stepIdx, setStepIdx] = React.useState(0);
+  const offsetX = useSharedValue(0);
   const contentOpacity = useSharedValue(1);
+  const textY = useSharedValue(0);
 
-  const goTo = (next: number) => {
+  const step = STEPS[stepIdx];
+
+  const animateTo = (next: number) => {
+    if (next < 0 || next >= STEPS.length) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    contentOpacity.value = withTiming(0, { duration: 150 }, () => {
-      runOnJS(setStep)(next);
-      slideX.value = next > step ? 40 : -40;
-      slideX.value = withSpring(0, { damping: 18, stiffness: 260 });
-      contentOpacity.value = withTiming(1, { duration: 200 });
+    contentOpacity.value = withTiming(0, { duration: 140 }, () => {
+      runOnJS(setStepIdx)(next);
+      textY.value = 24;
+      textY.value = withSpring(0, { damping: 18, stiffness: 220 });
+      contentOpacity.value = withTiming(1, { duration: 220 });
     });
   };
+
+  const panGesture = Gesture.Pan()
+    .activeOffsetX([-12, 12])
+    .onEnd((e) => {
+      if (e.translationX < -40) runOnJS(animateTo)(stepIdx + 1);
+      else if (e.translationX > 40) runOnJS(animateTo)(stepIdx - 1);
+    });
 
   const finish = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -317,294 +302,241 @@ export default function OnboardingScreen() {
     router.replace("/");
   };
 
-  const s = STEPS[step];
-
-  const infoStyle = useAnimatedStyle(() => ({
+  const contentStyle = useAnimatedStyle(() => ({
     opacity: contentOpacity.value,
-    transform: [{ translateX: slideX.value }],
+    transform: [{ translateY: textY.value }],
   }));
 
   return (
-    <View style={styles.screen}>
-      <StatusBar barStyle="light-content" />
+    <GestureDetector gesture={panGesture}>
+      <View style={styles.screen}>
+        <StatusBar barStyle="light-content" />
 
-      {/* Background glow blob */}
-      <View style={[styles.bgBlob, { backgroundColor: s.glow }]} />
+        {/* Dark atmospheric gradient */}
+        <LinearGradient
+          colors={[step.dark, "#000000"]}
+          locations={[0, 0.6]}
+          style={StyleSheet.absoluteFill}
+        />
 
-      {/* Skip */}
-      <SafeAreaView style={styles.safeWrap}>
-        <TouchableOpacity style={styles.skipBtn} onPress={finish}>
-          <Text style={styles.skipText}>Passer</Text>
-        </TouchableOpacity>
+        {/* Floating particles */}
+        <Particles color={step.color} />
 
-        {/* Demo card area */}
-        <DemoCard step={s} />
-
-        {/* Info block */}
-        <Animated.View style={[styles.infoBlock, infoStyle]}>
-          {/* Gesture pill */}
-          <View style={[styles.gesturePill, { borderColor: s.color + "60", backgroundColor: s.color + "14" }]}>
-            <Text style={[styles.gesturePillText, { color: s.color }]}>{s.gesture}</Text>
+        <SafeAreaView style={styles.safe}>
+          {/* Top bar */}
+          <View style={styles.topBar}>
+            <View style={[styles.labelPill, { borderColor: step.color + "50", backgroundColor: step.color + "12" }]}>
+              <View style={[styles.labelDot, { backgroundColor: step.color }]} />
+              <Text style={[styles.labelText, { color: step.color }]}>{step.label}</Text>
+            </View>
+            <TouchableOpacity onPress={finish} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
+              <Text style={styles.skipText}>Passer</Text>
+            </TouchableOpacity>
           </View>
 
-          <Text style={styles.stepTitle}>{s.title}</Text>
-          <Text style={styles.stepDesc}>{s.desc}</Text>
-        </Animated.View>
+          {/* Icon area */}
+          <View style={styles.iconArea}>
+            <StepIcon step={step} />
+          </View>
 
-        {/* Progress dots */}
-        <View style={styles.dotsRow}>
-          {STEPS.map((st, i) => (
-            <TouchableOpacity key={i} onPress={() => i !== step && goTo(i)}>
-              <Animated.View
-                style={[
-                  styles.dot,
-                  i === step
-                    ? [styles.dotActive, { backgroundColor: s.color }]
-                    : styles.dotInactive,
-                ]}
-              />
-            </TouchableOpacity>
-          ))}
-        </View>
+          {/* Text content */}
+          <Animated.View style={[styles.textBlock, contentStyle]}>
+            <Text style={styles.bigTitle}>{step.title}</Text>
+            <Text style={styles.desc}>{step.desc}</Text>
+          </Animated.View>
 
-        {/* Navigation */}
-        <View style={styles.nav}>
-          {step > 0 ? (
-            <TouchableOpacity style={styles.prevBtn} onPress={() => goTo(step - 1)}>
-              <Ionicons name="chevron-back" size={20} color="rgba(255,255,255,0.5)" />
-            </TouchableOpacity>
-          ) : (
-            <View style={{ width: 44 }} />
-          )}
+          {/* Bottom bar */}
+          <View style={styles.bottom}>
+            {/* Dots */}
+            <View style={styles.dotsRow}>
+              {STEPS.map((_, i) => {
+                const isActive = i === stepIdx;
+                return (
+                  <TouchableOpacity key={i} onPress={() => animateTo(i)}>
+                    <View
+                      style={[
+                        styles.dot,
+                        isActive
+                          ? [styles.dotOn, { backgroundColor: step.color, width: 28 }]
+                          : styles.dotOff,
+                      ]}
+                    />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
-          <TouchableOpacity
-            style={[styles.nextBtn, { backgroundColor: s.color }]}
-            onPress={step < STEPS.length - 1 ? () => goTo(step + 1) : finish}
-            activeOpacity={0.82}
-          >
-            <Text style={styles.nextText}>
-              {step === STEPS.length - 1 ? "C'est parti !" : "Suivant"}
-            </Text>
-            <Ionicons
-              name={step === STEPS.length - 1 ? "rocket-outline" : "arrow-forward"}
-              size={18}
-              color="#fff"
-            />
-          </TouchableOpacity>
-        </View>
+            {/* Navigation */}
+            <View style={styles.navRow}>
+              {stepIdx > 0 ? (
+                <TouchableOpacity style={styles.prevBtn} onPress={() => animateTo(stepIdx - 1)}>
+                  <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.45)" />
+                </TouchableOpacity>
+              ) : (
+                <View style={{ width: 50 }} />
+              )}
 
-        {/* Step counter */}
-        <Text style={styles.stepCounter}>{step + 1} / {STEPS.length}</Text>
-      </SafeAreaView>
-    </View>
+              <TouchableOpacity
+                style={[styles.nextBtn, { backgroundColor: step.color }]}
+                onPress={stepIdx < STEPS.length - 1 ? () => animateTo(stepIdx + 1) : finish}
+                activeOpacity={0.8}
+              >
+                <Text style={[styles.nextText, stepIdx === 3 && { color: "#000" }]}>
+                  {stepIdx === STEPS.length - 1 ? "Commencer" : "Suivant"}
+                </Text>
+                <Ionicons
+                  name={stepIdx === STEPS.length - 1 ? "checkmark" : "arrow-forward"}
+                  size={18}
+                  color={stepIdx === 3 ? "#000" : "#fff"}
+                />
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.swipeHint}>Glissez pour naviguer</Text>
+          </View>
+        </SafeAreaView>
+      </View>
+    </GestureDetector>
   );
 }
 
+/* ─── Styles ───────────────────────────────────────────────── */
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: "#050507",
-  },
-  bgBlob: {
-    position: "absolute",
-    top: height * 0.1,
-    alignSelf: "center",
-    width: width * 1.2,
-    height: width * 1.2,
-    borderRadius: width * 0.6,
-    opacity: 0.35,
-    transform: [{ scaleY: 0.6 }],
-  },
-  safeWrap: {
-    flex: 1,
-    alignItems: "center",
-  },
+  screen: { flex: 1, backgroundColor: "#000" },
+  safe: { flex: 1 },
 
-  skipBtn: {
-    alignSelf: "flex-end",
-    paddingRight: 24,
-    paddingTop: 8,
-    paddingBottom: 8,
-    paddingLeft: 16,
-  },
-  skipText: {
-    color: "rgba(255,255,255,0.35)",
-    fontSize: 14,
-    fontWeight: "500",
-  },
-
-  /* Demo area */
-  demoArea: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    width: "100%",
-    maxHeight: height * 0.46,
-  },
-  glow: {
-    position: "absolute",
-    width: CARD_W * 1.6,
-    height: CARD_W * 1.6,
-    borderRadius: CARD_W * 0.8,
-  },
-  demoCard: {
-    width: CARD_W,
-    height: CARD_H,
-    borderRadius: 26,
-    overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 16 },
-    shadowOpacity: 0.55,
-    shadowRadius: 28,
-    elevation: 18,
-  },
-  demoCardBorder: {
-    ...StyleSheet.absoluteFillObject as any,
-    borderRadius: 26,
-    borderWidth: 1,
-  },
-  fakePhoto: {
-    flex: 1,
-  },
-  fakePhotoInner: {
-    flex: 1,
-  },
-  fakeInfoBar: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: 16,
-    paddingTop: 40,
-  },
-  fakeInfoLine: {
-    height: 9,
-    borderRadius: 5,
-  },
-
-  iconCircle: {
-    position: "absolute",
-    width: 110,
-    height: 110,
-    borderRadius: 55,
-    justifyContent: "center",
-    alignItems: "center",
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 12,
-  },
-
-  arrowsWrap: { position: "absolute" },
-  arrowsH: {
-    flexDirection: "row",
-    top: "50%",
-    marginTop: -12,
-    gap: 0,
-  },
-  arrowsV: {
-    flexDirection: "column",
-    left: "50%",
-    marginLeft: -12,
-    gap: 0,
-  },
-
-  /* Info block */
-  infoBlock: {
-    width: "100%",
-    paddingHorizontal: 28,
-    alignItems: "flex-start",
-    marginTop: 8,
-    gap: 12,
-  },
-  gesturePill: {
-    borderWidth: 1,
-    borderRadius: 100,
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-  },
-  gesturePillText: {
-    fontSize: 12,
-    fontWeight: "700",
-    letterSpacing: 0.4,
-  },
-  stepTitle: {
-    fontSize: 36,
-    fontWeight: "800",
-    color: "#fff",
-    letterSpacing: -0.8,
-    lineHeight: 40,
-  },
-  stepDesc: {
-    fontSize: 15,
-    color: "rgba(255,255,255,0.5)",
-    lineHeight: 22,
-    maxWidth: 320,
-  },
-
-  /* Progress */
-  dotsRow: {
-    flexDirection: "row",
-    gap: 6,
-    marginTop: 28,
-    alignItems: "center",
-  },
-  dot: {
-    height: 6,
-    borderRadius: 3,
-  },
-  dotActive: { width: 24 },
-  dotInactive: {
-    width: 6,
-    backgroundColor: "rgba(255,255,255,0.18)",
-  },
-
-  /* Navigation */
-  nav: {
+  topBar: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    width: "100%",
+    paddingHorizontal: 22,
+    paddingTop: Platform.OS === "android" ? 8 : 4,
+    paddingBottom: 8,
+  },
+  labelPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    borderWidth: 1,
+    borderRadius: 100,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  labelDot: { width: 6, height: 6, borderRadius: 3 },
+  labelText: { fontSize: 11, fontWeight: "800", letterSpacing: 0.8 },
+  skipText: { fontSize: 14, color: "rgba(255,255,255,0.3)", fontWeight: "500" },
+
+  iconArea: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconWrap: {
+    alignItems: "center",
+    justifyContent: "center",
+    width: 240,
+    height: 240,
+  },
+  ring: {
+    position: "absolute",
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    borderWidth: 1.5,
+  },
+  iconBg: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconInner: {
+    width: 140,
+    height: 140,
+    borderRadius: 70,
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+  },
+
+  textBlock: {
+    paddingHorizontal: 28,
+    marginBottom: 28,
+    gap: 12,
+  },
+  bigTitle: {
+    fontSize: 40,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: -1.2,
+    lineHeight: 46,
+  },
+  desc: {
+    fontSize: 15.5,
+    color: "rgba(255,255,255,0.48)",
+    lineHeight: 24,
+    maxWidth: 320,
+  },
+
+  bottom: {
     paddingHorizontal: 24,
-    marginTop: 20,
-    marginBottom: 4,
+    paddingBottom: Platform.OS === "android" ? 16 : 8,
+    gap: 16,
+  },
+  dotsRow: {
+    flexDirection: "row",
+    gap: 6,
+    alignItems: "center",
+  },
+  dot: { height: 6, borderRadius: 3 },
+  dotOn: {},
+  dotOff: { width: 6, backgroundColor: "rgba(255,255,255,0.15)" },
+
+  navRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
   },
   prevBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    justifyContent: "center",
-    alignItems: "center",
+    width: 50,
+    height: 50,
+    borderRadius: 25,
     backgroundColor: "rgba(255,255,255,0.07)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.08)",
+    alignItems: "center",
+    justifyContent: "center",
   },
   nextBtn: {
+    flex: 1,
+    marginLeft: 14,
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "center",
     gap: 8,
-    paddingHorizontal: 28,
-    paddingVertical: 15,
-    borderRadius: 100,
+    height: 56,
+    borderRadius: 18,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.35,
+    shadowRadius: 14,
+    elevation: 10,
   },
   nextText: {
-    color: "#fff",
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "700",
+    color: "#fff",
     letterSpacing: 0.1,
   },
 
-  stepCounter: {
+  swipeHint: {
+    textAlign: "center",
     fontSize: 11,
-    color: "rgba(255,255,255,0.2)",
-    fontWeight: "600",
-    letterSpacing: 0.5,
-    marginBottom: Platform.OS === "android" ? 12 : 4,
+    color: "rgba(255,255,255,0.18)",
+    fontWeight: "500",
+    letterSpacing: 0.3,
   },
+
+  particle: { position: "absolute" },
 });
