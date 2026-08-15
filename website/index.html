@@ -6,429 +6,424 @@
 <title>SwipeClean — Libérez votre galerie en un geste</title>
 <meta name="description" content="SwipeClean trie vos photos en un geste. Supprimer, garder, favoris — simple, rapide, satisfaisant."/>
 <style>
-/* ─── TOKENS ─── */
-:root{
-  --txt:#1D1D1F;--txt2:#6E6E73;--txt3:#86868B;
-  --bg:#FBFBFD;--cream:#F5F5F7;--dark:#06060A;--mid:#161618;
-  --red:#FF3030;--green:#3DFF6A;--cyan:#00C8FF;--lime:#C8FF52;
-  --r:100px;
-}
+/* ─── RESET ─── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
 html{scroll-behavior:smooth;overflow-x:hidden;}
 body{
   font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue',Arial,sans-serif;
-  background:var(--bg);color:var(--txt);-webkit-font-smoothing:antialiased;
-  overflow-x:hidden;
+  background:#FBFBFD;color:#1D1D1F;-webkit-font-smoothing:antialiased;overflow-x:hidden;
 }
 a{color:inherit;text-decoration:none;}
 img,svg{display:block;max-width:100%;}
 
 /* ─── CURSOR ─── */
 .cur-d,.cur-r{position:fixed;border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);}
-.cur-d{width:7px;height:7px;background:var(--red);transition:width .15s,height .15s;}
-.cur-r{width:34px;height:34px;border:1.5px solid rgba(29,29,31,.15);transition:width .26s cubic-bezier(.23,1,.32,1),height .26s cubic-bezier(.23,1,.32,1),border-color .2s;}
+.cur-d{width:7px;height:7px;background:#FF3030;transition:width .15s,height .15s;}
+.cur-r{width:34px;height:34px;border:1.5px solid rgba(255,255,255,.2);transition:width .26s cubic-bezier(.23,1,.32,1),height .26s cubic-bezier(.23,1,.32,1);}
 @media(hover:none){.cur-d,.cur-r{display:none;}}
 
 /* ─── SCROLL BAR ─── */
-.spb{position:fixed;top:0;left:0;height:2px;z-index:400;width:0;
-  background:linear-gradient(90deg,var(--red),var(--cyan),var(--lime));pointer-events:none;}
-
-/* ─── REVEAL ─── */
-.rv{opacity:1;transform:none;}
-body.js .rv{opacity:0;transform:translateY(30px);transition:opacity .9s cubic-bezier(.16,1,.3,1),transform .9s cubic-bezier(.16,1,.3,1);}
-body.js .rv.in{opacity:1;transform:none;}
-.d1{transition-delay:.08s}.d2{transition-delay:.18s}.d3{transition-delay:.28s}.d4{transition-delay:.4s}
-@media(prefers-reduced-motion:reduce){body.js .rv{opacity:1;transform:none;transition:none;}}
+.spb{position:fixed;top:0;left:0;height:2px;z-index:400;width:0;background:linear-gradient(90deg,#FF3030,#00C8FF,#C8FF52);pointer-events:none;}
 
 /* ─── NAV ─── */
-.nav-outer{position:fixed;top:0;left:0;right:0;z-index:200;padding:14px 20px;}
+.nav-outer{position:fixed;top:0;left:0;right:0;z-index:300;padding:14px 20px;}
 .nav-pill{
   max-width:1100px;margin:0 auto;
-  background:rgba(29,29,31,.88);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  color:#fff;border-radius:var(--r);
+  background:rgba(255,255,255,.08);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  color:#fff;border-radius:100px;
   display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
   padding:8px 8px 8px 22px;
-  border:1px solid rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.12);
 }
-.nav-logo{font-size:16px;font-weight:700;letter-spacing:-.03em;}
+.nav-logo{font-size:16px;font-weight:700;letter-spacing:-.03em;color:#fff;}
 .nav-links{display:flex;justify-content:center;gap:28px;}
 .nav-links a{font-size:12.5px;font-weight:500;color:rgba(255,255,255,.5);transition:color .18s;white-space:nowrap;}
 .nav-links a:hover{color:#fff;}
 .nav-right{display:flex;justify-content:flex-end;}
-.nav-cta{
-  background:#fff;color:#1D1D1F;border-radius:var(--r);padding:8px 18px;
-  font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px;
-  transition:background .2s;white-space:nowrap;
-}
-.nav-cta:hover{background:var(--lime);}
+.nav-cta{background:#fff;color:#1D1D1F;border-radius:100px;padding:8px 18px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px;transition:background .2s;white-space:nowrap;}
+.nav-cta:hover{background:#C8FF52;color:#1D1D1F;}
 @media(max-width:880px){.nav-links{display:none;}.nav-pill{grid-template-columns:1fr auto;}}
 
-/* ─── WRAP ─── */
-.W{max-width:1100px;margin:0 auto;padding:0 24px;}
-.tag{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--txt3);margin-bottom:14px;}
-
-/* ─────────────────────────────────────────────
-   HERO
-───────────────────────────────────────────── */
-.hero{
-  min-height:100svh;display:flex;flex-direction:column;
-  align-items:center;justify-content:flex-end;
-  padding:0 24px 0;position:relative;overflow:hidden;
-  background:var(--bg);
+/* ═══════════════════════════════════════════
+   CINEMATIC HERO SECTION
+═══════════════════════════════════════════ */
+.cin-section{
+  position:relative;width:100%;height:100vh;
+  background:#050508;overflow:hidden;
+  display:flex;align-items:center;justify-content:center;
 }
 
-/* subtle gradient tint */
-.hero::before{
-  content:'';position:absolute;inset:0;pointer-events:none;
-  background:
-    radial-gradient(ellipse 60% 40% at 50% 0%,rgba(0,200,255,.055),transparent 60%),
-    radial-gradient(ellipse 40% 35% at 90% 80%,rgba(255,48,48,.045),transparent 55%);
+/* Film grain */
+.film-grain{
+  position:absolute;inset:0;width:100%;height:100%;
+  pointer-events:none;z-index:50;opacity:.045;mix-blend-mode:overlay;
+  background:url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%25" height="100%25" filter="url(%23n)"/></svg>');
 }
 
-.hero-txt{
-  text-align:center;position:relative;z-index:2;
-  padding-top:120px;padding-bottom:56px;
-  display:flex;flex-direction:column;align-items:center;gap:20px;
+/* Grid pattern */
+.bg-grid{
+  position:absolute;inset:0;pointer-events:none;opacity:.4;
+  background-size:60px 60px;
+  background-image:
+    linear-gradient(to right,rgba(255,255,255,.05) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(255,255,255,.05) 1px,transparent 1px);
+  mask-image:radial-gradient(ellipse at center,black 0%,transparent 70%);
+  -webkit-mask-image:radial-gradient(ellipse at center,black 0%,transparent 70%);
 }
 
-.hero-hl{
-  font-size:clamp(48px,7.5vw,96px);font-weight:600;
-  letter-spacing:-.032em;line-height:1.05;
-  color:var(--txt);text-wrap:balance;max-width:720px;
+/* Text layer */
+.cin-text{
+  position:absolute;z-index:10;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;
+  width:100%;padding:0 24px;will-change:transform,opacity;
 }
-.hero-hl em{
-  font-style:normal;
-  background:linear-gradient(135deg,var(--red) 0%,#ff5f5f 100%);
-  -webkit-background-clip:text;background-clip:text;
-  -webkit-text-fill-color:transparent;
+.cin-t1{
+  font-size:clamp(40px,6.5vw,88px);font-weight:700;letter-spacing:-.035em;line-height:1.05;
+  color:#fff;text-shadow:0 10px 40px rgba(0,0,0,.4);
 }
-
-.hero-sub{
-  font-size:clamp(17px,1.8vw,21px);color:var(--txt2);
-  font-weight:400;line-height:1.5;max-width:500px;
-}
-
-.hero-actions{display:flex;flex-direction:column;align-items:center;gap:12px;margin-top:4px;}
-.btn-dl{
-  display:flex;align-items:center;gap:10px;
-  background:var(--txt);color:#fff;border-radius:14px;
-  padding:13px 22px;font-size:15px;font-weight:600;
-  transition:background .2s,transform .15s;
-}
-.btn-dl:hover{background:#2a2a2e;transform:translateY(-2px);}
-.btn-dl svg{flex-shrink:0;}
-.btn-ios-label{font-size:13px;color:var(--txt3);font-weight:400;}
-
-/* phone wrap — hero bottom */
-.hero-phone{
-  position:relative;z-index:2;
-  display:flex;justify-content:center;align-items:flex-end;
-  width:100%;
+.cin-t2{
+  font-size:clamp(40px,6.5vw,88px);font-weight:800;letter-spacing:-.04em;line-height:1.05;
+  background:linear-gradient(180deg,#fff 0%,rgba(255,255,255,.5) 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  clip-path:inset(0 100% 0 0);will-change:clip-path;
+  filter:drop-shadow(0 10px 20px rgba(255,255,255,.1));
 }
 
-/* ─── PHONE ─── */
-.ph-outer{position:relative;}
-.ph{
-  width:300px;height:590px;border-radius:50px;border:5px solid #1A1A1E;
-  background:#1A1A1E;
+/* CTA layer */
+.cin-cta{
+  position:absolute;z-index:10;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;
+  width:100%;padding:0 24px;opacity:0;will-change:transform,opacity;
+  pointer-events:none;
+}
+.cin-cta.active{pointer-events:auto;}
+.cin-cta-hl{
+  font-size:clamp(32px,5vw,68px);font-weight:700;letter-spacing:-.03em;
+  background:linear-gradient(180deg,#fff 0%,rgba(255,255,255,.6) 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  margin-bottom:12px;
+}
+.cin-cta-sub{font-size:clamp(15px,1.6vw,18px);color:rgba(255,255,255,.45);margin-bottom:40px;font-weight:400;}
+.cin-dl-btns{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;}
+
+/* Physical tactile buttons */
+.btn-apk{
+  display:flex;align-items:center;gap:10px;border-radius:18px;padding:14px 24px;
+  font-size:15px;font-weight:600;cursor:pointer;transition:all .4s cubic-bezier(.25,1,.5,1);
+  background:linear-gradient(180deg,#fff 0%,#F1F5F9 100%);color:#0F172A;
+  box-shadow:0 0 0 1px rgba(0,0,0,.05),0 2px 4px rgba(0,0,0,.1),0 12px 24px -4px rgba(0,0,0,.35),inset 0 1px 1px rgba(255,255,255,1),inset 0 -3px 6px rgba(0,0,0,.06);
+}
+.btn-apk:hover{transform:translateY(-3px);box-shadow:0 0 0 1px rgba(0,0,0,.05),0 6px 14px rgba(0,0,0,.15),0 24px 40px -6px rgba(0,0,0,.45),inset 0 1px 1px rgba(255,255,255,1);}
+.btn-apk:active{transform:translateY(1px);background:linear-gradient(180deg,#F1F5F9 0%,#E2E8F0 100%);}
+.btn-ios-cin{
+  display:flex;align-items:center;gap:10px;border-radius:18px;padding:14px 24px;
+  font-size:15px;font-weight:600;
+  background:linear-gradient(180deg,#27272A 0%,#18181B 100%);color:#fff;
+  box-shadow:0 0 0 1px rgba(255,255,255,.1),0 2px 4px rgba(0,0,0,.6),0 12px 24px -4px rgba(0,0,0,.9),inset 0 1px 1px rgba(255,255,255,.15),inset 0 -3px 6px rgba(0,0,0,.8);
+  opacity:.38;cursor:not-allowed;
+}
+
+/* THE MAIN CINEMATIC CARD */
+.cin-card{
+  position:absolute;z-index:20;
+  width:clamp(80vw,85vw,92vw);height:clamp(80vh,85vh,92vh);
+  border-radius:40px;overflow:hidden;
+  background:linear-gradient(145deg,#162C6D 0%,#0A101D 100%);
   box-shadow:
-    0 0 0 1px rgba(0,0,0,.06),
-    0 50px 100px rgba(0,0,0,.18),
-    0 20px 40px rgba(0,0,0,.12);
-  display:flex;flex-direction:column;overflow:hidden;
-  animation:phfl 7s ease-in-out infinite;
+    0 40px 100px -20px rgba(0,0,0,.95),
+    0 20px 40px -20px rgba(0,0,0,.8),
+    inset 0 1px 2px rgba(255,255,255,.18),
+    inset 0 -2px 4px rgba(0,0,0,.8);
+  border:1px solid rgba(255,255,255,.04);
+  display:flex;align-items:center;justify-content:center;
+  will-change:transform,width,height,border-radius;
+  transform:translateY(110vh);
 }
-@keyframes phfl{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-10px) rotate(.25deg)}}
-.ph-bar{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;flex-shrink:0;}
-.ph-time{font-size:12px;color:#fff;font-weight:700;}
-.ph-icons{display:flex;align-items:flex-end;gap:2px;}
-.ph-icons span{display:block;width:3px;border-radius:1px;background:rgba(255,255,255,.5);}
-.ph-screen{flex:1;position:relative;background:#0A0A0A;overflow:hidden;}
-.ph-stack{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;}
-.ph-card{position:absolute;width:83%;height:80%;border-radius:18px;overflow:hidden;transform-origin:center 115%;will-change:transform,opacity;}
-.ph-card img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;}
-.ph-btns{padding:10px 0 14px;display:flex;justify-content:center;gap:14px;align-items:center;flex-shrink:0;}
-.ph-btn{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
-.pb-d{background:rgba(255,48,48,.14);border:1.5px solid var(--red);}
-.pb-s{background:rgba(0,200,255,.1);border:1.5px solid var(--cyan);width:36px;height:36px;}
-.pb-k{background:rgba(61,255,106,.1);border:1.5px solid var(--green);}
+.cin-card-sheen{
+  position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:50;
+  background:radial-gradient(600px circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.055) 0%,transparent 40%);
+  mix-blend-mode:screen;transition:opacity .3s;
+}
+.cin-card-inner{
+  position:relative;width:100%;height:100%;max-width:1200px;margin:0 auto;padding:0 32px;
+  display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;gap:24px;
+}
 
-/* badge */
-.ph-badge{
-  position:absolute;bottom:50px;right:-110px;
-  background:#fff;border-radius:16px;padding:12px 16px;
-  box-shadow:0 8px 32px rgba(0,0,0,.12);
-  display:flex;align-items:center;gap:10px;white-space:nowrap;z-index:3;
-  animation:bdfl 5.5s ease-in-out infinite;
+/* Card text */
+.cin-card-left{opacity:0;will-change:opacity,transform;}
+.cin-card-left h3{font-size:clamp(20px,2.5vw,36px);font-weight:700;letter-spacing:-.025em;color:#fff;margin-bottom:14px;line-height:1.1;}
+.cin-card-left p{font-size:clamp(13px,1.2vw,16px);color:rgba(100,149,237,.7);line-height:1.7;}
+.cin-card-right{opacity:0;will-change:opacity,transform;text-align:right;}
+.cin-card-right span{font-size:clamp(36px,5vw,80px);font-weight:900;letter-spacing:-.05em;text-transform:uppercase;
+  background:linear-gradient(180deg,#fff 0%,#A1A1AA 100%);
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 12px 24px rgba(0,0,0,.8)) drop-shadow(0 4px 8px rgba(0,0,0,.6));
 }
-@keyframes bdfl{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
-.ph-badge-i{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,var(--green),var(--cyan));display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.ph-badge-txt{font-size:12px;font-weight:700;color:#1D1D1F;}
-.ph-badge-sub{font-size:10.5px;color:var(--txt3);margin-top:1px;}
 
-/* ─── MARQUEE ─── */
-.mq{
-  border-top:1px solid rgba(29,29,31,.08);
-  border-bottom:1px solid rgba(29,29,31,.08);
-  padding:20px 0;overflow:hidden;
+/* ─── IPHONE MOCKUP ─── */
+.cin-phone-wrap{
+  position:relative;display:flex;align-items:center;justify-content:center;
+  will-change:transform,opacity;opacity:0;
+  perspective:1000px;
 }
+.iphone-bezel{
+  position:relative;width:260px;height:540px;border-radius:46px;
+  background:#111;
+  box-shadow:
+    inset 0 0 0 2px #52525B,
+    inset 0 0 0 7px #000,
+    0 40px 80px -15px rgba(0,0,0,.95),
+    0 15px 25px -5px rgba(0,0,0,.8);
+  transform-style:preserve-3d;will-change:transform;
+}
+/* hardware buttons */
+.hw-btn{position:absolute;background:linear-gradient(90deg,#404040 0%,#171717 100%);box-shadow:-2px 0 5px rgba(0,0,0,.8),inset -1px 0 1px rgba(255,255,255,.15),inset 1px 0 2px rgba(0,0,0,.8);border-left:1px solid rgba(255,255,255,.05);}
+.hw-vol1{top:110px;left:-3px;width:3px;height:26px;border-radius:3px 0 0 3px;}
+.hw-vol2{top:148px;left:-3px;width:3px;height:46px;border-radius:3px 0 0 3px;}
+.hw-vol3{top:204px;left:-3px;width:3px;height:46px;border-radius:3px 0 0 3px;}
+.hw-pwr{top:160px;right:-3px;width:3px;height:72px;border-radius:0 3px 3px 0;box-shadow:2px 0 5px rgba(0,0,0,.8),inset 1px 0 1px rgba(255,255,255,.15);}
+
+/* inner screen */
+.iphone-screen{
+  position:absolute;inset:7px;border-radius:38px;
+  background:#050914;overflow:hidden;
+  box-shadow:inset 0 0 20px rgba(0,0,0,1);color:#fff;
+}
+.screen-glare{
+  position:absolute;inset:0;pointer-events:none;z-index:40;
+  background:linear-gradient(110deg,rgba(255,255,255,.08) 0%,rgba(255,255,255,0) 45%);
+  border-radius:inherit;
+}
+.dyn-island{
+  position:absolute;top:6px;left:50%;transform:translateX(-50%);
+  width:100px;height:28px;background:#000;border-radius:16px;z-index:50;
+  display:flex;align-items:center;justify-content:flex-end;padding-right:10px;
+  box-shadow:inset 0 -1px 2px rgba(255,255,255,.08);
+}
+.dyn-dot{width:7px;height:7px;border-radius:50%;background:#22C55E;box-shadow:0 0 8px rgba(34,197,94,.8);animation:pulse 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Screen UI */
+.screen-ui{position:relative;width:100%;height:100%;padding:48px 16px 16px;display:flex;flex-direction:column;z-index:10;}
+.sc-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;opacity:0;}
+.sc-header h4{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.45);}
+.sc-header span{font-size:12px;font-weight:700;color:#fff;}
+.sc-av{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.6);}
+
+/* Progress ring */
+.ring-wrap{position:relative;width:160px;height:160px;margin:0 auto 16px;opacity:0;flex-shrink:0;}
+.ring-wrap svg{position:absolute;inset:0;width:100%;height:100%;}
+.ring-bg{fill:none;stroke:rgba(255,255,255,.04);stroke-width:10;}
+.ring-fill{
+  fill:none;stroke:url(#rg);stroke-width:10;stroke-linecap:round;
+  stroke-dasharray:440;stroke-dashoffset:440;
+  transform:rotate(-90deg);transform-origin:50% 50%;
+  transition:stroke-dashoffset .05s linear;
+}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.ring-n{font-size:28px;font-weight:700;letter-spacing:-.03em;color:#fff;line-height:1;}
+.ring-l{font-size:8px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(100,149,237,.55);margin-top:4px;}
+
+/* phone card swipe */
+.sc-photo-area{flex:1;position:relative;border-radius:16px;overflow:hidden;margin-bottom:12px;opacity:0;}
+.sc-photo-area img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;}
+.sc-photo-lbl{position:absolute;bottom:10px;left:10px;background:rgba(0,0,0,.45);backdrop-filter:blur(8px);border-radius:7px;padding:4px 9px;font-size:9px;font-weight:600;color:#fff;}
+.swipe-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.6);background:rgba(0,0,0,.35);backdrop-filter:blur(6px);border-radius:6px;padding:4px 10px;opacity:0;}
+
+/* swipe buttons */
+.sc-btns{display:flex;justify-content:center;gap:14px;flex-shrink:0;opacity:0;}
+.sc-btn{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
+.sc-del{background:rgba(255,48,48,.14);border:1.5px solid #FF3030;}
+.sc-fav{background:rgba(0,200,255,.1);border:1.5px solid #00C8FF;width:36px;height:36px;}
+.sc-kp{background:rgba(61,255,106,.1);border:1.5px solid #3DFF6A;}
+.home-bar{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:100px;height:4px;background:rgba(255,255,255,.18);border-radius:4px;}
+
+/* Floating badges */
+.cin-badge{
+  position:absolute;z-index:30;display:flex;align-items:center;gap:12px;
+  background:linear-gradient(135deg,rgba(255,255,255,.08) 0%,rgba(255,255,255,.01) 100%);
+  backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
+  box-shadow:0 0 0 1px rgba(255,255,255,.1),0 25px 50px -12px rgba(0,0,0,.8),inset 0 1px 1px rgba(255,255,255,.2);
+  border-radius:20px;padding:14px 18px;opacity:0;will-change:transform,opacity;
+}
+.cin-badge-ic{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.cin-badge-t{font-size:13px;font-weight:700;color:#fff;white-space:nowrap;}
+.cin-badge-s{font-size:10.5px;color:rgba(100,149,237,.6);margin-top:2px;white-space:nowrap;}
+.cin-badge1{top:60px;left:-90px;}
+.cin-badge2{bottom:80px;right:-90px;}
+
+/* ═══════════════════════════════════════════
+   BELOW-FOLD SECTIONS (Apple-style light)
+═══════════════════════════════════════════ */
+.below{padding-top:0;}
+
+/* marquee */
+.mq{border-top:1px solid rgba(29,29,31,.08);border-bottom:1px solid rgba(29,29,31,.08);padding:20px 0;overflow:hidden;background:#fff;}
 .mq-tr{display:flex;width:max-content;animation:mqa 55s linear infinite;}
 .mq-tr:hover{animation-play-state:paused;}
 @keyframes mqa{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-.mq-item{display:flex;align-items:center;gap:10px;padding:0 24px;font-size:13px;font-weight:600;color:var(--txt2);white-space:nowrap;}
+.mq-item{display:flex;align-items:center;gap:10px;padding:0 24px;font-size:13px;font-weight:600;color:#6E6E73;white-space:nowrap;}
 .mq-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
 
-/* ─────────────────────────────────────────────
-   S2 — TROIS GESTES (dark)
-───────────────────────────────────────────── */
-.s2{
-  background:var(--dark);color:#fff;
-  padding:140px 24px;text-align:center;
-}
-.s2 .tag{color:rgba(255,255,255,.3);}
-.s2-hl{
-  font-size:clamp(40px,5.5vw,72px);font-weight:600;
-  letter-spacing:-.032em;line-height:1.06;color:#fff;
-  margin-bottom:80px;text-wrap:balance;
-}
-.s2-hl em{font-style:normal;color:var(--cyan);}
+/* Wrap */
+.W{max-width:1100px;margin:0 auto;padding:0 24px;}
+.tag{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#86868B;margin-bottom:14px;}
 
-.gesture-row{
-  display:flex;justify-content:center;align-items:flex-end;
-  gap:clamp(12px,3vw,40px);flex-wrap:wrap;
-}
-.g-col{display:flex;flex-direction:column;align-items:center;gap:12px;}
-.g-circle{
-  width:clamp(100px,12vw,150px);height:clamp(100px,12vw,150px);
-  border-radius:50%;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;gap:5px;
-  font-size:13px;font-weight:600;line-height:1.3;
-  transition:transform .4s cubic-bezier(.23,1,.32,1);
-}
-.g-circle:hover{transform:scale(1.08) translateY(-6px);}
-.g-d{background:var(--red);color:#fff;}
-.g-k{background:var(--green);color:#06060A;}
-.g-s{background:var(--cyan);color:#06060A;}
-.g-photo{width:clamp(70px,9vw,110px);height:clamp(70px,9vw,110px);border-radius:50%;overflow:hidden;border:2px solid rgba(255,255,255,.1);}
-.g-photo img{width:100%;height:100%;object-fit:cover;}
-.g-cap{font-size:11px;font-weight:500;color:rgba(255,255,255,.35);letter-spacing:.04em;}
+/* Reveal */
+.rv{opacity:1;transform:none;}
+body.js .rv{opacity:0;transform:translateY(28px);transition:opacity .9s cubic-bezier(.16,1,.3,1),transform .9s cubic-bezier(.16,1,.3,1);}
+body.js .rv.in{opacity:1;transform:none;}
+.d1{transition-delay:.08s}.d2{transition-delay:.18s}.d3{transition-delay:.28s}.d4{transition-delay:.4s}
+@media(prefers-reduced-motion:reduce){body.js .rv{opacity:1;transform:none;transition:none;}}
 
-/* ─────────────────────────────────────────────
-   S3 — GALERIE SIMPLIFIÉE (light)
-───────────────────────────────────────────── */
-.s3{padding:140px 24px;background:var(--bg);}
-.s3-inner{
-  max-width:1100px;margin:0 auto;
-  display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;
-}
-.s3-img-wrap{border-radius:28px;overflow:hidden;aspect-ratio:4/5;position:relative;}
-.s3-img-wrap img{width:100%;height:100%;object-fit:cover;display:block;}
-.s3-img-fallback{width:100%;height:100%;background:linear-gradient(150deg,#12152E,#1D3461 40%,#4A7FA5);}
-.s3-txt{display:flex;flex-direction:column;gap:24px;}
-.s3-hl{
-  font-size:clamp(34px,4vw,52px);font-weight:600;
-  letter-spacing:-.028em;line-height:1.07;
-  text-wrap:balance;
-}
-.s3-p{font-size:17px;color:var(--txt2);line-height:1.7;max-width:380px;}
-.s3-notif{
-  display:flex;align-items:center;gap:12px;
-  background:var(--cream);border-radius:16px;padding:14px 16px;
-  width:fit-content;
-}
-.s3-notif-i{width:36px;height:36px;border-radius:9px;background:var(--txt);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.s3-notif-txt b{font-size:13px;font-weight:700;display:block;}
-.s3-notif-txt span{font-size:12px;color:var(--txt3);}
-.cta-link{
-  display:inline-flex;align-items:center;gap:6px;
-  font-size:15px;font-weight:600;color:var(--txt);
-  border-bottom:1.5px solid rgba(29,29,31,.2);padding-bottom:2px;
-  transition:border-color .2s;width:fit-content;
-}
-.cta-link:hover{border-color:var(--red);}
+/* S2 — Trois gestes (List2 style) */
+.s2{background:#F9F9F9;color:#1D1D1F;padding:120px 24px;}
+.s2-w{max-width:1100px;margin:0 auto;padding:0 8px;}
+.s2-hl{font-size:clamp(30px,4vw,54px);font-weight:600;letter-spacing:-.03em;line-height:1.06;color:#1D1D1F;margin-bottom:52px;text-wrap:balance;}
+.s2-hl em{font-style:normal;color:#000;}
+.glist{display:flex;flex-direction:column;}
+.gsep{height:1px;background:#E5E5EA;}
+.grow{display:grid;grid-template-columns:220px 1fr auto;align-items:center;gap:32px;padding:28px 0;}
+.grow-icon-col{display:flex;align-items:center;gap:14px;}
+.gicon{width:56px;height:56px;border-radius:12px;background:#EBEBEB;border:1px solid #D8D8D8;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.gicon-t{font-size:15px;font-weight:700;color:#1D1D1F;margin-bottom:3px;}
+.gicon-cat{font-size:12px;color:#86868B;font-weight:500;}
+.grow-desc{font-size:clamp(15px,1.6vw,19px);font-weight:600;color:#1D1D1F;line-height:1.4;}
+.grow-btn{display:inline-flex;align-items:center;gap:7px;padding:10px 22px;border:1px solid #C8C8C8;border-radius:100px;font-size:13px;font-weight:600;color:#1D1D1F;white-space:nowrap;transition:all .25s;text-decoration:none;}
+.grow-btn:hover{background:#1D1D1F;color:#fff;border-color:#1D1D1F;}
+@media(max-width:720px){.grow{grid-template-columns:1fr;gap:14px;padding:20px 0;}.grow-btn{width:fit-content;}}
 
-/* ─────────────────────────────────────────────
-   S4 — PAR ALBUM (dark)
-───────────────────────────────────────────── */
-.s4{background:var(--dark);padding:140px 24px;}
-.s4-inner{
-  max-width:1100px;margin:0 auto;
-  display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;
-}
-.s4 .tag{color:rgba(255,255,255,.3);}
-.s4-hl{
-  font-size:clamp(34px,4vw,52px);font-weight:600;
-  letter-spacing:-.028em;line-height:1.07;color:#fff;
-  margin-bottom:20px;text-wrap:balance;
-}
-.s4-p{font-size:17px;color:rgba(255,255,255,.45);line-height:1.7;margin-bottom:32px;}
+/* S3 — Explication (AboutSection3 style) */
+.s3{padding:100px 24px;background:#fff;}
+.s3-inner{max-width:1100px;margin:0 auto;}
+.s3-topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;width:85%;}
+.s3-whoami{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.1em;color:#6E6E73;text-transform:uppercase;}
+.s3-spin{display:inline-block;animation:s3rot 4s linear infinite;color:#1D1D1F;font-size:14px;line-height:1;}
+@keyframes s3rot{to{transform:rotate(360deg)}}
+.s3-soc{display:flex;gap:8px;}
+.s3-soc-ic{width:32px;height:32px;border:1px solid #E5E5EA;border-radius:9px;background:#F5F5F7;display:flex;align-items:center;justify-content:center;color:#1D1D1F;transition:background .2s;text-decoration:none;}
+.s3-soc-ic:hover{background:#E0E0E0;}
+.s3-fig{margin:0 0 16px;position:relative;}
+.s3-fig svg{display:block;width:100%;height:auto;}
+.s3-stats{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;padding:16px 0;border-top:1px solid #E5E5EA;border-bottom:1px solid #E5E5EA;margin-bottom:40px;gap:16px;}
+.s3-stat{display:flex;align-items:center;gap:8px;}
+.s3-statv{font-size:clamp(17px,2vw,22px);font-weight:700;color:#1D1D1F;}
+.s3-statl{font-size:13px;color:#86868B;}
+.s3-statd{color:#D0D0D0;margin:0 8px;}
+.s3-statn{font-size:clamp(26px,3.5vw,42px);font-weight:700;color:#1D1D1F;}
+.s3-main{display:grid;grid-template-columns:2fr 1fr;gap:60px;align-items:start;}
+.s3-hl{font-size:clamp(26px,3.2vw,44px);font-weight:600;letter-spacing:-.028em;line-height:1.07;margin-bottom:24px;text-wrap:balance;}
+.s3-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
+.s3-cols p{font-size:15px;color:#6E6E73;line-height:1.7;margin:0;}
+.s3-cta-col{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:16px;padding-top:6px;}
+.s3-cta-label{font-size:13px;font-weight:600;color:#1D1D1F;line-height:1.5;max-width:200px;}
+.s3-cta-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;background:#1D1D1F;color:#fff;border-radius:10px;font-size:14px;font-weight:700;transition:all .25s;text-decoration:none;box-shadow:0 4px 12px rgba(0,0,0,.12);}
+.s3-cta-btn:hover{background:#000;transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.18);}
+@media(max-width:768px){.s3-main{grid-template-columns:1fr;}.s3-cta-col{align-items:flex-start;text-align:left;}.s3-cols{grid-template-columns:1fr;}.s3-topbar{width:100%;}}
 
-/* album phone */
-.s4-ph{
-  width:260px;height:400px;border-radius:32px;margin:0 auto;
-  background:linear-gradient(160deg,#0A0B18,#111632 55%,#1a2248);
-  overflow:hidden;position:relative;
-  box-shadow:0 40px 80px rgba(0,0,0,.4),0 0 0 1px rgba(255,255,255,.06);
-  animation:phfl 7s ease-in-out infinite .6s;
-}
+/* S4 */
+.s4{background:#F9F9F9;padding:120px 24px;}
+.s4-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;}
+.s4 .tag{color:#86868B;}
+.s4-hl{font-size:clamp(32px,3.8vw,50px);font-weight:600;letter-spacing:-.028em;line-height:1.07;color:#1D1D1F;margin-bottom:18px;text-wrap:balance;}
+.s4-p{font-size:17px;color:#6E6E73;line-height:1.7;margin-bottom:30px;}
+.s4-ph{width:260px;height:400px;border-radius:32px;margin:0 auto;background:linear-gradient(160deg,#0A0B18,#111632 55%,#1a2248);overflow:hidden;position:relative;box-shadow:0 40px 80px rgba(0,0,0,.18);animation:phfl 7s ease-in-out infinite .6s;}
+@keyframes phfl{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-10px) rotate(.25deg)}}
 .s4-ui{position:absolute;inset:0;padding:16px;}
-.alb-pill{
-  display:inline-flex;align-items:center;gap:5px;
-  background:rgba(255,255,255,.07);border-radius:var(--r);
-  padding:5px 12px;font-size:9px;font-weight:600;color:rgba(255,255,255,.5);
-  margin-bottom:12px;
-}
+.alb-pill{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.07);border-radius:100px;padding:5px 12px;font-size:9px;font-weight:600;color:rgba(255,255,255,.5);margin-bottom:12px;}
 .alb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;border-radius:10px;overflow:hidden;}
 .alb-tile{aspect-ratio:1;overflow:hidden;}
 .alb-tile img{width:100%;height:100%;object-fit:cover;display:block;}
-.alb-tile-fb{width:100%;height:100%;}
 .alb-info{background:rgba(255,255,255,.05);border-radius:10px;padding:10px;margin-top:8px;}
 .alb-sub{font-size:9px;color:rgba(255,255,255,.38);font-weight:600;margin-bottom:3px;}
 .alb-count{font-size:16px;font-weight:700;color:#fff;letter-spacing:-.02em;}
-
 .feat-list{display:flex;flex-direction:column;gap:6px;}
-.feat-item{
-  background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.07);
-  border-radius:14px;padding:16px 18px;
-  display:flex;align-items:center;gap:14px;
-}
-.feat-ic{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.feat-item h4{font-size:13.5px;font-weight:600;color:#fff;margin-bottom:2px;}
-.feat-item p{font-size:12px;color:rgba(255,255,255,.38);line-height:1.5;}
+.feat-item{background:#fff;border:1px solid #E5E5EA;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;}
+.feat-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.feat-item h4{font-size:13px;font-weight:600;color:#1D1D1F;margin-bottom:2px;}
+.feat-item p{font-size:12px;color:#86868B;line-height:1.5;}
 
-/* ─────────────────────────────────────────────
-   S5 — SOCIAL PROOF (light)
-───────────────────────────────────────────── */
-.s5{padding:140px 0;background:var(--bg);overflow:hidden;}
+/* Stats */
+.stats{background:#fff;border-top:1px solid #E5E5EA;border-bottom:1px solid #E5E5EA;padding:0 24px 80px;}
+.stats-inner{max-width:900px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);gap:2px;}
+.stat-box{padding:40px 32px;background:#FAFAFA;border:1px solid #EBEBEB;}
+.stat-box:first-child{border-radius:20px 0 0 20px;}
+.stat-box:last-child{border-radius:0 20px 20px 0;}
+.stat-n{font-size:clamp(34px,4.5vw,56px);font-weight:600;letter-spacing:-.04em;color:#1D1D1F;line-height:1;}
+.stat-n em{font-style:normal;color:#000;}
+.stat-l{font-size:13px;color:#86868B;margin-top:8px;font-weight:500;}
+
+/* Reviews */
+.s5{padding:140px 0;background:#FBFBFD;overflow:hidden;}
 .s5-h{max-width:1100px;margin:0 auto 56px;padding:0 24px;}
-.s5-hl{
-  font-size:clamp(34px,4vw,52px);font-weight:600;
-  letter-spacing:-.028em;line-height:1.07;
-}
-.s5-sub{font-size:17px;color:var(--txt2);margin-top:12px;}
-.ts-track{display:flex;width:max-content;animation:mqa 65s linear infinite;}
+.s5-hl{font-size:clamp(32px,3.8vw,50px);font-weight:600;letter-spacing:-.028em;line-height:1.07;}
+.s5-sub{font-size:17px;color:#6E6E73;margin-top:12px;}
+.ts-track{display:flex;width:max-content;animation:mqa 68s linear infinite;}
 .ts-track:hover{animation-play-state:paused;}
-.tc{
-  width:300px;flex-shrink:0;
-  background:var(--cream);border-radius:20px;padding:22px;margin-right:12px;
-}
-.tc-stars{font-size:12px;letter-spacing:1px;color:#F5A623;margin-bottom:10px;}
-.tc-txt{font-size:14px;line-height:1.7;color:var(--txt2);}
+.tc{width:300px;flex-shrink:0;background:#fff;border-radius:20px;padding:22px;margin-right:12px;box-shadow:0 2px 16px rgba(29,29,31,.07);}
+.tc-stars{font-size:12px;letter-spacing:1px;color:#F59E0B;margin-bottom:10px;}
+.tc-txt{font-size:13.5px;line-height:1.7;color:#6E6E73;}
 .tc-foot{display:flex;align-items:center;gap:10px;margin-top:16px;}
-.tc-av{width:32px;height:32px;border-radius:50%;overflow:hidden;flex-shrink:0;}
-.tc-av div{width:100%;height:100%;}
-.tc-name{font-size:13px;font-weight:700;color:var(--txt);}
-.tc-sub{font-size:10.5px;color:var(--txt3);}
+.tc-av{width:36px;height:36px;border-radius:50%;overflow:hidden;flex-shrink:0;}
+.tc-av img{width:100%;height:100%;object-fit:cover;display:block;}
+.tc-name{font-size:13px;font-weight:700;color:#1D1D1F;}
+.tc-sub{font-size:10.5px;color:#86868B;}
 
-/* ─────────────────────────────────────────────
-   S6 — DOWNLOAD
-───────────────────────────────────────────── */
-.s6{padding:140px 24px;background:var(--cream);}
-.s6-inner{
-  max-width:1100px;margin:0 auto;
-  display:grid;grid-template-columns:1fr 1fr;gap:16px;
-}
-
-/* dark left card */
-.s6-dk{
-  background:linear-gradient(160deg,#09090F,#111428);
-  border-radius:28px;padding:48px;min-height:540px;
-  position:relative;overflow:hidden;
-  display:flex;flex-direction:column;justify-content:flex-end;
-}
-.s6-aura{position:absolute;inset:0;pointer-events:none;
-  background:radial-gradient(ellipse at 20% 15%,rgba(0,200,255,.12),transparent 50%),
-             radial-gradient(ellipse at 80% 80%,rgba(255,48,48,.08),transparent 45%);}
-.s6-topimg{position:absolute;top:0;inset-x:0;height:52%;overflow:hidden;}
-.s6-topimg img{width:100%;height:100%;object-fit:cover;opacity:.4;filter:saturate(.5);}
-.s6-topimg-fb{width:100%;height:100%;background:linear-gradient(180deg,rgba(0,200,255,.15),transparent);}
+/* Download */
+.s6{padding:140px 24px;background:#F5F5F7;}
+.s6-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.s6-dk{background:linear-gradient(160deg,#09090F,#111428);border-radius:28px;padding:48px;min-height:520px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;}
+.s6-aura{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 20% 15%,rgba(0,200,255,.12),transparent 50%),radial-gradient(ellipse at 80% 80%,rgba(255,48,48,.08),transparent 45%);}
+.s6-topimg{position:absolute;top:0;inset-x:0;height:50%;overflow:hidden;}
+.s6-topimg img{width:100%;height:100%;object-fit:cover;opacity:.38;filter:saturate(.5);}
+.s6-topimg-fb{width:100%;height:100%;background:linear-gradient(180deg,rgba(0,200,255,.12),transparent);}
 .s6-features{position:relative;z-index:2;display:flex;flex-direction:column;gap:8px;}
-.s6-f{
-  background:rgba(255,255,255,.06);backdrop-filter:blur(12px);
-  border-radius:12px;padding:14px 16px;border:1px solid rgba(255,255,255,.06);
-}
+.s6-f{background:rgba(255,255,255,.05);backdrop-filter:blur(12px);border-radius:12px;padding:14px 16px;border:1px solid rgba(255,255,255,.05);}
 .s6-f h4{font-size:13px;font-weight:600;color:#fff;margin-bottom:3px;display:flex;align-items:center;gap:8px;}
-.s6-f p{font-size:12px;color:rgba(255,255,255,.38);line-height:1.55;}
-.s6-f-ic{width:20px;height:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-
-/* lime right card */
-.s6-lm{
-  background:var(--lime);border-radius:28px;padding:48px;
-  display:flex;flex-direction:column;
-}
-.s6-lm-hl{
-  font-size:clamp(26px,3vw,40px);font-weight:600;
-  letter-spacing:-.028em;line-height:1.07;color:#1D1D1F;
-}
+.s6-f p{font-size:12px;color:rgba(255,255,255,.36);line-height:1.55;}
+.s6-lm{background:#C8FF52;border-radius:28px;padding:48px;display:flex;flex-direction:column;}
+.s6-lm-hl{font-size:clamp(24px,2.8vw,38px);font-weight:600;letter-spacing:-.028em;line-height:1.07;color:#1D1D1F;}
 .s6-btns{display:flex;flex-direction:column;gap:8px;margin-top:24px;}
-.s6-btn{
-  display:flex;align-items:center;gap:10px;
-  background:#1D1D1F;color:#fff;border-radius:12px;padding:13px 18px;
-  font-weight:600;font-size:14px;width:fit-content;
-  transition:transform .15s,background .2s;
-}
+.s6-btn{display:flex;align-items:center;gap:10px;background:#1D1D1F;color:#fff;border-radius:12px;padding:13px 18px;font-weight:600;font-size:14px;width:fit-content;transition:transform .15s,background .2s;}
 .s6-btn:hover{transform:scale(1.03);}
-.s6-btn.soon{opacity:.3;pointer-events:none;cursor:not-allowed;}
+.s6-btn.soon{opacity:.3;pointer-events:none;}
 .s6-mini-wrap{flex:1;display:flex;justify-content:center;align-items:flex-end;margin-top:28px;}
-.s6-mini{
-  width:158px;border-radius:26px;border:5px solid #1D1D1F;background:#1D1D1F;
-  overflow:hidden;box-shadow:0 24px 50px rgba(29,29,31,.24);
-  animation:bdfl 6s ease-in-out infinite;
-}
+.s6-mini{width:154px;border-radius:26px;border:5px solid #1D1D1F;background:#1D1D1F;overflow:hidden;box-shadow:0 24px 50px rgba(29,29,31,.22);animation:phfl 6s ease-in-out infinite;}
 .s6-mbar{display:flex;justify-content:space-between;padding:7px 11px;font-size:8px;color:rgba(255,255,255,.3);font-weight:700;}
 .s6-mbody{padding:9px;}
 .s6-mlbl{font-size:13px;font-weight:700;letter-spacing:-.02em;color:#fff;display:inline-block;margin-bottom:6px;}
-.s6-mimg{height:88px;border-radius:10px;background:linear-gradient(140deg,#1a472a,#52b788);display:flex;align-items:center;justify-content:center;}
+.s6-mimg{height:84px;border-radius:10px;background:linear-gradient(140deg,#1a472a,#52b788);display:flex;align-items:center;justify-content:center;}
 .s6-mbtns{display:flex;justify-content:space-around;padding:7px 0;}
 
-/* ─── STATS STRIP ─── */
-.stats{
-  background:var(--dark);padding:80px 24px;
-  display:flex;justify-content:center;
-}
-.stats-inner{
-  max-width:900px;width:100%;
-  display:grid;grid-template-columns:repeat(3,1fr);gap:2px;
-}
-.stat-box{padding:40px 32px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);}
-.stat-box:first-child{border-radius:20px 0 0 20px;}
-.stat-box:last-child{border-radius:0 20px 20px 0;}
-.stat-n{font-size:clamp(36px,5vw,60px);font-weight:600;letter-spacing:-.04em;color:#fff;line-height:1;}
-.stat-n em{font-style:normal;color:var(--cyan);}
-.stat-l{font-size:13px;color:rgba(255,255,255,.35);margin-top:8px;font-weight:500;}
-
-/* ─── FOOTER ─── */
-.footer{background:var(--dark);padding:60px 24px 0;border-top:1px solid rgba(255,255,255,.06);}
+/* Footer */
+.footer{background:#06060A;padding:60px 24px 0;border-top:1px solid rgba(255,255,255,.04);}
 .footer-top{max-width:1100px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;padding-bottom:40px;}
 .footer-logo{font-size:16px;font-weight:700;letter-spacing:-.03em;color:#fff;}
 .footer-nav{display:flex;gap:24px;}
-.footer-nav a{font-size:13px;color:rgba(255,255,255,.35);transition:color .18s;}
+.footer-nav a{font-size:13px;color:rgba(255,255,255,.3);transition:color .18s;}
 .footer-nav a:hover{color:#fff;}
 .footer-soc{display:flex;gap:8px;}
-.soc-i{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.4);transition:background .2s,border-color .2s,color .2s;}
-.soc-i:hover{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.2);color:#fff;}
-.footer-wm{
-  font-size:18vw;font-weight:700;letter-spacing:-.06em;line-height:.82;
-  text-align:center;color:rgba(255,255,255,.025);overflow:hidden;
-  white-space:nowrap;pointer-events:none;user-select:none;margin-top:8px;
-}
+.soc-i{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.35);transition:background .2s,color .2s;}
+.soc-i:hover{background:rgba(255,255,255,.07);color:#fff;}
+.footer-wm{font-size:18vw;font-weight:700;letter-spacing:-.06em;line-height:.82;text-align:center;color:rgba(255,255,255,.022);overflow:hidden;white-space:nowrap;pointer-events:none;user-select:none;margin-top:8px;}
 
-/* ─── RESPONSIVE ─── */
+/* Responsive */
 @media(max-width:900px){
+  .cin-card-inner{grid-template-columns:1fr;}
+  .cin-card-left,.cin-card-right{display:none;}
   .s3-inner,.s4-inner,.s6-inner{grid-template-columns:1fr;}
   .s4-ph{display:none;}
   .stats-inner{grid-template-columns:1fr;gap:2px;}
   .stat-box:first-child{border-radius:20px 20px 0 0;}
   .stat-box:last-child{border-radius:0 0 20px 20px;}
+  .cin-badge{display:none;}
 }
-@media(max-width:580px){
-  .hero-hl{font-size:clamp(36px,10vw,52px);}
-  .ph{width:240px;height:470px;}
-  .s3-inner,.s4-inner{gap:48px;}
-  .s6-dk,.s6-lm{padding:32px;}
+@media(max-width:600px){
+  .iphone-bezel{width:220px;height:460px;}
+  .s6-dk,.s6-lm{padding:30px;}
   .footer-nav{display:none;}
-  .g-circle{width:86px;height:86px;font-size:11px;}
-  .g-photo{width:60px;height:60px;}
+  .g-circle{width:82px;height:82px;font-size:11px;}
+  .g-photo{width:58px;height:58px;}
 }
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
@@ -436,10 +431,7 @@ body.js .rv.in{opacity:1;transform:none;}
 </head>
 <body>
 
-<!-- SCROLL BAR -->
 <div class="spb" id="spb"></div>
-
-<!-- CURSOR -->
 <div class="cur-d" id="cd"></div>
 <div class="cur-r" id="cr"></div>
 
@@ -462,188 +454,235 @@ body.js .rv.in{opacity:1;transform:none;}
   </div>
 </header>
 
-<!-- ══ HERO ══ -->
-<section class="hero" id="top">
+<!-- ══ CINEMATIC HERO ══ -->
+<section class="cin-section" id="top">
+  <div class="film-grain" aria-hidden="true"></div>
+  <div class="bg-grid" aria-hidden="true"></div>
 
-  <!-- Texte hero centré -->
-  <div class="hero-txt">
-    <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:4px;">
-      <span style="font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--txt3);">SwipeClean · Android</span>
-      <span style="background:#1D1D1F;color:#fff;font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;border-radius:4px;padding:2px 7px;">BETA</span>
-    </div>
-    <h1 class="hero-hl">
-      Libérez votre galerie.<br/>
-      <em>En un geste.</em>
-    </h1>
-    <p class="hero-sub">Triez des milliers de photos en quelques minutes grâce aux gestes intuitifs.</p>
-    <div class="hero-actions">
-      <a href="https://github.com/xeloriom-sketch/SwipeClean/releases/download/v1.0.13-beta/SwipeClean-latest.apk" class="btn-dl">
+  <!-- Text layer -->
+  <div class="cin-text" id="cinText">
+    <p class="cin-t1">Libérez votre galerie,</p>
+    <p class="cin-t2">en un geste.</p>
+  </div>
+
+  <!-- CTA layer -->
+  <div class="cin-cta" id="cinCTA">
+    <p class="cin-cta-hl">Téléchargez SwipeClean.</p>
+    <p class="cin-cta-sub">Disponible maintenant sur Android · iOS bientôt</p>
+    <div class="cin-dl-btns">
+      <a href="https://github.com/xeloriom-sketch/SwipeClean/releases/download/v1.0.13-beta/SwipeClean-latest.apk" class="btn-apk">
         <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85-.29-.15-.65-.06-.83.22l-1.88 3.24A9.53 9.53 0 0 0 12 8a9.53 9.53 0 0 0-4.47 1.09L5.65 5.87c-.19-.29-.56-.38-.85-.22-.3.16-.42.54-.26.85l1.84 3.18A9.42 9.42 0 0 0 2.5 18H21.5a9.42 9.42 0 0 0-3.9-8.52zM7.5 15.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm9 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>
-        Télécharger l'APK Android
+        <div><div style="font-size:10px;opacity:.55;font-weight:500;margin-bottom:1px">Télécharger l'</div>APK Android</div>
       </a>
-      <span class="btn-ios-label">iOS — Bientôt disponible</span>
-    </div>
-  </div>
-
-  <!-- Phone centré -->
-  <div class="hero-phone" id="phWrap">
-    <div class="ph-outer">
-      <div class="ph" id="phFrame">
-        <div class="ph-bar">
-          <span class="ph-time">9:41</span>
-          <div class="ph-icons">
-            <span style="height:6px"></span><span style="height:9px"></span><span style="height:12px"></span>
-            <span style="width:9px;height:9px;border-radius:50%;border:1.5px solid rgba(255,255,255,.4);background:none;margin-left:5px;"></span>
-          </div>
-        </div>
-        <div class="ph-screen">
-          <div class="ph-stack" id="phSt">
-            <div class="ph-card" style="z-index:1;transform:scale(.93);">
-              <img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&fit=crop&q=80" onerror="this.parentElement.style.background='linear-gradient(155deg,#4527A0,#7E57C2)'"/>
-              <div style="position:absolute;bottom:14px;left:14px;background:rgba(0,0,0,.4);backdrop-filter:blur(8px);border-radius:8px;padding:5px 10px;font-size:10px;font-weight:600;color:#fff;">Vacances 2024</div>
-            </div>
-            <div class="ph-card" style="z-index:2;transform:scale(1);">
-              <img src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400&fit=crop&q=80" onerror="this.parentElement.style.background='linear-gradient(155deg,#1565C0,#42A5F5)'"/>
-              <div style="position:absolute;bottom:14px;left:14px;background:rgba(0,0,0,.4);backdrop-filter:blur(8px);border-radius:8px;padding:5px 10px;font-size:10px;font-weight:600;color:#fff;">Paysage</div>
-            </div>
-          </div>
-        </div>
-        <div class="ph-btns">
-          <div class="ph-btn pb-d">
-            <svg width="15" height="15" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="#FF3030" stroke-width="2" stroke-linecap="round"/></svg>
-          </div>
-          <div class="ph-btn pb-s">
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="#00C8FF"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-          </div>
-          <div class="ph-btn pb-k">
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="#3DFF6A"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-          </div>
-        </div>
-      </div>
-      <!-- badge flottant -->
-      <div class="ph-badge">
-        <div class="ph-badge-i">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <div>
-          <div class="ph-badge-txt">Galerie traitée !</div>
-          <div class="ph-badge-sub">+2.3 Go libérés</div>
-        </div>
+      <div class="btn-ios-cin">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+        <div><div style="font-size:10px;opacity:.55;font-weight:500;margin-bottom:1px">Bientôt sur</div>iOS App Store</div>
       </div>
     </div>
   </div>
 
+  <!-- THE MAIN CARD -->
+  <div class="cin-card" id="cinCard">
+    <svg style="position:absolute;width:0;height:0">
+      <defs>
+        <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="#3B82F6"/>
+          <stop offset="100%" stop-color="#06B6D4"/>
+        </linearGradient>
+      </defs>
+    </svg>
+    <div class="cin-card-sheen" id="cardSheen"></div>
+    <div class="cin-card-inner">
+
+      <!-- Left text -->
+      <div class="cin-card-left" id="cinCardLeft">
+        <h3>La galerie propre.<br/>Le souvenir intact.</h3>
+        <p>SwipeClean trie vos photos en quelques gestes intuitifs. Supprimez, gardez, mettez en favoris — en un seul swipe.</p>
+      </div>
+
+      <!-- Phone center -->
+      <div class="cin-phone-wrap" id="cinPhoneWrap">
+        <div class="iphone-bezel" id="iPhoneBezel">
+          <div class="hw-btn hw-vol1"></div>
+          <div class="hw-btn hw-vol2"></div>
+          <div class="hw-btn hw-vol3"></div>
+          <div class="hw-btn hw-pwr"></div>
+          <div class="iphone-screen">
+            <div class="screen-glare"></div>
+            <div class="dyn-island"><div class="dyn-dot"></div></div>
+            <div class="screen-ui">
+              <div class="sc-header" id="scHdr">
+                <div>
+                  <h4>SwipeClean</h4>
+                  <span style="font-size:18px;font-weight:700;letter-spacing:-.02em">Galerie</span>
+                </div>
+                <div class="sc-av">SC</div>
+              </div>
+              <div class="ring-wrap" id="ringWrap">
+                <svg viewBox="0 0 160 160" aria-hidden="true">
+                  <circle class="ring-bg" cx="80" cy="80" r="70"/>
+                  <circle class="ring-fill" id="ringFill" cx="80" cy="80" r="70"/>
+                </svg>
+                <div class="ring-center">
+                  <span class="ring-n" id="ringN">0</span>
+                  <span class="ring-l">photos triées</span>
+                </div>
+              </div>
+              <div class="sc-photo-area" id="scPhotoArea">
+                <img src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400&fit=crop&q=80" alt=""/>
+                <div class="sc-photo-lbl">Paysage</div>
+                <div class="swipe-hint" id="swipeHint">SWIPE</div>
+              </div>
+              <div class="sc-btns" id="scBtns">
+                <div class="sc-btn sc-del"><svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="#FF3030" stroke-width="2" stroke-linecap="round"/></svg></div>
+                <div class="sc-btn sc-fav"><svg width="11" height="11" viewBox="0 0 24 24" fill="#00C8FF"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
+                <div class="sc-btn sc-kp"><svg width="14" height="14" viewBox="0 0 24 24" fill="#3DFF6A"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+              </div>
+              <div class="home-bar"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating badges -->
+        <div class="cin-badge cin-badge1" id="cinBadge1">
+          <div class="cin-badge-ic" style="background:rgba(0,200,255,.15);border:1px solid rgba(0,200,255,.2);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="#00C8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div>
+            <div class="cin-badge-t">Galerie traitée !</div>
+            <div class="cin-badge-s">+2.3 Go libérés</div>
+          </div>
+        </div>
+        <div class="cin-badge cin-badge2" id="cinBadge2">
+          <div class="cin-badge-ic" style="background:rgba(61,255,106,.12);border:1px solid rgba(61,255,106,.2);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#3DFF6A" stroke-width="2"/><path d="M12 8v4l3 3" stroke="#3DFF6A" stroke-width="2" stroke-linecap="round"/></svg>
+          </div>
+          <div>
+            <div class="cin-badge-t">3 photos / min</div>
+            <div class="cin-badge-s">Rythme optimal</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right brand -->
+      <div class="cin-card-right" id="cinCardRight">
+        <span>Swipe<br/>Clean</span>
+      </div>
+
+    </div>
+  </div>
 </section>
+
+<!-- BELOW FOLD -->
+<div class="below">
 
 <!-- marquee -->
 <div class="mq"><div class="mq-tr" id="mqTr"></div></div>
 
-<!-- ══ S2 — TROIS GESTES ══ -->
+<!-- S2 — Trois gestes -->
 <section class="s2" id="how">
-  <div class="W">
-    <p class="tag rv">Gestuel &amp; intuitif</p>
-    <h2 class="s2-hl rv d1">Trois gestes. <em>C'est tout.</em></h2>
-    <div class="gesture-row">
-      <div class="g-col rv d1">
-        <div class="g-photo"><img src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=220&fit=crop&q=75" onerror="this.parentElement.style.background='#1a3a2a'"/></div>
-        <span class="g-cap">Vos photos</span>
-      </div>
-      <div class="g-col rv d2">
-        <div class="g-circle g-d">
-          <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="white" stroke-width="2.5" stroke-linecap="round"/></svg>
-          Supprimer
+  <div class="s2-w">
+    <h2 class="s2-hl rv">Trois gestes.<br><em>C'est tout.</em></h2>
+    <div class="glist">
+      <div class="gsep"></div>
+      <div class="grow rv d1">
+        <div class="grow-icon-col">
+          <div class="gicon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="#1D1D1F" stroke-width="2.5" stroke-linecap="round"/></svg></div>
+          <div><h3 class="gicon-t">Supprimer</h3><p class="gicon-cat">Swipe gauche</p></div>
         </div>
-        <span class="g-cap">Swipe gauche</span>
+        <p class="grow-desc">Glissez à gauche pour envoyer une photo à la corbeille.</p>
+        <a href="#download" class="grow-btn">Télécharger <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
       </div>
-      <div class="g-col rv d3">
-        <div class="g-photo"><img src="https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=220&fit=crop&q=75" onerror="this.parentElement.style.background='#0d1b2a'"/></div>
-        <span class="g-cap">Triez !</span>
-      </div>
-      <div class="g-col rv d2">
-        <div class="g-circle g-k">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="#06060A"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-          Garder
+      <div class="gsep"></div>
+      <div class="grow rv d2">
+        <div class="grow-icon-col">
+          <div class="gicon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="#1D1D1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div><h3 class="gicon-t">Garder</h3><p class="gicon-cat">Swipe droite</p></div>
         </div>
-        <span class="g-cap">Swipe droite</span>
+        <p class="grow-desc">Glissez à droite pour conserver vos meilleurs souvenirs.</p>
+        <a href="#download" class="grow-btn">Télécharger <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
       </div>
-      <div class="g-col rv d3">
-        <div class="g-circle g-s">
-          <svg width="26" height="26" viewBox="0 0 24 24" fill="#06060A"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-          Favoris
+      <div class="gsep"></div>
+      <div class="grow rv d3">
+        <div class="grow-icon-col">
+          <div class="gicon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="#1D1D1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+          <div><h3 class="gicon-t">Favoris</h3><p class="gicon-cat">Swipe haut</p></div>
         </div>
-        <span class="g-cap">Swipe haut</span>
+        <p class="grow-desc">Glissez vers le haut pour ajouter une photo à vos favoris.</p>
+        <a href="#download" class="grow-btn">Télécharger <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
       </div>
-      <div class="g-col rv d4">
-        <div class="g-photo"><img src="https://images.unsplash.com/photo-1501854140801-50d01698950b?w=220&fit=crop&q=75" onerror="this.parentElement.style.background='#2a0d1a'"/></div>
-        <span class="g-cap">Résultat</span>
-      </div>
+      <div class="gsep"></div>
     </div>
   </div>
 </section>
 
-<!-- ══ S3 — GALERIE SIMPLIFIÉE ══ -->
-<section class="s3" id="features">
+<!-- S3 — Explication -->
+<section class="s3" id="about">
   <div class="s3-inner">
-    <div class="s3-img-wrap rv">
-      <img src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=900&fit=crop&auto=format&q=80" alt="Tri de photos"
-        onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/>
-      <div class="s3-img-fallback" style="display:none;position:absolute;inset:0;"></div>
+    <div class="s3-topbar rv">
+      <div class="s3-whoami"><span class="s3-spin">✱</span>QUI NOUS SOMMES</div>
+      <div class="s3-soc">
+        <a href="https://github.com/xeloriom-sketch/SwipeClean" target="_blank" rel="noopener" class="s3-soc-ic" title="GitHub">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.2 11.38.6.1.82-.26.82-.58v-2.02c-3.34.72-4.04-1.61-4.04-1.61-.54-1.38-1.33-1.75-1.33-1.75-1.08-.74.08-.72.08-.72 1.2.08 1.83 1.23 1.83 1.23 1.06 1.82 2.8 1.3 3.48.99.1-.77.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23.96-.27 1.98-.4 3-.4 1.02 0 2.04.13 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.3c0 .32.22.69.83.57C20.57 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        </a>
+      </div>
     </div>
-    <div class="s3-txt rv d2">
-      <p class="tag">Pour toutes vos photos</p>
-      <h2 class="s3-hl">Galerie simplifiée au quotidien.</h2>
-      <p class="s3-p">Que ce soit pour libérer de l'espace ou retrouver vos meilleurs souvenirs, SwipeClean rend le tri intuitif et agréable.</p>
-      <div class="s3-notif">
-        <div class="s3-notif-i">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </div>
-        <div class="s3-notif-txt">
-          <b>Nettoyage terminé</b>
-          <span>4.2 Go libérés en 8 min</span>
+    <figure class="s3-fig rv">
+      <svg width="100%" height="400" viewBox="0 0 1100 400" preserveAspectRatio="xMidYMid slice" style="border-radius:16px;overflow:hidden;">
+        <defs>
+          <clipPath id="s3clip" clipPathUnits="objectBoundingBox">
+            <path d="M0.09,1 H0.422 H0.75 C0.767,1 0.774,0.962 0.776,0.943 V0.807 C0.777,0.744 0.792,0.732 0.799,0.734 H0.97 C0.996,0.73 1,0.693 1,0.675 V0.07 C1,0.025 0.985,0.005 0.978,0 H0.902 C0.855,0 0.89,0.139 0.85,0.139 H0.02 C0.004,0.142 0,0.18 0,0.199 V0.411 C0,0.449 0.014,0.466 0.02,0.47 H0.052 C0.07,0.471 0.074,0.498 0.073,0.511 V0.916 C0.072,0.983 0.09,1 0.09,1 Z"/>
+          </clipPath>
+        </defs>
+        <image clip-path="url(#s3clip)" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" href="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=1200&fit=crop&q=80"/>
+      </svg>
+    </figure>
+    <div class="s3-stats rv d1">
+      <div class="s3-stat"><span class="s3-statv">500K<em>+</em></span><span class="s3-statl">photos traitées</span><span class="s3-statd">|</span></div>
+      <div class="s3-stat"><span class="s3-statv">4,2 <em>Go</em></span><span class="s3-statl">libérés en moyenne</span></div>
+      <div class="s3-stat" style="margin-left:auto"><span class="s3-statn">3 min</span><span class="s3-statl">pour 100 photos</span></div>
+    </div>
+    <div class="s3-main rv d2">
+      <div>
+        <h2 class="s3-hl">Galerie simplifiée au quotidien.</h2>
+        <div class="s3-cols">
+          <p>Que ce soit pour libérer de l'espace ou retrouver vos meilleurs souvenirs, SwipeClean rend le tri intuitif et agréable.</p>
+          <p>Chaque geste est pensé pour être rapide et naturel — comme feuilleter un album photo.</p>
         </div>
       </div>
-      <a href="#download" class="cta-link">
-        Commencer maintenant
-        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M2 7h10M8 3.5L11.5 7 8 10.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      </a>
+      <div class="s3-cta-col">
+        <p class="s3-cta-label">Prêt à libérer votre espace ?</p>
+        <a href="#download" class="s3-cta-btn">Télécharger <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+      </div>
     </div>
   </div>
 </section>
 
-<!-- ══ S4 — PAR ALBUM ══ -->
+<!-- S4 -->
 <section class="s4">
   <div class="s4-inner">
     <div>
       <p class="tag">Organisation</p>
       <h2 class="s4-hl rv">Triez album par album.</h2>
-      <p class="s4-p rv d1">Vacances, famille, selfies — chaque album a son propre rythme. Reprenez là où vous vous êtes arrêtés.</p>
+      <p class="s4-p rv d1">Vacances, famille, selfies — chaque album à son rythme. Reprenez là où vous vous êtes arrêtés.</p>
       <div class="feat-list rv d2">
         <div class="feat-item">
-          <div class="feat-ic" style="background:rgba(0,200,255,.12);">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M19 11H5M19 11l-4-4m4 4l-4 4" stroke="#00C8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
+          <div class="feat-ic" style="background:rgba(0,200,255,.1);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M19 11H5M19 11l-4-4m4 4l-4 4" stroke="#00C8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           <div><h4>Reprise automatique</h4><p>Votre position est mémorisée à chaque session.</p></div>
         </div>
         <div class="feat-item">
-          <div class="feat-ic" style="background:rgba(61,255,106,.10);">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="#3DFF6A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
+          <div class="feat-ic" style="background:rgba(61,255,106,.08);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="#3DFF6A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
           <div><h4>Corbeille sécurisée</h4><p>Confirmation avant suppression définitive.</p></div>
         </div>
         <div class="feat-item">
-          <div class="feat-ic" style="background:rgba(255,48,48,.10);">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#FF3030" stroke-width="2"/><path d="M12 8v4l3 3" stroke="#FF3030" stroke-width="2" stroke-linecap="round"/></svg>
-          </div>
+          <div class="feat-ic" style="background:rgba(255,48,48,.08);"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#FF3030" stroke-width="2"/><path d="M12 8v4l3 3" stroke="#FF3030" stroke-width="2" stroke-linecap="round"/></svg></div>
           <div><h4>Sons &amp; vibrations</h4><p>Retour sensoriel pour chaque geste.</p></div>
         </div>
       </div>
     </div>
     <div class="s4-ph rv d1">
       <div class="s4-ui">
-        <div class="alb-pill">
-          <svg width="9" height="9" viewBox="0 0 9 9" fill="rgba(255,255,255,.5)"><path d="M0 0h3.8v3.8H0zm5.2 0H9v3.8H5.2zM0 5.2h3.8V9H0zm5.2 0H9V9H5.2z"/></svg>
-          Albums · 24
-        </div>
+        <div class="alb-pill"><svg width="9" height="9" viewBox="0 0 9 9" fill="rgba(255,255,255,.5)"><path d="M0 0h3.8v3.8H0zm5.2 0H9v3.8H5.2zM0 5.2h3.8V9H0zm5.2 0H9V9H5.2z"/></svg>Albums · 24</div>
         <div class="alb-grid">
           <div class="alb-tile"><img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=100&fit=crop&q=55" onerror="this.parentElement.style.background='#1a472a'"/></div>
           <div class="alb-tile"><img src="https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=100&fit=crop&q=55" onerror="this.parentElement.style.background='#0d1b2a'"/></div>
@@ -652,90 +691,57 @@ body.js .rv.in{opacity:1;transform:none;}
           <div class="alb-tile"><img src="https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=100&fit=crop&q=55" onerror="this.parentElement.style.background='#2d1b69'"/></div>
           <div class="alb-tile"><img src="https://images.unsplash.com/photo-1519681393784-d120267933ba?w=100&fit=crop&q=55" onerror="this.parentElement.style.background='#134e5e'"/></div>
         </div>
-        <div class="alb-info">
-          <div class="alb-sub">Vacances été 2024</div>
-          <div class="alb-count">238 photos</div>
-        </div>
+        <div class="alb-info"><div class="alb-sub">Vacances été 2024</div><div class="alb-count">238 photos</div></div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ══ STATS ══ -->
+<!-- Stats -->
 <section class="stats">
   <div class="stats-inner">
-    <div class="stat-box">
-      <div class="stat-n" id="statN">500 000<em>+</em></div>
-      <div class="stat-l">photos triées chaque jour</div>
-    </div>
-    <div class="stat-box" style="text-align:center">
-      <div class="stat-n"><em>4.2</em> Go</div>
-      <div class="stat-l">libérés en moyenne par utilisateur</div>
-    </div>
-    <div class="stat-box" style="text-align:right">
-      <div class="stat-n">3 <em>min</em></div>
-      <div class="stat-l">pour trier 100 photos</div>
-    </div>
+    <div class="stat-box"><div class="stat-n" id="statN">500 000<em>+</em></div><div class="stat-l">photos triées chaque jour</div></div>
+    <div class="stat-box" style="text-align:center"><div class="stat-n"><em>4.2</em> Go</div><div class="stat-l">libérés en moyenne</div></div>
+    <div class="stat-box" style="text-align:right"><div class="stat-n">3 <em>min</em></div><div class="stat-l">pour 100 photos</div></div>
   </div>
 </section>
 
-<!-- ══ S5 — AVIS ══ -->
+<!-- S5 Reviews -->
 <section class="s5" id="reviews">
   <div class="s5-h rv">
     <p class="tag">Ils ont libéré leur galerie</p>
-    <h2 class="s5-hl">Des milliers de galeries<br/>nettoyées.</h2>
+    <h2 class="s5-hl">Des milliers de galeries nettoyées.</h2>
     <p class="s5-sub">Rejoignez ceux qui ont repris le contrôle de leurs photos.</p>
   </div>
   <div style="overflow:hidden"><div class="ts-track" id="tsTr"></div></div>
 </section>
 
-<!-- ══ S6 — DOWNLOAD ══ -->
+<!-- S6 Download -->
 <section class="s6" id="download">
   <div class="s6-inner">
-    <!-- dark -->
     <div class="s6-dk rv">
       <div class="s6-aura"></div>
       <div class="s6-topimg">
-        <img src="https://images.unsplash.com/photo-1533227268428-f9ed0900fb3b?w=900&fit=crop&q=75" alt=""
-          onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/>
+        <img src="https://images.unsplash.com/photo-1533227268428-f9ed0900fb3b?w=900&fit=crop&q=75" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/>
         <div class="s6-topimg-fb" style="display:none;height:100%"></div>
       </div>
       <div class="s6-features">
-        <div class="s6-f">
-          <h4>
-            <span class="s6-f-ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="rgba(255,255,255,.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
-            Corbeille sécurisée
-          </h4>
-          <p>Vos photos supprimées attendent votre confirmation avant d'être effacées.</p>
-        </div>
-        <div class="s6-f">
-          <h4>
-            <span class="s6-f-ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><path d="M9 18V5l12-2v13" stroke="rgba(255,255,255,.6)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" stroke="rgba(255,255,255,.6)" stroke-width="2"/></svg></span>
-            Sons &amp; vibrations haptiques
-          </h4>
-          <p>Chaque geste a son retour sensoriel — supprimer, garder, mettre en favoris.</p>
-        </div>
-        <div class="s6-f">
-          <h4>
-            <span class="s6-f-ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,.6)" stroke-width="2"/><path d="M12 8v4l3 3" stroke="rgba(255,255,255,.6)" stroke-width="2" stroke-linecap="round"/></svg></span>
-            Reprise automatique
-          </h4>
-          <p>SwipeClean mémorise votre position pour reprendre exactement là où vous vous êtes arrêtés.</p>
-        </div>
+        <div class="s6-f"><h4><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="rgba(255,255,255,.5)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Corbeille sécurisée</h4><p>Vos photos attendent confirmation avant d'être effacées.</p></div>
+        <div class="s6-f"><h4><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M9 18V5l12-2v13" stroke="rgba(255,255,255,.5)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" stroke="rgba(255,255,255,.5)" stroke-width="2"/></svg>Sons &amp; vibrations haptiques</h4><p>Chaque geste a son retour sensoriel.</p></div>
+        <div class="s6-f"><h4><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,.5)" stroke-width="2"/><path d="M12 8v4l3 3" stroke="rgba(255,255,255,.5)" stroke-width="2" stroke-linecap="round"/></svg>Reprise automatique</h4><p>SwipeClean mémorise votre position.</p></div>
       </div>
     </div>
-    <!-- lime -->
     <div class="s6-lm rv d2">
-      <p class="tag" style="color:rgba(29,29,31,.5)">Disponible maintenant</p>
-      <h3 class="s6-lm-hl">Libérez votre espace,<br/>gardez vos souvenirs.</h3>
+      <p class="tag" style="color:rgba(29,29,31,.4)">Disponible maintenant</p>
+      <h3 class="s6-lm-hl">Libérez votre espace, gardez vos souvenirs.</h3>
       <div class="s6-btns">
         <a href="https://github.com/xeloriom-sketch/SwipeClean/releases/download/v1.0.13-beta/SwipeClean-latest.apk" class="s6-btn">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85-.29-.15-.65-.06-.83.22l-1.88 3.24A9.53 9.53 0 0 0 12 8a9.53 9.53 0 0 0-4.47 1.09L5.65 5.87c-.19-.29-.56-.38-.85-.22-.3.16-.42.54-.26.85l1.84 3.18A9.42 9.42 0 0 0 2.5 18H21.5a9.42 9.42 0 0 0-3.9-8.52zM7.5 15.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm9 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85-.29-.15-.65-.06-.83.22l-1.88 3.24A9.53 9.53 0 0 0 12 8a9.53 9.53 0 0 0-4.47 1.09L5.65 5.87c-.19-.29-.56-.38-.85-.22-.3.16-.42.54-.26.85l1.84 3.18A9.42 9.42 0 0 0 2.5 18H21.5a9.42 9.42 0 0 0-3.9-8.52zM7.5 15.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm9 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>
           APK Android
         </a>
         <div class="s6-btn soon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-          iOS App Store — Bientôt
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+          iOS — Bientôt
         </div>
       </div>
       <div class="s6-mini-wrap">
@@ -743,13 +749,11 @@ body.js .rv.in{opacity:1;transform:none;}
           <div class="s6-mbar"><span>9:41</span><span>▮▮</span></div>
           <div class="s6-mbody">
             <span class="s6-mlbl">Triez. Libérez.</span>
-            <div class="s6-mimg">
-              <svg width="28" height="28" viewBox="0 0 24 24" fill="rgba(255,255,255,.5)"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
-            </div>
+            <div class="s6-mimg"><svg width="26" height="26" viewBox="0 0 24 24" fill="rgba(255,255,255,.45)"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg></div>
             <div class="s6-mbtns">
-              <svg width="11" height="11" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="#FF3030" stroke-width="2" stroke-linecap="round"/></svg>
-              <svg width="9" height="9" viewBox="0 0 24 24" fill="#00C8FF"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="#3DFF6A"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+              <svg width="10" height="10" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="#FF3030" stroke-width="2" stroke-linecap="round"/></svg>
+              <svg width="8" height="8" viewBox="0 0 24 24" fill="#00C8FF"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="#3DFF6A"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
             </div>
           </div>
         </div>
@@ -758,30 +762,20 @@ body.js .rv.in{opacity:1;transform:none;}
   </div>
 </section>
 
-<!-- ══ FOOTER ══ -->
+<!-- Footer -->
 <footer class="footer">
   <div class="footer-top">
     <div class="footer-logo">SwipeClean</div>
-    <nav class="footer-nav">
-      <a href="#top">Accueil</a>
-      <a href="#features">Fonctionnalités</a>
-      <a href="#how">Comment ça marche</a>
-      <a href="#download">Télécharger</a>
-    </nav>
+    <nav class="footer-nav"><a href="#top">Accueil</a><a href="#features">Fonctionnalités</a><a href="#how">Comment ça marche</a><a href="#download">Télécharger</a></nav>
     <div class="footer-soc">
-      <a href="#" class="soc-i" aria-label="X">
-        <svg width="13" height="13" viewBox="0 0 15 15" fill="currentColor"><path d="M11.9 1.5h2.1l-4.7 5.3 5.5 7.2h-4.3l-3.3-4.3-3.8 4.3H1.3l5-5.7L.9 1.5h4.4l3 3.9 3.6-3.9zM11.1 13h1.2L4 2.6H2.7L11.1 13z"/></svg>
-      </a>
-      <a href="#" class="soc-i" aria-label="Instagram">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg>
-      </a>
-      <a href="https://github.com/xeloriom-sketch/SwipeClean" class="soc-i" aria-label="GitHub">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
-      </a>
+      <a href="#" class="soc-i" aria-label="X"><svg width="12" height="12" viewBox="0 0 15 15" fill="currentColor"><path d="M11.9 1.5h2.1l-4.7 5.3 5.5 7.2h-4.3l-3.3-4.3-3.8 4.3H1.3l5-5.7L.9 1.5h4.4l3 3.9 3.6-3.9zM11.1 13h1.2L4 2.6H2.7L11.1 13z"/></svg></a>
+      <a href="#" class="soc-i" aria-label="Instagram"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a>
+      <a href="https://github.com/xeloriom-sketch/SwipeClean" class="soc-i" aria-label="GitHub"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg></a>
     </div>
   </div>
   <div class="footer-wm">SwipeClean</div>
 </footer>
+</div><!-- .below -->
 
 <script>
 /* ── CURSOR ── */
@@ -789,143 +783,63 @@ const cd=document.getElementById('cd'),cr=document.getElementById('cr');
 let mx=0,my=0,rx=0,ry=0;
 document.addEventListener('mousemove',e=>{mx=e.clientX;my=e.clientY;cd.style.left=mx+'px';cd.style.top=my+'px';});
 (function loop(){rx+=(mx-rx)*.1;ry+=(my-ry)*.1;cr.style.left=rx+'px';cr.style.top=ry+'px';requestAnimationFrame(loop);})();
-document.querySelectorAll('a,button,.g-circle,.soc-i,.nav-cta,.cta-link,.s6-btn,.btn-dl').forEach(el=>{
-  el.addEventListener('mouseenter',()=>{cr.style.width='52px';cr.style.height='52px';cr.style.borderColor='rgba(255,48,48,.3)';});
-  el.addEventListener('mouseleave',()=>{cr.style.width='34px';cr.style.height='34px';cr.style.borderColor='rgba(29,29,31,.15)';});
+document.querySelectorAll('a,button,.g-circle,.soc-i,.nav-cta,.cta-link,.s6-btn,.btn-apk').forEach(el=>{
+  el.addEventListener('mouseenter',()=>{cr.style.width='52px';cr.style.height='52px';});
+  el.addEventListener('mouseleave',()=>{cr.style.width='34px';cr.style.height='34px';});
 });
 
-/* ── REVEAL ── */
-document.body.classList.add('js');
-const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.07});
-document.querySelectorAll('.rv').forEach(el=>io.observe(el));
-
-/* ── SCROLL PROGRESS ── */
+/* ── SCROLL BAR ── */
 const spb=document.getElementById('spb');
 window.addEventListener('scroll',()=>{
   const sc=document.documentElement.scrollTop,h=document.documentElement.scrollHeight-window.innerHeight;
   if(spb)spb.style.width=(sc/h*100)+'%';
 },{passive:true});
 
-/* ── PHONE 3D TILT ── */
-const phW=document.getElementById('phWrap'),phF=document.getElementById('phFrame');
-if(phW&&phF){
-  phW.addEventListener('mousemove',e=>{
-    const r=phW.getBoundingClientRect();
-    const x=(e.clientX-r.left-r.width/2)/(r.width/2);
-    const y=(e.clientY-r.top-r.height/2)/(r.height/2);
-    phF.style.cssText='animation:none;transform:perspective(1000px) rotateY('+x*10+'deg) rotateX('+(-y*10)+'deg);transition:transform .1s;';
-  });
-  phW.addEventListener('mouseleave',()=>{phF.style.cssText='animation:phfl 7s ease-in-out infinite;';});
-}
-
-/* ── PHONE SWIPE ANIMATION ── */
-const stk=document.getElementById('phSt');
-const CARDS=[
-  {img:'https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400&fit=crop&q=80',label:'Paysage',g:'linear-gradient(155deg,#1565C0,#42A5F5)'},
-  {img:'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&fit=crop&q=80',label:'Montagne',g:'linear-gradient(140deg,#2E7D32,#66BB6A)'},
-  {img:'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=400&fit=crop&q=80',label:'Voyage',g:'linear-gradient(155deg,#C62828,#EF5350)'},
-  {img:'https://images.unsplash.com/photo-1501854140801-50d01698950b?w=400&fit=crop&q=80',label:'Nature',g:'linear-gradient(140deg,#4527A0,#7E57C2)'},
-  {img:'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=400&fit=crop&q=80',label:'Lumière',g:'linear-gradient(155deg,#E65100,#FFA726)'},
-];
-const DIRS=['left','right','up','right','left'];
-let ci=0,di=0,topC=null,btmC=null;
-function mkC(d,z,sc){
-  const el=document.createElement('div');el.className='ph-card';
-  el.style.cssText='background:'+d.g+';z-index:'+z+';transform:scale('+sc+');overflow:hidden;';
-  const im=document.createElement('img');
-  im.src=d.img;im.style.cssText='width:100%;height:100%;object-fit:cover;position:absolute;inset:0;';
-  im.onerror=()=>im.remove();el.appendChild(im);
-  const lbl=document.createElement('div');
-  lbl.style.cssText='position:absolute;bottom:14px;left:14px;background:rgba(0,0,0,.38);backdrop-filter:blur(10px);border-radius:8px;padding:5px 10px;font-size:11px;font-weight:600;color:#fff;font-family:-apple-system,sans-serif;';
-  lbl.textContent=d.label;el.appendChild(lbl);return el;
-}
-function initCards(){stk.innerHTML='';btmC=mkC(CARDS[(ci+1)%CARDS.length],1,.93);topC=mkC(CARDS[ci],2,1);stk.appendChild(btmC);stk.appendChild(topC);}
-initCards();
-function swipe(){
-  const dir=DIRS[di%DIRS.length];
-  topC.style.transition='transform .5s cubic-bezier(.36,.07,.19,.97),opacity .4s ease';
-  btmC.style.transition='transform .5s cubic-bezier(.23,1,.32,1)';
-  setTimeout(()=>{
-    topC.style.transform=dir==='left'?'translateX(-150%) rotate(-18deg)':dir==='right'?'translateX(150%) rotate(18deg)':'translateY(-150%) scale(.9)';
-    topC.style.opacity='0';btmC.style.transform='scale(1)';
-  },80);
-  setTimeout(()=>{
-    ci=(ci+1)%CARDS.length;di++;
-    if(topC.parentNode)stk.removeChild(topC);
-    topC=btmC;topC.style.cssText='z-index:2;transform:scale(1);overflow:hidden;background:'+CARDS[ci%CARDS.length].g+';';
-    btmC=mkC(CARDS[(ci+1)%CARDS.length],1,.93);btmC.style.transition='none';stk.insertBefore(btmC,topC);
-  },680);
-}
-setInterval(swipe,2800);
+/* ── REVEAL ── */
+document.body.classList.add('js');
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.07});
+document.querySelectorAll('.rv').forEach(el=>io.observe(el));
 
 /* ── MARQUEE ── */
-const tips=[
-  {t:'Swipe gauche — Supprimer',c:'#FF3030'},
-  {t:'Swipe droite — Garder',c:'#3DFF6A'},
-  {t:'Swipe haut — Favoris',c:'#00C8FF'},
-  {t:'Corbeille sécurisée incluse',c:'#FF3030'},
-  {t:'Position mémorisée automatiquement',c:'#3DFF6A'},
-  {t:'Sons &amp; vibrations pour chaque geste',c:'#00C8FF'},
-  {t:'Triez album par album',c:'#FF3030'},
-  {t:'Libérez des Go en quelques minutes',c:'#3DFF6A'},
-];
+const tips=[{t:'Swipe gauche — Supprimer',c:'#FF3030'},{t:'Swipe droite — Garder',c:'#3DFF6A'},{t:'Swipe haut — Favoris',c:'#00C8FF'},{t:'Corbeille sécurisée incluse',c:'#FF3030'},{t:'Position mémorisée automatiquement',c:'#3DFF6A'},{t:'Sons & vibrations pour chaque geste',c:'#00C8FF'},{t:'Triez album par album',c:'#FF3030'},{t:'Libérez des Go en quelques minutes',c:'#3DFF6A'}];
 const mqEl=document.getElementById('mqTr');let mh='';
 for(let r=0;r<3;r++)tips.forEach(t=>{mh+=`<div class="mq-item"><span class="mq-dot" style="background:${t.c}"></span>${t.t}</div>`;});
 mqEl.innerHTML=mh;
 
 /* ── TESTIMONIALS ── */
 const names=['Sophie M.','Thomas K.','Laura B.','Antoine R.','Camille D.','Julien P.','Emma V.','Pierre L.'];
-const revs=[
-  "J'avais 8 000 photos sur mon téléphone. Avec SwipeClean, tout trié en une heure !",
-  "Le son du swipe est tellement satisfaisant. J'ai libéré 5 Go en une soirée.",
-  "Enfin une app qui rend le nettoyage de galerie agréable. Je recommande !",
-  "Simple, rapide, efficace. J'adore pouvoir reprendre là où j'avais laissé.",
-  "Les favoris sont géniaux pour retrouver mes meilleures photos instantanément.",
-  "Le mode album est parfait. J'ai trié mes vacances en 15 minutes.",
-  "L'animation de swipe est tellement fluide, on ne veut plus s'arrêter.",
-  "Mes 12 Go de photos traités en quelques jours. Magique.",
-];
-const avatars=[
-  'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=80&h=80&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1580489944761-15a19d654956?w=80&h=80&fit=crop&q=80',
-  'https://images.unsplash.com/photo-1528892952291-009c663ce843?w=80&h=80&fit=crop&q=80',
-];
+const revs=["J'avais 8 000 photos sur mon téléphone. Avec SwipeClean, tout trié en une heure !","Le son du swipe est tellement satisfaisant. J'ai libéré 5 Go en une soirée.","Enfin une app qui rend le nettoyage de galerie agréable. Je recommande !","Simple, rapide, efficace. J'adore pouvoir reprendre là où j'avais laissé.","Les favoris sont géniaux pour retrouver mes meilleures photos instantanément.","Le mode album est parfait. J'ai trié mes vacances en 15 minutes.","L'animation de swipe est tellement fluide, on ne veut plus s'arrêter.","Mes 12 Go de photos traités en quelques jours. Magique."];
+const avatars=['https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop&q=80','https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&q=80','https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&q=80','https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&q=80','https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=80&h=80&fit=crop&q=80','https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop&q=80','https://images.unsplash.com/photo-1580489944761-15a19d654956?w=80&h=80&fit=crop&q=80','https://images.unsplash.com/photo-1528892952291-009c663ce843?w=80&h=80&fit=crop&q=80'];
 const grads=['linear-gradient(135deg,#667eea,#764ba2)','linear-gradient(135deg,#f093fb,#f5576c)','linear-gradient(135deg,#4facfe,#00f2fe)','linear-gradient(135deg,#43e97b,#38f9d7)','linear-gradient(135deg,#f7971e,#ffd200)','linear-gradient(135deg,#f5576c,#f093fb)','linear-gradient(135deg,#0ba360,#3cba92)','linear-gradient(135deg,#00c3ff,#ffff1c)'];
 const tEl=document.getElementById('tsTr');let th='';
 for(let r=0;r<2;r++)names.forEach((n,i)=>{
-  const av=`<img src="${avatars[i]}" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.parentElement.style.background='${grads[i]}'"/>`;
+  const av=`<img src="${avatars[i]}" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display='none';this.parentElement.style.background='${grads[i]}'"/>`;
   th+=`<div class="tc"><div class="tc-stars">★★★★★</div><p class="tc-txt">${revs[i]}</p><div class="tc-foot"><div class="tc-av">${av}</div><div><div class="tc-name">${n}</div><div class="tc-sub">Utilisateur vérifié · Beta</div></div></div></div>`;
 });
 tEl.innerHTML=th;
 
 /* ── STAT COUNTER ── */
 const sn=document.getElementById('statN');
-if(sn){
-  const sio=new IntersectionObserver(([e])=>{
-    if(e.isIntersecting){
-      let t0=null;
-      (function run(ts){if(!t0)t0=ts;const p=Math.min((ts-t0)/2200,1),ease=1-Math.pow(1-p,3);
-        sn.innerHTML=Math.floor(ease*500000).toLocaleString('fr-FR')+'<em>+</em>';
-        if(p<1)requestAnimationFrame(run);else sn.innerHTML='500 000<em>+</em>';
-      })(performance.now());
-      sio.disconnect();
-    }
-  },{threshold:.6});
-  sio.observe(sn);
-}
+if(sn){const sio=new IntersectionObserver(([e])=>{if(e.isIntersecting){let t0=null;(function run(ts){if(!t0)t0=ts;const p=Math.min((ts-t0)/2200,1),ease=1-Math.pow(1-p,3);sn.innerHTML=Math.floor(ease*500000).toLocaleString('fr-FR')+'<em>+</em>';if(p<1)requestAnimationFrame(run);else sn.innerHTML='500 000<em>+</em>';if(p>=1)sio.disconnect();})(performance.now());}},{threshold:.6});sio.observe(sn);}
 
-/* ── MAGNETIC BUTTONS ── */
-document.querySelectorAll('.nav-cta,.cta-link,.s6-btn:not(.soon),.btn-dl').forEach(btn=>{
-  btn.addEventListener('mousemove',e=>{
-    const r=btn.getBoundingClientRect();
-    btn.style.transform=`translate(${(e.clientX-r.left-r.width/2)*.22}px,${(e.clientY-r.top-r.height/2)*.22}px)`;
+/* ── CARD MOUSE SHEEN ── */
+const card=document.getElementById('cinCard'),sheen=document.getElementById('cardSheen');
+const bezel=document.getElementById('iPhoneBezel');
+let rafId=0;
+window.addEventListener('mousemove',e=>{
+  cancelAnimationFrame(rafId);
+  rafId=requestAnimationFrame(()=>{
+    if(card&&sheen){
+      const r=card.getBoundingClientRect();
+      card.style.setProperty('--mx',`${e.clientX-r.left}px`);
+      card.style.setProperty('--my',`${e.clientY-r.top}px`);
+    }
+    if(bezel&&window.scrollY<window.innerHeight*1.5){
+      const x=(e.clientX/window.innerWidth-.5)*2;
+      const y=(e.clientY/window.innerHeight-.5)*2;
+      bezel.style.transform=`perspective(1000px) rotateY(${x*10}deg) rotateX(${-y*10}deg)`;
+    }
   });
-  btn.addEventListener('mouseleave',()=>{btn.style.transform='';});
 });
 
 /* ── SMOOTH SCROLL ── */
@@ -933,34 +847,82 @@ document.querySelectorAll('a[href^="#"]').forEach(a=>{
   a.addEventListener('click',e=>{const el=document.getElementById(a.getAttribute('href').slice(1));if(el){e.preventDefault();el.scrollIntoView({behavior:'smooth'});}});
 });
 
-/* ── GSAP SCROLL ── */
+/* ── CINEMATIC GSAP TIMELINE ── */
 if(typeof gsap!=='undefined'&&typeof ScrollTrigger!=='undefined'){
   gsap.registerPlugin(ScrollTrigger);
 
-  gsap.to('#phWrap',{
-    y:-80,ease:'none',
-    scrollTrigger:{trigger:'.hero',start:'top top',end:'bottom top',scrub:2}
-  });
-  gsap.to('.hero-txt',{
-    y:-40,opacity:.7,ease:'none',
-    scrollTrigger:{trigger:'.hero',start:'top top',end:'50% top',scrub:1.5}
+  /* Intro: text reveal on load */
+  gsap.from('.cin-t1',{opacity:0,y:60,filter:'blur(20px)',rotationX:-20,duration:1.8,ease:'expo.out',delay:.3});
+  gsap.to('.cin-t2',{clipPath:'inset(0 0% 0 0)',duration:1.4,ease:'power4.inOut',delay:1.0});
+
+  /* Scroll-pinned timeline */
+  const tl=gsap.timeline({
+    scrollTrigger:{
+      trigger:'.cin-section',
+      start:'top top',
+      end:'+=6500',
+      pin:true,
+      scrub:1,
+      anticipatePin:1,
+    }
   });
 
-  gsap.from('.g-col',{
-    opacity:0,y:50,stagger:.08,duration:.9,ease:'power3.out',
-    scrollTrigger:{trigger:'.s2',start:'top 75%',toggleActions:'play none none none'}
-  });
-  gsap.from('.stat-box',{
-    opacity:0,y:30,stagger:.12,duration:.8,ease:'power3.out',
-    scrollTrigger:{trigger:'.stats',start:'top 80%',toggleActions:'play none none none'}
-  });
-  gsap.from('.s6-dk,.s6-lm',{
-    opacity:0,scale:.97,y:30,stagger:.15,duration:.9,ease:'back.out(1.4)',
-    scrollTrigger:{trigger:'.s6',start:'top 75%',toggleActions:'play none none none'}
-  });
+  tl
+    /* 0-2: background text fades, card rises */
+    .to('#cinText',{scale:1.12,filter:'blur(18px)',opacity:.15,ease:'power2.inOut',duration:2},0)
+    .to('.bg-grid',{opacity:.1,ease:'power2.inOut',duration:2},0)
+    .to('#cinCard',{y:0,ease:'power3.inOut',duration:2},0)
+
+    /* 2-3.5: card expands to full screen */
+    .to('#cinCard',{width:'100%',height:'100%',borderRadius:'0px',ease:'power3.inOut',duration:1.5})
+
+    /* 3-5.5: phone animates in from below with 3D */
+    .fromTo('#cinPhoneWrap',
+      {y:350,z:-500,rotationX:52,rotationY:-28,opacity:0,scale:.55},
+      {y:0,z:0,rotationX:0,rotationY:0,opacity:1,scale:1,ease:'expo.out',duration:2.5},
+      '-=0.6'
+    )
+
+    /* 4-5: screen elements appear */
+    .to('#scHdr',{opacity:1,duration:.8,ease:'power2.out'},'-=1.8')
+    .to('#ringWrap',{opacity:1,duration:.8,ease:'power2.out'},'-=1.6')
+    .to('#scPhotoArea',{opacity:1,duration:.8,ease:'power2.out'},'-=1.4')
+    .to('#scBtns',{opacity:1,duration:.8,ease:'power2.out'},'-=1.2')
+
+    /* progress ring fill */
+    .to('#ringFill',{strokeDashoffset:88,duration:2,ease:'power3.inOut'},'-=2.5')
+    /* counter */
+    .to('#ringN',{innerHTML:342,snap:{innerHTML:1},duration:2,ease:'expo.out'},'-=2.5')
+
+    /* badges float in */
+    .fromTo('#cinBadge1',{y:90,opacity:0,scale:.7,rotationZ:-8},{y:0,opacity:1,scale:1,rotationZ:0,ease:'back.out(1.5)',duration:1.4},'-=2.0')
+    .fromTo('#cinBadge2',{y:90,opacity:0,scale:.7,rotationZ:8},{y:0,opacity:1,scale:1,rotationZ:0,ease:'back.out(1.5)',duration:1.4},'-=1.8')
+
+    /* card text slides in */
+    .fromTo('#cinCardLeft',{x:-50,opacity:0},{x:0,opacity:1,ease:'power4.out',duration:1.5},'-=1.5')
+    .fromTo('#cinCardRight',{x:50,opacity:0},{x:0,opacity:1,ease:'expo.out',duration:1.5},'<')
+
+    /* HOLD */
+    .to({},{duration:2.5})
+
+    /* card shrinks, CTA appears */
+    .set('#cinText',{opacity:0})
+    .to(['#cinPhoneWrap','#cinBadge1','#cinBadge2','#cinCardLeft','#cinCardRight'],
+      {scale:.88,y:-44,opacity:0,ease:'power3.in',duration:1.2,stagger:.04}
+    )
+    .to('#cinCard',{
+      width:'clamp(80vw,85vw,92vw)',
+      height:'clamp(80vh,85vh,92vh)',
+      borderRadius:'40px',
+      ease:'expo.inOut',duration:1.8
+    },'pullback')
+    .to('#cinCTA',{opacity:1,scale:1,filter:'blur(0px)',ease:'expo.inOut',duration:1.8,
+      onStart:()=>{document.getElementById('cinCTA').classList.add('active');}
+    },'pullback')
+
+    /* card exits up */
+    .to('#cinCard',{y:-(window.innerHeight+400),ease:'power3.in',duration:1.5});
 }
-
-/* ── HEADLINE WORD REVEAL (CSS-driven) ── */
 </script>
 </body>
 </html>
