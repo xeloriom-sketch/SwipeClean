@@ -155,6 +155,25 @@ export default function SettingsScreen() {
           <Switch value={sortOldest} onValueChange={toggleSortOrder} />
         </View>
 
+        {/* Tutoriel */}
+        <TouchableOpacity
+          style={styles.optionRow}
+          onPress={async () => {
+            await AsyncStorage.removeItem("@app_onboarded");
+            router.push("/Onboarding");
+          }}
+        >
+          <View>
+            <Text style={[styles.optionText, darkMode && styles.darkText]}>
+              Revoir le tutoriel
+            </Text>
+            <Text style={[styles.optionSub, darkMode && { color: "rgba(255,255,255,0.4)" }]}>
+              Apprendre les gestes
+            </Text>
+          </View>
+          <Ionicons name="play-circle-outline" size={wp(5.5)} color={darkMode ? "#fff" : "#000"} />
+        </TouchableOpacity>
+
         {/* About */}
         <TouchableOpacity onPress={toggleAbout} style={styles.optionRow}>
           <Text style={[styles.optionText, darkMode && styles.darkText]}>
