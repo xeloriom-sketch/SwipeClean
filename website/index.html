@@ -19,29 +19,29 @@ img,svg{display:block;max-width:100%;}
 /* ─── CURSOR ─── */
 .cur-d,.cur-r{position:fixed;border-radius:50%;pointer-events:none;z-index:9999;transform:translate(-50%,-50%);}
 .cur-d{width:7px;height:7px;background:#FF3030;transition:width .15s,height .15s;}
-.cur-r{width:34px;height:34px;border:1.5px solid rgba(255,255,255,.2);transition:width .26s cubic-bezier(.23,1,.32,1),height .26s cubic-bezier(.23,1,.32,1);}
+.cur-r{width:34px;height:34px;border:1.5px solid rgba(0,0,0,.15);transition:width .26s cubic-bezier(.23,1,.32,1),height .26s cubic-bezier(.23,1,.32,1);}
 @media(hover:none){.cur-d,.cur-r{display:none;}}
 
 /* ─── SCROLL BAR ─── */
-.spb{position:fixed;top:0;left:0;height:2px;z-index:400;width:0;background:linear-gradient(90deg,#FF3030,#00C8FF,#C8FF52);pointer-events:none;}
+.spb{position:fixed;top:0;left:0;height:2px;z-index:400;width:0;background:linear-gradient(90deg,#000,#555);pointer-events:none;}
 
 /* ─── NAV ─── */
 .nav-outer{position:fixed;top:0;left:0;right:0;z-index:300;padding:14px 20px;}
 .nav-pill{
   max-width:1100px;margin:0 auto;
-  background:rgba(255,255,255,.08);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  color:#fff;border-radius:100px;
+  background:rgba(255,255,255,.8);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  color:#1D1D1F;border-radius:100px;
   display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
   padding:8px 8px 8px 22px;
-  border:1px solid rgba(255,255,255,.12);
+  border:1px solid rgba(0,0,0,.07);
 }
-.nav-logo{font-size:16px;font-weight:700;letter-spacing:-.03em;color:#fff;}
+.nav-logo{font-size:16px;font-weight:700;letter-spacing:-.03em;color:#1D1D1F;}
 .nav-links{display:flex;justify-content:center;gap:28px;}
-.nav-links a{font-size:12.5px;font-weight:500;color:rgba(255,255,255,.5);transition:color .18s;white-space:nowrap;}
-.nav-links a:hover{color:#fff;}
+.nav-links a{font-size:12.5px;font-weight:500;color:rgba(29,29,31,.45);transition:color .18s;white-space:nowrap;}
+.nav-links a:hover{color:#1D1D1F;}
 .nav-right{display:flex;justify-content:flex-end;}
-.nav-cta{background:#fff;color:#1D1D1F;border-radius:100px;padding:8px 18px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px;transition:background .2s;white-space:nowrap;}
-.nav-cta:hover{background:#C8FF52;color:#1D1D1F;}
+.nav-cta{background:#1D1D1F;color:#fff;border-radius:100px;padding:8px 18px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px;transition:background .2s;white-space:nowrap;}
+.nav-cta:hover{background:#000;color:#fff;}
 @media(max-width:880px){.nav-links{display:none;}.nav-pill{grid-template-columns:1fr auto;}}
 
 /* ═══════════════════════════════════════════
@@ -49,24 +49,24 @@ img,svg{display:block;max-width:100%;}
 ═══════════════════════════════════════════ */
 .cin-section{
   position:relative;width:100%;height:100vh;
-  background:#050508;overflow:hidden;
+  background:#FBFBFD;overflow:hidden;
   display:flex;align-items:center;justify-content:center;
 }
 
 /* Film grain */
 .film-grain{
   position:absolute;inset:0;width:100%;height:100%;
-  pointer-events:none;z-index:50;opacity:.045;mix-blend-mode:overlay;
+  pointer-events:none;z-index:50;opacity:.025;mix-blend-mode:multiply;
   background:url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%25" height="100%25" filter="url(%23n)"/></svg>');
 }
 
 /* Grid pattern */
 .bg-grid{
-  position:absolute;inset:0;pointer-events:none;opacity:.4;
+  position:absolute;inset:0;pointer-events:none;opacity:.5;
   background-size:60px 60px;
   background-image:
-    linear-gradient(to right,rgba(255,255,255,.05) 1px,transparent 1px),
-    linear-gradient(to bottom,rgba(255,255,255,.05) 1px,transparent 1px);
+    linear-gradient(to right,rgba(0,0,0,.04) 1px,transparent 1px),
+    linear-gradient(to bottom,rgba(0,0,0,.04) 1px,transparent 1px);
   mask-image:radial-gradient(ellipse at center,black 0%,transparent 70%);
   -webkit-mask-image:radial-gradient(ellipse at center,black 0%,transparent 70%);
 }
@@ -79,14 +79,14 @@ img,svg{display:block;max-width:100%;}
 }
 .cin-t1{
   font-size:clamp(40px,6.5vw,88px);font-weight:700;letter-spacing:-.035em;line-height:1.05;
-  color:#fff;text-shadow:0 10px 40px rgba(0,0,0,.4);
+  color:#1D1D1F;text-shadow:none;
 }
 .cin-t2{
   font-size:clamp(40px,6.5vw,88px);font-weight:800;letter-spacing:-.04em;line-height:1.05;
-  background:linear-gradient(180deg,#fff 0%,rgba(255,255,255,.5) 100%);
+  background:linear-gradient(180deg,#000 0%,rgba(0,0,0,.35) 100%);
   -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
   clip-path:inset(0 100% 0 0);will-change:clip-path;
-  filter:drop-shadow(0 10px 20px rgba(255,255,255,.1));
+  filter:none;
 }
 
 /* CTA layer */
@@ -128,13 +128,13 @@ img,svg{display:block;max-width:100%;}
   position:absolute;z-index:20;
   width:clamp(80vw,85vw,92vw);height:clamp(80vh,85vh,92vh);
   border-radius:40px;overflow:hidden;
-  background:linear-gradient(145deg,#162C6D 0%,#0A101D 100%);
+  background:linear-gradient(145deg,#1A1A1A 0%,#000 100%);
   box-shadow:
-    0 40px 100px -20px rgba(0,0,0,.95),
-    0 20px 40px -20px rgba(0,0,0,.8),
-    inset 0 1px 2px rgba(255,255,255,.18),
+    0 40px 100px -20px rgba(0,0,0,.28),
+    0 20px 40px -20px rgba(0,0,0,.15),
+    inset 0 1px 2px rgba(255,255,255,.06),
     inset 0 -2px 4px rgba(0,0,0,.8);
-  border:1px solid rgba(255,255,255,.04);
+  border:1px solid rgba(0,0,0,.06);
   display:flex;align-items:center;justify-content:center;
   will-change:transform,width,height,border-radius;
   transform:translateY(110vh);
@@ -152,7 +152,7 @@ img,svg{display:block;max-width:100%;}
 /* Card text */
 .cin-card-left{opacity:0;will-change:opacity,transform;}
 .cin-card-left h3{font-size:clamp(20px,2.5vw,36px);font-weight:700;letter-spacing:-.025em;color:#fff;margin-bottom:14px;line-height:1.1;}
-.cin-card-left p{font-size:clamp(13px,1.2vw,16px);color:rgba(100,149,237,.7);line-height:1.7;}
+.cin-card-left p{font-size:clamp(13px,1.2vw,16px);color:rgba(255,255,255,.42);line-height:1.7;}
 .cin-card-right{opacity:0;will-change:opacity,transform;text-align:right;}
 .cin-card-right span{font-size:clamp(36px,5vw,80px);font-weight:900;letter-spacing:-.05em;text-transform:uppercase;
   background:linear-gradient(180deg,#fff 0%,#A1A1AA 100%);
@@ -222,7 +222,7 @@ img,svg{display:block;max-width:100%;}
 }
 .ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
 .ring-n{font-size:28px;font-weight:700;letter-spacing:-.03em;color:#fff;line-height:1;}
-.ring-l{font-size:8px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(100,149,237,.55);margin-top:4px;}
+.ring-l{font-size:8px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-top:4px;}
 
 /* phone card swipe */
 .sc-photo-area{flex:1;position:relative;border-radius:16px;overflow:hidden;margin-bottom:12px;opacity:0;}
@@ -233,9 +233,9 @@ img,svg{display:block;max-width:100%;}
 /* swipe buttons */
 .sc-btns{display:flex;justify-content:center;gap:14px;flex-shrink:0;opacity:0;}
 .sc-btn{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
-.sc-del{background:rgba(255,48,48,.14);border:1.5px solid #FF3030;}
-.sc-fav{background:rgba(0,200,255,.1);border:1.5px solid #00C8FF;width:36px;height:36px;}
-.sc-kp{background:rgba(61,255,106,.1);border:1.5px solid #3DFF6A;}
+.sc-del{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.22);}
+.sc-fav{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.16);width:36px;height:36px;}
+.sc-kp{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.22);}
 .home-bar{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:100px;height:4px;background:rgba(255,255,255,.18);border-radius:4px;}
 
 /* Floating badges */
@@ -248,7 +248,7 @@ img,svg{display:block;max-width:100%;}
 }
 .cin-badge-ic{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .cin-badge-t{font-size:13px;font-weight:700;color:#fff;white-space:nowrap;}
-.cin-badge-s{font-size:10.5px;color:rgba(100,149,237,.6);margin-top:2px;white-space:nowrap;}
+.cin-badge-s{font-size:10.5px;color:rgba(255,255,255,.38);margin-top:2px;white-space:nowrap;}
 .cin-badge1{top:60px;left:-90px;}
 .cin-badge2{bottom:80px;right:-90px;}
 
@@ -486,8 +486,8 @@ body.js .rv.in{opacity:1;transform:none;}
     <svg style="position:absolute;width:0;height:0">
       <defs>
         <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="#3B82F6"/>
-          <stop offset="100%" stop-color="#06B6D4"/>
+          <stop offset="0%" stop-color="rgba(255,255,255,.9)"/>
+          <stop offset="100%" stop-color="rgba(255,255,255,.3)"/>
         </linearGradient>
       </defs>
     </svg>
@@ -534,9 +534,9 @@ body.js .rv.in{opacity:1;transform:none;}
                 <div class="swipe-hint" id="swipeHint">SWIPE</div>
               </div>
               <div class="sc-btns" id="scBtns">
-                <div class="sc-btn sc-del"><svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="#FF3030" stroke-width="2" stroke-linecap="round"/></svg></div>
-                <div class="sc-btn sc-fav"><svg width="11" height="11" viewBox="0 0 24 24" fill="#00C8FF"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
-                <div class="sc-btn sc-kp"><svg width="14" height="14" viewBox="0 0 24 24" fill="#3DFF6A"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+                <div class="sc-btn sc-del"><svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="rgba(255,255,255,.75)" stroke-width="2" stroke-linecap="round"/></svg></div>
+                <div class="sc-btn sc-fav"><svg width="11" height="11" viewBox="0 0 24 24" fill="rgba(255,255,255,.65)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
+                <div class="sc-btn sc-kp"><svg width="14" height="14" viewBox="0 0 24 24" fill="rgba(255,255,255,.75)"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
               </div>
               <div class="home-bar"></div>
             </div>
@@ -545,8 +545,8 @@ body.js .rv.in{opacity:1;transform:none;}
 
         <!-- Floating badges -->
         <div class="cin-badge cin-badge1" id="cinBadge1">
-          <div class="cin-badge-ic" style="background:rgba(0,200,255,.15);border:1px solid rgba(0,200,255,.2);">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="#00C8FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          <div class="cin-badge-ic" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
           </div>
           <div>
             <div class="cin-badge-t">Galerie traitée !</div>
@@ -554,8 +554,8 @@ body.js .rv.in{opacity:1;transform:none;}
           </div>
         </div>
         <div class="cin-badge cin-badge2" id="cinBadge2">
-          <div class="cin-badge-ic" style="background:rgba(61,255,106,.12);border:1px solid rgba(61,255,106,.2);">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#3DFF6A" stroke-width="2"/><path d="M12 8v4l3 3" stroke="#3DFF6A" stroke-width="2" stroke-linecap="round"/></svg>
+          <div class="cin-badge-ic" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,.8)" stroke-width="2"/><path d="M12 8v4l3 3" stroke="rgba(255,255,255,.8)" stroke-width="2" stroke-linecap="round"/></svg>
           </div>
           <div>
             <div class="cin-badge-t">3 photos / min</div>
@@ -801,7 +801,7 @@ const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.targ
 document.querySelectorAll('.rv').forEach(el=>io.observe(el));
 
 /* ── MARQUEE ── */
-const tips=[{t:'Swipe gauche — Supprimer',c:'#FF3030'},{t:'Swipe droite — Garder',c:'#3DFF6A'},{t:'Swipe haut — Favoris',c:'#00C8FF'},{t:'Corbeille sécurisée incluse',c:'#FF3030'},{t:'Position mémorisée automatiquement',c:'#3DFF6A'},{t:'Sons & vibrations pour chaque geste',c:'#00C8FF'},{t:'Triez album par album',c:'#FF3030'},{t:'Libérez des Go en quelques minutes',c:'#3DFF6A'}];
+const tips=[{t:'Swipe gauche — Supprimer',c:'#1D1D1F'},{t:'Swipe droite — Garder',c:'#555'},{t:'Swipe haut — Favoris',c:'#888'},{t:'Corbeille sécurisée incluse',c:'#1D1D1F'},{t:'Position mémorisée automatiquement',c:'#555'},{t:'Sons & vibrations pour chaque geste',c:'#888'},{t:'Triez album par album',c:'#1D1D1F'},{t:'Libérez des Go en quelques minutes',c:'#555'}];
 const mqEl=document.getElementById('mqTr');let mh='';
 for(let r=0;r<3;r++)tips.forEach(t=>{mh+=`<div class="mq-item"><span class="mq-dot" style="background:${t.c}"></span>${t.t}</div>`;});
 mqEl.innerHTML=mh;
