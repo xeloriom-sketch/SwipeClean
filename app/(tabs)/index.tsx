@@ -10,6 +10,8 @@ import {
   UIManager,
   StatusBar,
   Pressable,
+  useColorScheme,
+  InteractionManager,
 } from "react-native";
 import { router } from "expo-router";
 import * as MediaLibrary from "expo-media-library";
@@ -20,15 +22,31 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
+import { Audio } from "expo-av";
+import AppLoader from "../../components/AppLoader";
 
-// react-native-video requires a native build — safe fallback for Expo Go
+// react-native-video requires a native build — not available in Expo Go
 let VideoPlayer: React.ComponentType<any> | null = null;
 let ResizeMode: { COVER: string } = { COVER: "cover" };
 try {
-  const rnv = require("react-native-video");
-  VideoPlayer = rnv.default;
-  ResizeMode = rnv.ResizeMode ?? { COVER: "cover" };
+  // hasViewManagerConfig returns false when the native module isn't compiled in
+  if (UIManager.hasViewManagerConfig?.("RCTVideo")) {
+    const rnv = require("react-native-video");
+    VideoPlayer = rnv.default;
+    ResizeMode = rnv.ResizeMode ?? { COVER: "cover" };
+  }
 } catch {}
+
+class VideoErrorBoundary extends React.Component<
+  { fallback: React.ReactNode; children: React.ReactNode },
+  { hasError: boolean }
+> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  render() {
+    return this.state.hasError ? this.props.fallback : this.props.children;
+  }
+}
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -118,10 +136,7 @@ const formatDuration = (seconds: number): string => {
   return `${m}:${s.toString().padStart(2, "0")}`;
 };
 
-/* ---- Loader minimal ---- */
-const FancyLoader = () => (
-  <View style={{ flex: 1, backgroundColor: "#0d0d0d" }} />
-);
+const FancyLoader = ({ dark }: { dark: boolean }) => <AppLoader dark={dark} />;
 
 /* ---- MediaCard ---- */
 const MediaCard = React.memo(function MediaCard({
@@ -155,14 +170,23 @@ const MediaCard = React.memo(function MediaCard({
     return (
       <View style={styles.card}>
         {VideoPlayer ? (
-          <VideoPlayer
-            source={{ uri: item.uri }}
-            style={styles.media}
-            resizeMode={ResizeMode.COVER}
-            repeat
-            muted={isMuted}
-            paused={!isTop}
-          />
+          <VideoErrorBoundary
+            fallback={
+              <View style={[styles.media, { backgroundColor: "#111", justifyContent: "center", alignItems: "center" }]}>
+                <Ionicons name="play-circle-outline" size={64} color="rgba(255,255,255,0.4)" />
+                <Text style={{ color: "rgba(255,255,255,0.4)", marginTop: 8, fontSize: 13 }}>Vidéo</Text>
+              </View>
+            }
+          >
+            <VideoPlayer
+              source={{ uri: item.uri }}
+              style={styles.media}
+              resizeMode={ResizeMode.COVER}
+              repeat
+              muted={isMuted}
+              paused={!isTop}
+            />
+          </VideoErrorBoundary>
         ) : (
           <View style={[styles.media, { backgroundColor: "#111", justifyContent: "center", alignItems: "center" }]}>
             <Ionicons name="play-circle-outline" size={64} color="rgba(255,255,255,0.4)" />
@@ -344,38 +368,27 @@ const SwipeableCard = ({
     })
     .onEnd(() => {
       if (swipeDir.value === "left") {
-        translateX.value = withTiming(
-          -SCREEN_WIDTH * 1.5,
-          { duration: 280 },
-          (done) => {
-            if (done) runOnJS(onSwipe)("left");
-          }
-        );
+        stackProgress.value = withTiming(1, { duration: 320 });
+        translateX.value = withTiming(-SCREEN_WIDTH * 1.5, { duration: 320 }, (done) => {
+          if (done) runOnJS(onSwipe)("left");
+        });
       } else if (swipeDir.value === "right") {
-        translateX.value = withTiming(
-          SCREEN_WIDTH * 1.5,
-          { duration: 280 },
-          (done) => {
-            if (done) runOnJS(onSwipe)("right");
-          }
-        );
+        stackProgress.value = withTiming(1, { duration: 320 });
+        translateX.value = withTiming(SCREEN_WIDTH * 1.5, { duration: 320 }, (done) => {
+          if (done) runOnJS(onSwipe)("right");
+        });
       } else if (swipeDir.value === "top") {
-        translateY.value = withTiming(
-          -SCREEN_HEIGHT * 1.5,
-          { duration: 280 },
-          (done) => {
-            if (done) runOnJS(onSwipe)("top");
-          }
-        );
+        stackProgress.value = withTiming(1, { duration: 320 });
+        translateY.value = withTiming(-SCREEN_HEIGHT * 1.5, { duration: 320 }, (done) => {
+          if (done) runOnJS(onSwipe)("top");
+        });
       } else {
-        translateX.value = withSpring(0, { damping: 20, stiffness: 300 });
-        translateY.value = withSpring(0, { damping: 20, stiffness: 300 });
-        stackProgress.value = withSpring(0, { damping: 20, stiffness: 300 });
+        translateX.value = withSpring(0, { damping: 18, stiffness: 260 });
+        translateY.value = withSpring(0, { damping: 18, stiffness: 260 });
+        stackProgress.value = withSpring(0, { damping: 18, stiffness: 260 });
         swipeDir.value = null;
       }
     })
-    .runOnJS(true);
-
   return (
     <GestureDetector gesture={panGesture}>
       <Animated.View
@@ -418,7 +431,7 @@ const SwipeableCard = ({
               <View
                 style={[
                   styles.overlayCircle,
-                  { backgroundColor: "rgba(0, 212, 255, 0.92)" },
+                  { backgroundColor: "rgba(0, 180, 230, 0.92)" },
                 ]}
               >
                 <Ionicons name="star" size={60} color="#FFF" />
@@ -430,6 +443,35 @@ const SwipeableCard = ({
     </GestureDetector>
   );
 };
+
+/* ---- Sound engine ---- */
+const soundSources = {
+  delete: require("../../assets/sounds/swipe-delete.wav"),
+  keep: require("../../assets/sounds/swipe-keep.wav"),
+  star: require("../../assets/sounds/swipe-star.wav"),
+};
+
+const preloadedSounds: Partial<Record<"delete" | "keep" | "star", Audio.Sound>> = {};
+
+async function initSounds() {
+  try {
+    await Promise.all(
+      (Object.keys(soundSources) as Array<"delete" | "keep" | "star">).map(async (k) => {
+        const { sound } = await Audio.Sound.createAsync(soundSources[k], { volume: 0.85 });
+        preloadedSounds[k] = sound;
+      })
+    );
+  } catch {}
+}
+
+async function playSwipeSound(type: "delete" | "keep" | "star") {
+  try {
+    const sound = preloadedSounds[type];
+    if (!sound) return;
+    await sound.setPositionAsync(0);
+    await sound.playAsync();
+  } catch {}
+}
 
 /* ---- GalleryScreen ---- */
 export default function GalleryScreen() {
@@ -443,8 +485,9 @@ export default function GalleryScreen() {
   const containerOpacity = useSharedValue(0);
   const containerScale = useSharedValue(0.98);
   const stackProgress = useSharedValue(0);
+  const systemScheme = useColorScheme();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(systemScheme === "dark");
   const [vibrateSwipe, setVibrateSwipe] = useState(true);
 
   // Load preferences
@@ -459,6 +502,13 @@ export default function GalleryScreen() {
         if (vb !== null) setVibrateSwipe(vb === "true");
       } catch {}
     })();
+  }, []);
+
+  // Audio mode — play sounds even when iOS silent switch is off, preload sounds
+  useEffect(() => {
+    Audio.setAudioModeAsync({ playsInSilentModeIOS: true })
+      .then(() => initSounds())
+      .catch(() => {});
   }, []);
 
   // Bootstrap
@@ -550,10 +600,10 @@ export default function GalleryScreen() {
   );
 
   useEffect(() => {
-    if (assets.length - currentIndex <= PRELOAD_THRESHOLD && hasMore) {
+    if ((assets.length - currentIndex <= PRELOAD_THRESHOLD || currentIndex >= assets.length) && hasMore) {
       fetchAssets();
     }
-  }, [assets.length, currentIndex, hasMore]);
+  }, [assets.length, currentIndex, hasMore, fetchAssets]);
 
   const persistIndex = useCallback(async (idx: number) => {
     try {
@@ -610,6 +660,7 @@ export default function GalleryScreen() {
       if (!item) return;
 
       triggerHaptics(direction);
+      playSwipeSound(direction === "left" ? "delete" : direction === "right" ? "keep" : "star");
 
       if (direction === "left") {
         trashCache.current.add(item.id);
@@ -619,9 +670,10 @@ export default function GalleryScreen() {
       }
 
       const newIndex = currentIndex + 1;
-      stackProgress.value = 0;
       setCurrentIndex(newIndex);
       persistIndex(newIndex);
+      // Reset stackProgress only after React has finished re-rendering the new card
+      InteractionManager.runAfterInteractions(() => { stackProgress.value = 0; });
     },
     [currentIndex, assets, triggerHaptics, addToTrash, addToFavorites, persistIndex]
   );
@@ -630,8 +682,11 @@ export default function GalleryScreen() {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await AsyncStorage.removeItem(CARD_INDEX_KEY);
     stackProgress.value = 0;
-    setCurrentIndex(0);
     trashCache.current.clear();
+    setAssets([]);
+    setCursor(undefined);
+    setHasMore(true);
+    setCurrentIndex(0);
   }, []);
 
   const mainAnimatedStyle = useAnimatedStyle(() => ({
@@ -639,13 +694,14 @@ export default function GalleryScreen() {
     transform: [{ scale: containerScale.value }],
   }));
 
-  if (loading) return <FancyLoader />;
+  if (loading) return <FancyLoader dark={darkMode} />;
 
   const topCard = assets[currentIndex];
   const bottomCard = assets[currentIndex + 1];
   const remaining = Math.max(0, assets.length - currentIndex);
 
   if (!topCard) {
+    if (hasMore) return <FancyLoader dark={darkMode} />;
     return (
       <SafeAreaView
         style={[
@@ -657,7 +713,7 @@ export default function GalleryScreen() {
           <Ionicons
             name="checkmark-circle"
             size={90}
-            color="rgba(0,200,255,0.45)"
+            color="rgba(255,255,255,0.45)"
           />
           <Text
             style={[
@@ -672,14 +728,9 @@ export default function GalleryScreen() {
             activeOpacity={0.85}
             style={{ marginTop: 28 }}
           >
-            <LinearGradient
-              colors={["#00C9FF", "#007AFF"]}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 1 }}
-              style={styles.resetBtnGradient}
-            >
+            <View style={styles.resetBtnGradient}>
               <Text style={styles.resetBtnText}>Recommencer depuis le début</Text>
-            </LinearGradient>
+            </View>
           </TouchableOpacity>
         </View>
       </SafeAreaView>
@@ -747,8 +798,8 @@ export default function GalleryScreen() {
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
-                setMenuOpen(false);
                 router.push("/Gallery");
+                setMenuOpen(false);
               }}
             >
               <Ionicons
@@ -769,8 +820,8 @@ export default function GalleryScreen() {
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
-                setMenuOpen(false);
                 router.push("/Settings");
+                setMenuOpen(false);
               }}
             >
               <Ionicons
@@ -793,28 +844,8 @@ export default function GalleryScreen() {
 
       {/* MAIN */}
       <Animated.View style={[styles.innerContainer, mainAnimatedStyle]}>
-        {/* Counter + type badge */}
-        <View style={styles.progressRow}>
-          <Text
-            style={[
-              styles.progressText,
-              {
-                color: darkMode
-                  ? "rgba(255,255,255,0.45)"
-                  : "rgba(0,0,0,0.38)",
-              },
-            ]}
-          >
-            {remaining} média{remaining > 1 ? "s" : ""} restant
-            {remaining > 1 ? "s" : ""}
-          </Text>
-          {topCard.type === "video" && (
-            <View style={styles.typeBadge}>
-              <Ionicons name="videocam" size={11} color="#00C9FF" />
-              <Text style={styles.typeBadgeText}>Vidéo</Text>
-            </View>
-          )}
-        </View>
+        {/* Spacer — progress row removed */}
+        <View style={{ height: 8 }} />
 
         {/* Card stack */}
         <View style={styles.swiperContainer}>
@@ -887,6 +918,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 28,
     paddingVertical: 14,
     borderRadius: 30,
+    backgroundColor: "#1a1a1a",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)",
   },
   resetBtnText: { color: "#fff", fontSize: 16, fontWeight: "700" },
 
@@ -914,7 +948,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
-    backgroundColor: "rgba(0,200,255,0.12)",
+    backgroundColor: "rgba(255,255,255,0.08)",
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
@@ -922,7 +956,7 @@ const styles = StyleSheet.create({
   typeBadgeText: {
     fontSize: 11,
     fontWeight: "700",
-    color: "#00C9FF",
+    color: "#FFFFFF",
     letterSpacing: 0.3,
   },
 
@@ -1005,27 +1039,30 @@ const styles = StyleSheet.create({
     borderRadius: BTN_SIZE / 2,
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 2,
+    borderWidth: 1.5,
     shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 4,
-    backgroundColor: "transparent",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 6,
+    backgroundColor: "rgba(10,10,10,0.82)",
   },
   actionBtnDelete: {
     borderColor: "#FF4458",
+    backgroundColor: "rgba(255,68,88,0.15)",
     width: BTN_SIZE,
     height: BTN_SIZE,
   },
   actionBtnStar: {
     borderColor: "#00C9FF",
+    backgroundColor: "rgba(0,201,255,0.12)",
     width: Math.round(BTN_SIZE * 0.82),
     height: Math.round(BTN_SIZE * 0.82),
     borderRadius: Math.round(BTN_SIZE * 0.41),
   },
   actionBtnKeep: {
     borderColor: "#4CFF5E",
+    backgroundColor: "rgba(76,255,94,0.12)",
     width: BTN_SIZE,
     height: BTN_SIZE,
   },

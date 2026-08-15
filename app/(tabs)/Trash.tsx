@@ -26,7 +26,7 @@ const DARK_MODE_KEY = "@app_dark_mode";
 
 const COLUMNS = 3;
 const GAP = 8;
-const CARD_SIZE = (width - 32 - GAP * (COLUMNS - 1)) / COLUMNS;
+const CARD_SIZE = (width - 32 - GAP * COLUMNS) / COLUMNS;
 
 type Item = { id: string; uri: string; type?: string };
 
@@ -178,20 +178,31 @@ export default function TrashScreen() {
       </View>
 
       {/* GRID */}
-      <FlashList
-        data={items}
-        numColumns={COLUMNS}
-        keyExtractor={(i) => i.id}
-        renderItem={({ item }) => (
-          <TrashItem
-            item={item}
-            isSelected={selectedIds[item.id]}
-            onToggle={toggleSelect}
-          />
-        )}
-        contentContainerStyle={{ padding: 16, paddingBottom: 160 }}
-        showsVerticalScrollIndicator={false}
-      />
+      {items.length === 0 ? (
+        <View style={styles.emptyContainer}>
+          <Ionicons name="trash-outline" size={72} color={darkMode ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"} />
+          <Text style={[styles.emptyTitle, { color: darkMode ? "#fff" : "#000" }]}>Corbeille vide</Text>
+          <Text style={[styles.emptySub, { color: darkMode ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.38)" }]}>
+            Les photos swipées à gauche apparaîtront ici
+          </Text>
+        </View>
+      ) : (
+        <FlashList
+          data={items}
+          numColumns={COLUMNS}
+          keyExtractor={(i) => i.id}
+          estimatedItemSize={CARD_SIZE}
+          renderItem={({ item }) => (
+            <TrashItem
+              item={item}
+              isSelected={selectedIds[item.id]}
+              onToggle={toggleSelect}
+            />
+          )}
+          contentContainerStyle={{ padding: 16, paddingBottom: 160 }}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       {/* ACTION BAR */}
       {selectedCount > 0 && (
@@ -243,7 +254,17 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     overflow: "hidden",
     backgroundColor: "#eee",
+    margin: GAP / 2,
   },
+  emptyContainer: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 40,
+    gap: 10,
+  },
+  emptyTitle: { fontSize: 20, fontWeight: "700", marginTop: 8 },
+  emptySub: { fontSize: 14, textAlign: "center", lineHeight: 20 },
 
   thumb: { width: "100%", height: "100%" },
 

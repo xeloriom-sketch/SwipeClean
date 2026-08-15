@@ -16,6 +16,7 @@ import {
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import Constants from "expo-constants";
 
 const DARK_MODE_KEY = "@app_dark_mode";
 const VIBRATE_KEY = "@app_vibrate_swipe";
@@ -122,16 +123,13 @@ export default function SettingsScreen() {
         {showAbout && (
           <View style={[styles.aboutContainer, darkMode && styles.darkAbout]}>
             <Text style={[styles.aboutText, darkMode && styles.darkText]}>
-              Nom de l'application: SwipeClean
+              SwipeClean
             </Text>
             <Text style={[styles.aboutText, darkMode && styles.darkText]}>
-              Version: 1.0.5-beta
+              Version {Constants.expoConfig?.version ?? "—"}-beta
             </Text>
             <Text style={[styles.aboutText, darkMode && styles.darkText]}>
-              Développé par: SwipeClean
-            </Text>
-            <Text style={[styles.aboutText, darkMode && styles.darkText]}>
-              © 2025 Tous droits réservés
+              © 2025 SwipeClean · Tous droits réservés
             </Text>
           </View>
         )}
