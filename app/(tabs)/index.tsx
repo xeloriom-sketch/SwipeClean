@@ -971,19 +971,6 @@ export default function GalleryScreen() {
 
       {/* MAIN */}
       <Animated.View style={[styles.innerContainer, mainAnimatedStyle]}>
-        {/* Progress row */}
-        <View style={styles.progressRow}>
-          <View style={[styles.progressTrack, { backgroundColor: darkMode ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.07)" }]}>
-            <View style={[styles.progressFill, {
-              width: assets.length > 0 ? `${Math.min(100, (currentIndex / assets.length) * 100)}%` as any : "0%",
-              backgroundColor: darkMode ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.35)",
-            }]} />
-          </View>
-          <Text style={[styles.progressCountText, { color: darkMode ? "rgba(255,255,255,0.38)" : "rgba(0,0,0,0.3)" }]}>
-            {currentIndex}/{assets.length}{hasMore ? "+" : ""}
-          </Text>
-        </View>
-
         {/* Card stack */}
         <View style={styles.swiperContainer}>
           <View style={styles.stackWrap}>
