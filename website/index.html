@@ -6,969 +6,739 @@
 <title>SwipeClean — Libérez votre galerie en un geste</title>
 <meta name="description" content="SwipeClean trie vos photos en un geste. Supprimer, garder, favoris — simple, rapide, satisfaisant."/>
 <style>
-/* ─── RESET ─── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
-html{scroll-behavior:smooth;overflow-x:hidden;}
-body{
-  font-family:-apple-system,BlinkMacSystemFont,'SF Pro Display','Helvetica Neue',Arial,sans-serif;
-  background:#FBFBFD;color:#1D1D1F;-webkit-font-smoothing:antialiased;overflow-x:hidden;
-}
+html{scroll-behavior:smooth;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility;}
+body{font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;background:#fff;color:#0A0A0A;overflow-x:hidden;}
 a{color:inherit;text-decoration:none;}
 img,svg{display:block;max-width:100%;}
 
-/* ─── HERO BADGE + SUBTITLE + BUTTONS ─── */
-.cin-badge-pill{
-  display:inline-flex;align-items:center;gap:8px;
-  background:rgba(29,29,31,.06);border:1px solid rgba(29,29,31,.1);
-  border-radius:100px;padding:7px 16px;font-size:12px;font-weight:600;
-  color:#1D1D1F;letter-spacing:.01em;margin-bottom:28px;opacity:0;
-}
-.cin-badge-pill-dot{width:6px;height:6px;border-radius:50%;background:#1D1D1F;animation:pdot 2s ease-in-out infinite;}
-@keyframes pdot{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.3;transform:scale(.7)}}
-.cin-sub{font-size:clamp(15px,1.5vw,18px);color:rgba(29,29,31,.48);max-width:500px;text-align:center;line-height:1.65;margin-top:20px;opacity:0;}
-.cin-hero-btns{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;margin-top:36px;opacity:0;}
+/* scroll bar */
+.spb{position:fixed;top:0;left:0;height:2px;z-index:600;width:0%;background:#0A0A0A;pointer-events:none;}
 
-/* ─── SCROLL BAR ─── */
-.spb{position:fixed;top:0;left:0;height:2px;z-index:400;width:0;background:linear-gradient(90deg,#000,#555);pointer-events:none;}
-
-/* ─── NAV ─── */
-.nav-outer{position:fixed;top:0;left:0;right:0;z-index:300;padding:14px 20px;}
-.nav-pill{
-  max-width:1100px;margin:0 auto;
-  background:rgba(255,255,255,.8);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
-  color:#1D1D1F;border-radius:100px;
-  display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
-  padding:8px 8px 8px 22px;
-  border:1px solid rgba(0,0,0,.07);
-}
-.nav-logo{font-size:16px;font-weight:700;letter-spacing:-.03em;color:#1D1D1F;}
-.nav-links{display:flex;justify-content:center;gap:28px;}
-.nav-links a{font-size:12.5px;font-weight:500;color:rgba(29,29,31,.45);transition:color .18s;white-space:nowrap;}
-.nav-links a:hover{color:#1D1D1F;}
-.nav-right{display:flex;justify-content:flex-end;}
-.nav-cta{background:#1D1D1F;color:#fff;border-radius:100px;padding:8px 18px;font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px;transition:background .2s;white-space:nowrap;}
-.nav-cta:hover{background:#000;color:#fff;}
-@media(max-width:880px){.nav-links{display:none;}.nav-pill{grid-template-columns:1fr auto;}}
-
-/* ═══════════════════════════════════════════
-   CINEMATIC HERO SECTION
-═══════════════════════════════════════════ */
-.cin-section{
-  position:relative;width:100%;height:100vh;
-  background:#FBFBFD;overflow:hidden;
-  display:flex;align-items:center;justify-content:center;
-}
-
-/* Film grain */
-.film-grain{
-  position:absolute;inset:0;width:100%;height:100%;
-  pointer-events:none;z-index:50;opacity:.025;mix-blend-mode:multiply;
-  background:url('data:image/svg+xml;utf8,<svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"><filter id="n"><feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/></filter><rect width="100%25" height="100%25" filter="url(%23n)"/></svg>');
-}
-
-/* Grid pattern */
-.bg-grid{
-  position:absolute;inset:0;pointer-events:none;opacity:.5;
-  background-size:60px 60px;
-  background-image:
-    linear-gradient(to right,rgba(0,0,0,.04) 1px,transparent 1px),
-    linear-gradient(to bottom,rgba(0,0,0,.04) 1px,transparent 1px);
-  mask-image:radial-gradient(ellipse at center,black 0%,transparent 70%);
-  -webkit-mask-image:radial-gradient(ellipse at center,black 0%,transparent 70%);
-}
-
-/* Text layer */
-.cin-text{
-  position:absolute;z-index:10;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;text-align:center;
-  width:100%;padding:0 24px;will-change:transform,opacity;
-}
-.cin-t1{
-  font-size:clamp(40px,6.5vw,88px);font-weight:700;letter-spacing:-.035em;line-height:1.05;
-  color:#1D1D1F;text-shadow:none;
-}
-.cin-t2{
-  font-size:clamp(40px,6.5vw,88px);font-weight:800;letter-spacing:-.04em;line-height:1.05;
-  background:linear-gradient(180deg,#000 0%,rgba(0,0,0,.35) 100%);
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
-  clip-path:inset(0 100% 0 0);will-change:clip-path;
-  filter:none;
-}
-
-/* CTA layer */
-.cin-cta{
-  position:absolute;z-index:10;display:flex;flex-direction:column;
-  align-items:center;justify-content:center;text-align:center;
-  width:100%;padding:0 24px;opacity:0;will-change:transform,opacity;
-  pointer-events:none;
-}
-.cin-cta.active{pointer-events:auto;}
-.cin-cta-hl{
-  font-size:clamp(32px,5vw,68px);font-weight:700;letter-spacing:-.03em;
-  background:linear-gradient(180deg,#fff 0%,rgba(255,255,255,.6) 100%);
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
-  margin-bottom:12px;
-}
-.cin-cta-sub{font-size:clamp(15px,1.6vw,18px);color:rgba(255,255,255,.45);margin-bottom:40px;font-weight:400;}
-.cin-dl-btns{display:flex;gap:14px;flex-wrap:wrap;justify-content:center;}
-
-/* Physical tactile buttons */
-.btn-apk{
-  display:flex;align-items:center;gap:10px;border-radius:18px;padding:14px 24px;
-  font-size:15px;font-weight:600;cursor:pointer;transition:all .4s cubic-bezier(.25,1,.5,1);
-  background:linear-gradient(180deg,#fff 0%,#F1F5F9 100%);color:#0F172A;
-  box-shadow:0 0 0 1px rgba(0,0,0,.05),0 2px 4px rgba(0,0,0,.1),0 12px 24px -4px rgba(0,0,0,.35),inset 0 1px 1px rgba(255,255,255,1),inset 0 -3px 6px rgba(0,0,0,.06);
-}
-.btn-apk:hover{transform:translateY(-3px);box-shadow:0 0 0 1px rgba(0,0,0,.05),0 6px 14px rgba(0,0,0,.15),0 24px 40px -6px rgba(0,0,0,.45),inset 0 1px 1px rgba(255,255,255,1);}
-.btn-apk:active{transform:translateY(1px);background:linear-gradient(180deg,#F1F5F9 0%,#E2E8F0 100%);}
-.btn-ios-cin{
-  display:flex;align-items:center;gap:10px;border-radius:18px;padding:14px 24px;
-  font-size:15px;font-weight:600;
-  background:linear-gradient(180deg,#27272A 0%,#18181B 100%);color:#fff;
-  box-shadow:0 0 0 1px rgba(255,255,255,.1),0 2px 4px rgba(0,0,0,.6),0 12px 24px -4px rgba(0,0,0,.9),inset 0 1px 1px rgba(255,255,255,.15),inset 0 -3px 6px rgba(0,0,0,.8);
-  opacity:.38;cursor:not-allowed;
-}
-
-/* THE MAIN CINEMATIC CARD */
-.cin-card{
-  position:absolute;z-index:20;
-  width:clamp(80vw,85vw,92vw);height:clamp(80vh,85vh,92vh);
-  border-radius:40px;overflow:hidden;
-  background:linear-gradient(145deg,#1A1A1A 0%,#000 100%);
-  box-shadow:
-    0 40px 100px -20px rgba(0,0,0,.28),
-    0 20px 40px -20px rgba(0,0,0,.15),
-    inset 0 1px 2px rgba(255,255,255,.06),
-    inset 0 -2px 4px rgba(0,0,0,.8);
-  border:1px solid rgba(0,0,0,.06);
-  display:flex;align-items:center;justify-content:center;
-  will-change:transform,width,height,border-radius;
-  transform:translateY(110vh);
-}
-.cin-card-sheen{
-  position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:50;
-  background:radial-gradient(600px circle at var(--mx,50%) var(--my,50%),rgba(255,255,255,.055) 0%,transparent 40%);
-  mix-blend-mode:screen;transition:opacity .3s;
-}
-.cin-card-inner{
-  position:relative;width:100%;height:100%;max-width:1200px;margin:0 auto;padding:0 32px;
-  display:grid;grid-template-columns:1fr 1fr 1fr;align-items:center;gap:24px;
-}
-
-/* Card text */
-.cin-card-left{opacity:0;will-change:opacity,transform;}
-.cin-card-left h3{font-size:clamp(20px,2.5vw,36px);font-weight:700;letter-spacing:-.025em;color:#fff;margin-bottom:14px;line-height:1.1;}
-.cin-card-left p{font-size:clamp(13px,1.2vw,16px);color:rgba(255,255,255,.42);line-height:1.7;}
-.cin-card-right{opacity:0;will-change:opacity,transform;text-align:right;}
-.cin-card-right span{font-size:clamp(36px,5vw,80px);font-weight:900;letter-spacing:-.05em;text-transform:uppercase;
-  background:linear-gradient(180deg,#fff 0%,#A1A1AA 100%);
-  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
-  filter:drop-shadow(0 12px 24px rgba(0,0,0,.8)) drop-shadow(0 4px 8px rgba(0,0,0,.6));
-}
-
-/* ─── IPHONE MOCKUP ─── */
-.cin-phone-wrap{
-  position:relative;display:flex;align-items:center;justify-content:center;
-  will-change:transform,opacity;opacity:0;
-  perspective:1000px;
-}
-.iphone-bezel{
-  position:relative;width:260px;height:540px;border-radius:46px;
-  background:#111;
-  box-shadow:
-    inset 0 0 0 2px #52525B,
-    inset 0 0 0 7px #000,
-    0 40px 80px -15px rgba(0,0,0,.95),
-    0 15px 25px -5px rgba(0,0,0,.8);
-  transform-style:preserve-3d;will-change:transform;
-}
-/* hardware buttons */
-.hw-btn{position:absolute;background:linear-gradient(90deg,#404040 0%,#171717 100%);box-shadow:-2px 0 5px rgba(0,0,0,.8),inset -1px 0 1px rgba(255,255,255,.15),inset 1px 0 2px rgba(0,0,0,.8);border-left:1px solid rgba(255,255,255,.05);}
-.hw-vol1{top:110px;left:-3px;width:3px;height:26px;border-radius:3px 0 0 3px;}
-.hw-vol2{top:148px;left:-3px;width:3px;height:46px;border-radius:3px 0 0 3px;}
-.hw-vol3{top:204px;left:-3px;width:3px;height:46px;border-radius:3px 0 0 3px;}
-.hw-pwr{top:160px;right:-3px;width:3px;height:72px;border-radius:0 3px 3px 0;box-shadow:2px 0 5px rgba(0,0,0,.8),inset 1px 0 1px rgba(255,255,255,.15);}
-
-/* inner screen */
-.iphone-screen{
-  position:absolute;inset:7px;border-radius:38px;
-  background:#050914;overflow:hidden;
-  box-shadow:inset 0 0 20px rgba(0,0,0,1);color:#fff;
-}
-.screen-glare{
-  position:absolute;inset:0;pointer-events:none;z-index:40;
-  background:linear-gradient(110deg,rgba(255,255,255,.08) 0%,rgba(255,255,255,0) 45%);
-  border-radius:inherit;
-}
-.dyn-island{
-  position:absolute;top:6px;left:50%;transform:translateX(-50%);
-  width:100px;height:28px;background:#000;border-radius:16px;z-index:50;
-  display:flex;align-items:center;justify-content:flex-end;padding-right:10px;
-  box-shadow:inset 0 -1px 2px rgba(255,255,255,.08);
-}
-.dyn-dot{width:7px;height:7px;border-radius:50%;background:#22C55E;box-shadow:0 0 8px rgba(34,197,94,.8);animation:pulse 2s ease-in-out infinite;}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-
-/* Screen UI */
-.screen-ui{position:relative;width:100%;height:100%;padding:48px 16px 16px;display:flex;flex-direction:column;z-index:10;}
-.sc-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;opacity:0;}
-.sc-header h4{font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:rgba(255,255,255,.45);}
-.sc-header span{font-size:12px;font-weight:700;color:#fff;}
-.sc-av{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:rgba(255,255,255,.6);}
-
-/* Progress ring */
-.ring-wrap{position:relative;width:160px;height:160px;margin:0 auto 16px;opacity:0;flex-shrink:0;}
-.ring-wrap svg{position:absolute;inset:0;width:100%;height:100%;}
-.ring-bg{fill:none;stroke:rgba(255,255,255,.04);stroke-width:10;}
-.ring-fill{
-  fill:none;stroke:url(#rg);stroke-width:10;stroke-linecap:round;
-  stroke-dasharray:440;stroke-dashoffset:440;
-  transform:rotate(-90deg);transform-origin:50% 50%;
-  transition:stroke-dashoffset .05s linear;
-}
-.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
-.ring-n{font-size:28px;font-weight:700;letter-spacing:-.03em;color:#fff;line-height:1;}
-.ring-l{font-size:8px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.35);margin-top:4px;}
-
-/* phone card swipe */
-.sc-photo-area{flex:1;position:relative;border-radius:16px;overflow:hidden;margin-bottom:12px;opacity:0;}
-.sc-photo-area img{width:100%;height:100%;object-fit:cover;position:absolute;inset:0;}
-.sc-photo-lbl{position:absolute;bottom:10px;left:10px;background:rgba(0,0,0,.45);backdrop-filter:blur(8px);border-radius:7px;padding:4px 9px;font-size:9px;font-weight:600;color:#fff;}
-.swipe-hint{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.6);background:rgba(0,0,0,.35);backdrop-filter:blur(6px);border-radius:6px;padding:4px 10px;opacity:0;}
-
-/* swipe buttons */
-.sc-btns{display:flex;justify-content:center;gap:14px;flex-shrink:0;opacity:0;}
-.sc-btn{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;}
-.sc-del{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.22);}
-.sc-fav{background:rgba(255,255,255,.06);border:1.5px solid rgba(255,255,255,.16);width:36px;height:36px;}
-.sc-kp{background:rgba(255,255,255,.08);border:1.5px solid rgba(255,255,255,.22);}
-.home-bar{position:absolute;bottom:6px;left:50%;transform:translateX(-50%);width:100px;height:4px;background:rgba(255,255,255,.18);border-radius:4px;}
-
-/* Floating badges */
-.cin-badge{
-  position:absolute;z-index:30;display:flex;align-items:center;gap:12px;
-  background:linear-gradient(135deg,rgba(255,255,255,.08) 0%,rgba(255,255,255,.01) 100%);
+/* ── NAV ── */
+.nav{position:fixed;top:0;left:0;right:0;z-index:500;padding:14px 20px;}
+.nav-inner{
+  max-width:1080px;margin:0 auto;
+  display:flex;align-items:center;justify-content:space-between;
+  background:rgba(255,255,255,.82);
   backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);
-  box-shadow:0 0 0 1px rgba(255,255,255,.1),0 25px 50px -12px rgba(0,0,0,.8),inset 0 1px 1px rgba(255,255,255,.2);
-  border-radius:20px;padding:14px 18px;opacity:0;will-change:transform,opacity;
+  border:1px solid rgba(0,0,0,.07);
+  border-radius:100px;padding:8px 8px 8px 22px;
 }
-.cin-badge-ic{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.cin-badge-t{font-size:13px;font-weight:700;color:#fff;white-space:nowrap;}
-.cin-badge-s{font-size:10.5px;color:rgba(255,255,255,.38);margin-top:2px;white-space:nowrap;}
-.cin-badge1{top:60px;left:-90px;}
-.cin-badge2{bottom:80px;right:-90px;}
+.nav-left{display:flex;align-items:center;gap:10px;}
+.nav-logo{font-size:15px;font-weight:700;letter-spacing:-.025em;color:#0A0A0A;line-height:1;}
+.nav-version{font-size:10px;font-weight:600;letter-spacing:.04em;color:rgba(10,10,10,.35);background:rgba(0,0,0,.06);border:1px solid rgba(0,0,0,.08);border-radius:100px;padding:3px 9px;}
+.nav-links{display:flex;align-items:center;gap:22px;}
+.nav-links a{font-size:13px;font-weight:500;color:rgba(10,10,10,.42);transition:color .18s;white-space:nowrap;}
+.nav-links a:hover{color:#0A0A0A;}
+.nav-cta{background:#0A0A0A;color:#fff;border-radius:100px;padding:8px 18px;font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;transition:background .2s,transform .15s;white-space:nowrap;}
+.nav-cta:hover{background:#222;transform:scale(1.02);}
+@media(max-width:860px){.nav-links{display:none;}}
 
-/* ═══════════════════════════════════════════
-   BELOW-FOLD SECTIONS (Apple-style light)
-═══════════════════════════════════════════ */
-.below{padding-top:0;}
+/* ── HERO ── */
+.hero{
+  padding:130px 24px 0;min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;text-align:center;
+  position:relative;
+}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(0,0,0,.05);border:1px solid rgba(0,0,0,.09);border-radius:100px;padding:5px 14px 5px 9px;font-size:12px;font-weight:500;color:rgba(10,10,10,.5);margin-bottom:26px;}
+.badge-dot{width:6px;height:6px;border-radius:50%;background:#16a34a;box-shadow:0 0 7px rgba(22,163,74,.7);animation:pulse 2.4s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.hero-h1{font-size:clamp(46px,7.5vw,96px);font-weight:700;letter-spacing:-.04em;line-height:1.0;color:#0A0A0A;max-width:860px;text-wrap:balance;margin-bottom:20px;}
+.hero-h1 .dim{color:rgba(10,10,10,.22);}
+.hero-sub{font-size:clamp(15px,1.6vw,18px);color:rgba(10,10,10,.42);max-width:440px;line-height:1.65;margin-bottom:34px;font-weight:400;}
+.hero-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;margin-bottom:64px;}
 
-/* marquee */
-.mq{border-top:1px solid rgba(29,29,31,.08);border-bottom:1px solid rgba(29,29,31,.08);padding:20px 0;overflow:hidden;background:#fff;}
-.mq-tr{display:flex;width:max-content;animation:mqa 55s linear infinite;}
-.mq-tr:hover{animation-play-state:paused;}
-@keyframes mqa{from{transform:translateX(0)}to{transform:translateX(-50%)}}
-.mq-item{display:flex;align-items:center;gap:10px;padding:0 24px;font-size:13px;font-weight:600;color:#6E6E73;white-space:nowrap;}
-.mq-dot{width:5px;height:5px;border-radius:50%;flex-shrink:0;}
+/* buttons */
+.btn-primary{display:flex;align-items:center;gap:10px;background:#0A0A0A;color:#fff;border-radius:14px;padding:13px 22px;font-size:14px;font-weight:600;cursor:pointer;transition:transform .22s cubic-bezier(.25,1,.5,1),box-shadow .22s;}
+.btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 36px rgba(0,0,0,.22);}
+.btn-ghost{display:flex;align-items:center;gap:10px;background:rgba(0,0,0,.05);color:rgba(10,10,10,.35);border:1px solid rgba(0,0,0,.1);border-radius:14px;padding:13px 22px;font-size:14px;font-weight:600;opacity:.45;cursor:not-allowed;}
+.lbl-sub{font-size:10px;font-weight:500;opacity:.55;margin-bottom:1px;}
 
-/* Wrap */
-.W{max-width:1100px;margin:0 auto;padding:0 24px;}
-.tag{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:#86868B;margin-bottom:14px;}
+/* ── PHOTO GRID (hero) ── */
+.hero-photos{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:8px;width:100%;max-width:880px;
+  margin-bottom:80px;
+}
+.hp{border-radius:14px;overflow:hidden;aspect-ratio:3/4;position:relative;}
+.hp img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s ease;}
+.hp:hover img{transform:scale(1.04);}
+.hp:nth-child(1){aspect-ratio:3/4;}
+.hp:nth-child(2){aspect-ratio:3/4;margin-top:28px;}
+.hp:nth-child(3){aspect-ratio:3/4;margin-top:-14px;}
+.hp:nth-child(4){aspect-ratio:3/4;margin-top:14px;}
+.hp-label{
+  position:absolute;bottom:10px;left:10px;
+  background:rgba(0,0,0,.45);backdrop-filter:blur(8px);
+  border-radius:7px;padding:4px 10px;
+  font-size:10px;font-weight:600;color:#fff;letter-spacing:.04em;
+}
+/* phone mockup */
+.mockup-outer{display:flex;justify-content:center;position:relative;padding-bottom:100px;}
+.mockup-glow{position:absolute;bottom:40px;left:50%;transform:translateX(-50%);width:320px;height:120px;background:radial-gradient(ellipse at center,rgba(0,0,0,.08) 0%,transparent 70%);pointer-events:none;}
 
-/* Reveal */
-.rv{opacity:1;transform:none;}
-body.js .rv{opacity:0;transform:translateY(28px);transition:opacity .9s cubic-bezier(.16,1,.3,1),transform .9s cubic-bezier(.16,1,.3,1);}
-body.js .rv.in{opacity:1;transform:none;}
-.d1{transition-delay:.08s}.d2{transition-delay:.18s}.d3{transition-delay:.28s}.d4{transition-delay:.4s}
-@media(prefers-reduced-motion:reduce){body.js .rv{opacity:1;transform:none;transition:none;}}
+/* ── iPhone frame (space-black, 15-pro proportions scaled to 268px wide) ── */
+.phone{
+  position:relative;
+  width:268px;height:581px;
+  border-radius:44px;
+  background:linear-gradient(135deg,#212429 0%,#1c1e22 40%,#17191d 100%);
+  box-shadow:0 28px 60px rgba(0,0,0,.5),0 4px 12px rgba(0,0,0,.3),inset 0 0 0 0.5px rgba(255,255,255,.06);
+  padding:11px;
+  box-sizing:border-box;
+  flex-shrink:0;
+  /* side buttons */
+}
+/* side buttons — precise positioning */
+.phbtn{position:absolute;border-radius:2px;}
+.phbtn-l{left:-3px;background:linear-gradient(90deg,#2a2c30,#1c1e22);border-radius:2px 0 0 2px;}
+.phbtn-r{right:-3px;background:linear-gradient(270deg,#2a2c30,#1c1e22);border-radius:0 2px 2px 0;}
+/* silent switch */
+.phbtn.v1{width:3px;height:22px;top:96px;}
+/* vol up / down */
+.phbtn.v2{width:3px;height:44px;top:130px;}
+.phbtn.v3{width:3px;height:44px;top:184px;}
+/* power */
+.phbtn.pw{width:3px;height:64px;top:148px;}
 
-/* ─── HERO SCROLL INDICATOR ─── */
-.hero-scroll{position:absolute;bottom:34px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:8px;font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:rgba(29,29,31,.25);z-index:15;opacity:0;}
-.hero-scroll-line{width:1px;height:44px;background:linear-gradient(180deg,rgba(29,29,31,.25) 0%,transparent 100%);animation:sline 1.8s ease-in-out infinite;}
-@keyframes sline{0%{transform:scaleY(0);transform-origin:top;}50%{transform:scaleY(1);transform-origin:top;}51%{transform:scaleY(1);transform-origin:bottom;}100%{transform:scaleY(0);transform-origin:bottom;}}
+/* ── Screen ── */
+.phone-screen{
+  width:100%;height:100%;
+  border-radius:34px;
+  background:#050505;
+  overflow:hidden;
+  position:relative;
+  box-shadow:
+    inset 0 0 0 0.5px rgba(255,255,255,.04),
+    inset 0 8px 22px rgba(0,0,0,.4),
+    inset 0 -6px 14px rgba(0,0,0,.3);
+}
+/* glare */
+.phone-glare{
+  position:absolute;inset:0;pointer-events:none;z-index:50;border-radius:inherit;
+  background:linear-gradient(118deg,rgba(255,255,255,.06) 0%,transparent 38%);
+}
 
-/* S2 — Trois gestes (numbered editorial) */
-.s2{background:#fff;color:#1D1D1F;padding:120px 24px;}
-.s2-w{max-width:1100px;margin:0 auto;}
-.s2-hl{font-size:clamp(30px,4vw,54px);font-weight:600;letter-spacing:-.03em;line-height:1.06;color:#1D1D1F;margin-bottom:52px;text-wrap:balance;}
-.s2-hl em{font-style:normal;color:#000;}
-.glist{display:flex;flex-direction:column;}
-.gsep{height:1px;background:#E5E5EA;}
-.grow{display:grid;grid-template-columns:60px 210px 1fr auto;align-items:center;gap:28px;padding:26px 12px;border-radius:14px;cursor:default;transition:background .2s;}
-.grow:hover{background:rgba(29,29,31,.03);}
-.grow-num{font-size:clamp(22px,2.8vw,36px);font-weight:800;letter-spacing:-.05em;color:rgba(29,29,31,.1);line-height:1;transition:color .22s;font-variant-numeric:tabular-nums;}
-.grow:hover .grow-num{color:rgba(29,29,31,.75);}
-.grow-icon-col{display:flex;align-items:center;gap:14px;}
-.gicon{width:52px;height:52px;border-radius:12px;background:#F2F2F2;border:1px solid #E0E0E0;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .2s,transform .2s;}
-.grow:hover .gicon{background:#E8E8E8;transform:scale(1.06);}
-.gicon-t{font-size:15px;font-weight:700;color:#1D1D1F;margin-bottom:3px;}
-.gicon-cat{font-size:12px;color:#86868B;font-weight:500;}
-.grow-desc{font-size:clamp(15px,1.5vw,18px);font-weight:600;color:#1D1D1F;line-height:1.45;}
-.grow-btn{display:inline-flex;align-items:center;gap:7px;padding:10px 22px;border:1px solid #C8C8C8;border-radius:100px;font-size:13px;font-weight:600;color:#1D1D1F;white-space:nowrap;transition:all .25s;text-decoration:none;}
-.grow:hover .grow-btn{background:#1D1D1F;color:#fff;border-color:#1D1D1F;}
-@media(max-width:800px){.grow{grid-template-columns:40px 1fr;gap:12px;padding:20px 8px;}.grow-desc,.grow-btn{display:none;}}
+/* ── Dynamic Island ── */
+.dyn{
+  position:absolute;top:9px;left:50%;transform:translateX(-50%);
+  width:86px;height:25px;
+  background:#000;border-radius:14px;
+  z-index:60;
+  box-shadow:0 1px 3px rgba(0,0,0,.8);
+}
 
-/* S3 — Explication (AboutSection3 style) */
-.s3{padding:100px 24px;background:#fff;}
-.s3-inner{max-width:1100px;margin:0 auto;}
-.s3-topbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;width:85%;}
-.s3-whoami{display:flex;align-items:center;gap:8px;font-size:11px;font-weight:700;letter-spacing:.1em;color:#6E6E73;text-transform:uppercase;}
-.s3-spin{display:inline-block;animation:s3rot 4s linear infinite;color:#1D1D1F;font-size:14px;line-height:1;}
-@keyframes s3rot{to{transform:rotate(360deg)}}
-.s3-soc{display:flex;gap:8px;}
-.s3-soc-ic{width:32px;height:32px;border:1px solid #E5E5EA;border-radius:9px;background:#F5F5F7;display:flex;align-items:center;justify-content:center;color:#1D1D1F;transition:background .2s;text-decoration:none;}
-.s3-soc-ic:hover{background:#E0E0E0;}
-.s3-fig{margin:0 0 16px;position:relative;}
-.s3-fig svg{display:block;width:100%;height:auto;}
-.s3-stats{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;padding:16px 0;border-top:1px solid #E5E5EA;border-bottom:1px solid #E5E5EA;margin-bottom:40px;gap:16px;}
-.s3-stat{display:flex;align-items:center;gap:8px;}
-.s3-statv{font-size:clamp(17px,2vw,22px);font-weight:700;color:#1D1D1F;}
-.s3-statl{font-size:13px;color:#86868B;}
-.s3-statd{color:#D0D0D0;margin:0 8px;}
-.s3-statn{font-size:clamp(26px,3.5vw,42px);font-weight:700;color:#1D1D1F;}
-.s3-main{display:grid;grid-template-columns:2fr 1fr;gap:60px;align-items:start;}
-.s3-hl{font-size:clamp(26px,3.2vw,44px);font-weight:600;letter-spacing:-.028em;line-height:1.07;margin-bottom:24px;text-wrap:balance;}
-.s3-cols{display:grid;grid-template-columns:1fr 1fr;gap:24px;}
-.s3-cols p{font-size:15px;color:#6E6E73;line-height:1.7;margin:0;}
-.s3-cta-col{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:16px;padding-top:6px;}
-.s3-cta-label{font-size:13px;font-weight:600;color:#1D1D1F;line-height:1.5;max-width:200px;}
-.s3-cta-btn{display:inline-flex;align-items:center;gap:8px;padding:12px 22px;background:#1D1D1F;color:#fff;border-radius:10px;font-size:14px;font-weight:700;transition:all .25s;text-decoration:none;box-shadow:0 4px 12px rgba(0,0,0,.12);}
-.s3-cta-btn:hover{background:#000;transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.18);}
-@media(max-width:768px){.s3-main{grid-template-columns:1fr;}.s3-cta-col{align-items:flex-start;text-align:left;}.s3-cols{grid-template-columns:1fr;}.s3-topbar{width:100%;}}
+/* ── phone UI ── */
+.phone-ui{position:absolute;inset:0;padding:40px 13px 14px;display:flex;flex-direction:column;z-index:10;}
+.ph-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;}
+.ph-title{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.28);}
+.ph-count{font-size:19px;font-weight:700;letter-spacing:-.03em;color:#fff;}
+.card-stack{flex:1;position:relative;border-radius:14px;overflow:hidden;margin-bottom:12px;}
+.sc{position:absolute;inset:0;border-radius:14px;overflow:hidden;}
+.sc img{width:100%;height:100%;object-fit:cover;display:block;}
+.sc-back{z-index:0;transform:scale(.94);inset:6px;border-radius:10px;}
+.sc-front{z-index:1;animation:swipe-cycle 14s cubic-bezier(.4,0,.2,1) infinite;}
+.sc-ovr{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;opacity:0;z-index:2;border-radius:14px;}
+.ovr-del{background:rgba(255,50,50,.18);animation:show-del 14s ease-in-out infinite;}
+.ovr-kp {background:rgba(34,197,94,.18);animation:show-kp  14s ease-in-out infinite;}
+.ovr-fav{background:rgba(234,179,8,.18);animation:show-fav 14s ease-in-out infinite;}
+.ovr-lbl{font-size:15px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;padding:6px 12px;border-radius:7px;border-width:2px;border-style:solid;}
+@keyframes swipe-cycle{
+  0%,5%{transform:translateX(0) rotate(0deg);}
+  16%,24%{transform:translateX(-40%) rotate(-8deg);}
+  33%,38%{transform:translateX(0) rotate(0deg);}
+  49%,57%{transform:translateX(40%) rotate(8deg);}
+  66%,71%{transform:translateX(0) rotate(0deg);}
+  82%,90%{transform:translateY(-40%) rotate(-3deg);}
+  98%,100%{transform:translateY(0) rotate(0deg);}
+}
+@keyframes show-del{0%,12%{opacity:0}17%,22%{opacity:1}30%,100%{opacity:0}}
+@keyframes show-kp {0%,45%{opacity:0}50%,55%{opacity:1}63%,100%{opacity:0}}
+@keyframes show-fav{0%,78%{opacity:0}83%,88%{opacity:1}96%,100%{opacity:0}}
+.ph-btns{display:flex;justify-content:center;align-items:center;gap:14px;flex-shrink:0;}
+.ph-btn{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.11);}
+.ph-btn.sm{width:33px;height:33px;}
+/* home indicator */
+.ph-bar{
+  height:5px;width:34%;max-width:88px;
+  background:linear-gradient(180deg,rgba(255,255,255,.65),rgba(255,255,255,.3));
+  border-radius:3px;margin:10px auto 0;opacity:.9;
+}
 
-/* S4 */
-.s4{background:#F9F9F9;padding:120px 24px;}
-.s4-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center;}
-.s4 .tag{color:#86868B;}
-.s4-hl{font-size:clamp(32px,3.8vw,50px);font-weight:600;letter-spacing:-.028em;line-height:1.07;color:#1D1D1F;margin-bottom:18px;text-wrap:balance;}
-.s4-p{font-size:17px;color:#6E6E73;line-height:1.7;margin-bottom:30px;}
-.s4-ph{width:260px;height:400px;border-radius:32px;margin:0 auto;background:linear-gradient(160deg,#0A0B18,#111632 55%,#1a2248);overflow:hidden;position:relative;box-shadow:0 40px 80px rgba(0,0,0,.18);animation:phfl 7s ease-in-out infinite .6s;}
-@keyframes phfl{0%,100%{transform:translateY(0) rotate(0deg)}50%{transform:translateY(-10px) rotate(.25deg)}}
-.s4-ui{position:absolute;inset:0;padding:16px;}
-.alb-pill{display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.07);border-radius:100px;padding:5px 12px;font-size:9px;font-weight:600;color:rgba(255,255,255,.5);margin-bottom:12px;}
-.alb-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;border-radius:10px;overflow:hidden;}
-.alb-tile{aspect-ratio:1;overflow:hidden;}
-.alb-tile img{width:100%;height:100%;object-fit:cover;display:block;}
-.alb-info{background:rgba(255,255,255,.05);border-radius:10px;padding:10px;margin-top:8px;}
-.alb-sub{font-size:9px;color:rgba(255,255,255,.38);font-weight:600;margin-bottom:3px;}
-.alb-count{font-size:16px;font-weight:700;color:#fff;letter-spacing:-.02em;}
-.feat-list{display:flex;flex-direction:column;gap:6px;}
-.feat-item{background:#fff;border:1px solid #E5E5EA;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;}
-.feat-ic{width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.feat-item h4{font-size:13px;font-weight:600;color:#1D1D1F;margin-bottom:2px;}
-.feat-item p{font-size:12px;color:#86868B;line-height:1.5;}
+/* ── MARQUEE (dark strip) ── */
+.mq{background:#0A0A0A;padding:18px 0;overflow:hidden;}
+.mq-track{display:flex;width:max-content;animation:marquee 55s linear infinite;}
+.mq-track:hover{animation-play-state:paused;}
+@keyframes marquee{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.mq-item{display:flex;align-items:center;gap:10px;padding:0 26px;font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.28);white-space:nowrap;}
+.mq-dot{width:3px;height:3px;border-radius:50%;background:rgba(255,255,255,.2);}
 
-/* Stats */
-.stats{background:#fff;border-top:1px solid #E5E5EA;border-bottom:1px solid #E5E5EA;padding:80px 24px;}
-.stats-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(3,1fr);}
-.stat-box{padding:40px 48px;background:transparent;border:none;border-right:1px solid #E5E5EA;}
-.stat-box:last-child{border-right:none;}
-.stat-n{font-size:clamp(48px,6vw,80px);font-weight:700;letter-spacing:-.055em;color:#1D1D1F;line-height:1;}
-.stat-n em{font-style:normal;color:#1D1D1F;}
-.stat-l{font-size:11px;color:#86868B;margin-top:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;}
+/* ── SHARED ── */
+.W{max-width:1080px;margin:0 auto;padding:0 24px;}
+.eyebrow{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(10,10,10,.3);margin-bottom:14px;}
+.section-hl{font-size:clamp(28px,3.5vw,44px);font-weight:600;letter-spacing:-.03em;line-height:1.08;color:#0A0A0A;text-wrap:balance;}
+.rv{opacity:0;transform:translateY(22px);transition:opacity .75s cubic-bezier(.16,1,.3,1),transform .75s cubic-bezier(.16,1,.3,1);}
+.rv.in{opacity:1;transform:none;}
+.rv.d1{transition-delay:.1s}.rv.d2{transition-delay:.2s}.rv.d3{transition-delay:.32s}
+@media(prefers-reduced-motion:reduce){.rv{opacity:1;transform:none;transition:none;}}
 
-/* Reviews */
-.s5{padding:120px 0;background:#FBFBFD;overflow:hidden;}
-.s5-h{max-width:1100px;margin:0 auto 56px;padding:0 24px;}
-.s5-hl{font-size:clamp(32px,3.8vw,50px);font-weight:600;letter-spacing:-.028em;line-height:1.07;}
-.s5-sub{font-size:17px;color:#6E6E73;margin-top:12px;}
-.ts-track{display:flex;width:max-content;animation:mqa 72s linear infinite;}
-.ts-track:hover{animation-play-state:paused;}
-.tc{width:320px;flex-shrink:0;background:#fff;border-radius:22px;padding:26px 26px 22px;margin-right:14px;box-shadow:0 1px 0 rgba(29,29,31,.06),0 4px 24px rgba(29,29,31,.06);border:1px solid rgba(29,29,31,.05);transition:transform .3s,box-shadow .3s;}
-.tc:hover{transform:translateY(-4px);box-shadow:0 1px 0 rgba(29,29,31,.06),0 12px 40px rgba(29,29,31,.1);}
-.tc::before{content:'\201C';font-size:52px;line-height:.7;font-weight:800;color:rgba(29,29,31,.07);display:block;margin-bottom:10px;letter-spacing:-.02em;}
-.tc-stars{font-size:11px;letter-spacing:2px;color:#1D1D1F;margin-bottom:10px;}
-.tc-txt{font-size:14px;line-height:1.75;color:#6E6E73;}
-.tc-foot{display:flex;align-items:center;gap:10px;margin-top:18px;padding-top:16px;border-top:1px solid #F0F0F0;}
-.tc-av{width:38px;height:38px;border-radius:50%;overflow:hidden;flex-shrink:0;}
+/* ── FEATURES ── */
+.features{padding:100px 24px;}
+.features-grid{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid rgba(0,0,0,.07);border-radius:20px;overflow:hidden;margin-top:44px;background:rgba(0,0,0,.07);gap:1px;}
+.feat{background:#fff;padding:30px 26px;transition:background .2s;}
+.feat:hover{background:#fafafa;}
+.feat-ic{width:36px;height:36px;border-radius:10px;background:rgba(0,0,0,.06);border:1px solid rgba(0,0,0,.07);display:flex;align-items:center;justify-content:center;margin-bottom:16px;transition:transform .35s cubic-bezier(.25,1,.5,1),background .2s,border-color .2s;}
+.feat:hover .feat-ic{transform:scale(1.18) rotate(-6deg);background:rgba(0,0,0,.11);border-color:rgba(0,0,0,.13);}
+.feat-title{font-size:14.5px;font-weight:600;letter-spacing:-.01em;color:#0A0A0A;margin-bottom:6px;}
+.feat-desc{font-size:13px;color:rgba(10,10,10,.42);line-height:1.65;}
+@media(max-width:700px){.features-grid{grid-template-columns:1fr 1fr;}}
+@media(max-width:460px){.features-grid{grid-template-columns:1fr;}}
+
+/* ── IMAGE STRIP ── */
+.img-strip{display:flex;gap:10px;overflow:hidden;padding:0 24px;margin-bottom:100px;}
+.img-strip-item{flex:1;border-radius:16px;overflow:hidden;aspect-ratio:16/10;min-width:0;}
+.img-strip-item img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .5s ease;}
+.img-strip-item:hover img{transform:scale(1.05);}
+
+/* ── GESTURES ── */
+.gestures{padding:0 24px 100px;}
+.gest-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:44px;}
+.gest{border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:28px 22px;background:#fafafa;transition:background .2s,border-color .2s;}
+.gest{transition:background .2s,border-color .2s,box-shadow .3s,transform .3s cubic-bezier(.25,1,.5,1);}
+.gest:hover{background:#f5f5f5;border-color:rgba(0,0,0,.14);transform:translateY(-4px);}
+.gest:nth-child(1):hover{box-shadow:0 12px 40px rgba(220,38,38,.1);}
+.gest:nth-child(2):hover{box-shadow:0 12px 40px rgba(22,163,74,.1);}
+.gest:nth-child(3):hover{box-shadow:0 12px 40px rgba(202,138,4,.1);}
+.gest-bigic{width:52px;height:52px;border-radius:14px;display:flex;align-items:center;justify-content:center;margin-bottom:18px;}
+.gest-dir{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:rgba(10,10,10,.3);margin-bottom:14px;display:flex;align-items:center;gap:8px;}
+.gest-arrow{width:26px;height:26px;border-radius:7px;background:rgba(0,0,0,.07);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;}
+.gest-name{font-size:22px;font-weight:700;letter-spacing:-.025em;color:#0A0A0A;margin-bottom:8px;}
+.gest-desc{font-size:13px;color:rgba(10,10,10,.42);line-height:1.65;}
+@media(max-width:680px){.gest-grid{grid-template-columns:1fr;}}
+
+/* ── STATS (dark) ── */
+.stats-band{background:#0A0A0A;}
+.stats-inner{max-width:1080px;margin:0 auto;padding:0 24px;display:grid;grid-template-columns:repeat(3,1fr);}
+.stat{padding:56px 44px;}
+.stat+.stat{border-left:1px solid rgba(255,255,255,.08);}
+.stat-ic{margin-bottom:14px;}
+.stat-n{font-size:clamp(42px,5.5vw,70px);font-weight:700;letter-spacing:-.055em;color:#fff;line-height:1;margin-bottom:10px;font-variant-numeric:tabular-nums;}
+.stat-n em{font-style:normal;color:rgba(255,255,255,.3);}
+.stat-l{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,.28);}
+@media(max-width:660px){.stats-inner{grid-template-columns:1fr;}.stat{padding:36px 24px;}.stat+.stat{border-left:none;border-top:1px solid rgba(255,255,255,.08);}}
+
+/* ── REVIEWS ── */
+.reviews{padding:100px 0;background:#fff;}
+.reviews-head{max-width:1080px;margin:0 auto 44px;padding:0 24px;}
+.rv-hl{font-size:clamp(26px,3.2vw,40px);font-weight:600;letter-spacing:-.03em;color:#0A0A0A;margin-bottom:8px;}
+.rv-sub{font-size:15px;color:rgba(10,10,10,.38);}
+.rv-track{display:flex;width:max-content;animation:marquee 70s linear infinite;}
+.rv-track:hover{animation-play-state:paused;}
+.tc{width:296px;flex-shrink:0;margin-right:12px;background:#fff;border:1px solid rgba(0,0,0,.08);border-radius:18px;padding:22px;box-shadow:0 2px 16px rgba(0,0,0,.05);transition:box-shadow .2s,border-color .2s;}
+.tc:hover{box-shadow:0 6px 28px rgba(0,0,0,.1);border-color:rgba(0,0,0,.14);}
+.tc-stars{font-size:11px;letter-spacing:2px;color:#0A0A0A;margin-bottom:12px;}
+.tc-txt{font-size:13.5px;line-height:1.72;color:rgba(10,10,10,.52);}
+.tc-foot{display:flex;align-items:center;gap:10px;margin-top:18px;padding-top:16px;border-top:1px solid rgba(0,0,0,.07);}
+.tc-av{width:34px;height:34px;border-radius:50%;overflow:hidden;flex-shrink:0;background:rgba(0,0,0,.06);}
 .tc-av img{width:100%;height:100%;object-fit:cover;display:block;}
-.tc-name{font-size:13px;font-weight:700;color:#1D1D1F;}
-.tc-sub{font-size:10.5px;color:#86868B;}
+.tc-name{font-size:12.5px;font-weight:600;color:#0A0A0A;}
+.tc-role{font-size:11px;color:rgba(10,10,10,.32);}
 
-/* Download */
-.s6{padding:140px 24px;background:#F5F5F7;}
-.s6-inner{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr;gap:16px;}
-.s6-dk{background:linear-gradient(160deg,#0A0A0A,#1A1A1A);border-radius:28px;padding:48px;min-height:520px;position:relative;overflow:hidden;display:flex;flex-direction:column;justify-content:flex-end;}
-.s6-dk::after{content:'SW';position:absolute;bottom:-40px;right:-16px;font-size:260px;font-weight:900;letter-spacing:-.08em;color:rgba(255,255,255,.025);pointer-events:none;z-index:0;line-height:1;user-select:none;}
-.s6-aura{position:absolute;inset:0;pointer-events:none;background:radial-gradient(ellipse at 30% 20%,rgba(255,255,255,.04),transparent 55%),radial-gradient(ellipse at 80% 80%,rgba(255,255,255,.02),transparent 45%);}
-.s6-topimg{position:absolute;top:0;inset-x:0;height:50%;overflow:hidden;}
-.s6-topimg img{width:100%;height:100%;object-fit:cover;opacity:.38;filter:saturate(.5);}
-.s6-topimg-fb{width:100%;height:100%;background:linear-gradient(180deg,rgba(0,200,255,.12),transparent);}
-.s6-features{position:relative;z-index:2;display:flex;flex-direction:column;gap:8px;}
-.s6-f{background:rgba(255,255,255,.05);backdrop-filter:blur(12px);border-radius:12px;padding:14px 16px;border:1px solid rgba(255,255,255,.05);}
-.s6-f h4{font-size:13px;font-weight:600;color:#fff;margin-bottom:3px;display:flex;align-items:center;gap:8px;}
-.s6-f p{font-size:12px;color:rgba(255,255,255,.36);line-height:1.55;}
-.s6-lm{background:#fff;border:1px solid #E5E5EA;border-radius:28px;padding:48px;display:flex;flex-direction:column;}
-.s6-lm-hl{font-size:clamp(24px,2.8vw,38px);font-weight:600;letter-spacing:-.028em;line-height:1.07;color:#1D1D1F;}
-.s6-btns{display:flex;flex-direction:column;gap:8px;margin-top:24px;}
-.s6-btn{display:flex;align-items:center;gap:10px;background:#1D1D1F;color:#fff;border-radius:12px;padding:13px 18px;font-weight:600;font-size:14px;width:fit-content;transition:transform .15s,background .2s;}
-.s6-btn:hover{transform:scale(1.03);}
-.s6-btn.soon{opacity:.3;pointer-events:none;}
-.s6-mini-wrap{flex:1;display:flex;justify-content:center;align-items:flex-end;margin-top:28px;}
-.s6-mini{width:154px;border-radius:26px;border:5px solid #1D1D1F;background:#1D1D1F;overflow:hidden;box-shadow:0 24px 50px rgba(29,29,31,.22);animation:phfl 6s ease-in-out infinite;}
-.s6-mbar{display:flex;justify-content:space-between;padding:7px 11px;font-size:8px;color:rgba(255,255,255,.3);font-weight:700;}
-.s6-mbody{padding:9px;}
-.s6-mlbl{font-size:13px;font-weight:700;letter-spacing:-.02em;color:#fff;display:inline-block;margin-bottom:6px;}
-.s6-mimg{height:84px;border-radius:10px;background:linear-gradient(140deg,#1a1a1a,#3a3a3a);display:flex;align-items:center;justify-content:center;}
-.s6-mbtns{display:flex;justify-content:space-around;padding:7px 0;}
-
-/* Footer */
-.footer{background:#06060A;padding:60px 24px 0;border-top:1px solid rgba(255,255,255,.04);}
-.footer-top{max-width:1100px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;padding-bottom:40px;}
-.footer-logo{font-size:16px;font-weight:700;letter-spacing:-.03em;color:#fff;}
-.footer-nav{display:flex;gap:24px;}
-.footer-nav a{font-size:13px;color:rgba(255,255,255,.3);transition:color .18s;}
-.footer-nav a:hover{color:#fff;}
-.footer-soc{display:flex;gap:8px;}
-.soc-i{width:36px;height:36px;border-radius:50%;border:1px solid rgba(255,255,255,.08);display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.35);transition:background .2s,color .2s;}
-.soc-i:hover{background:rgba(255,255,255,.07);color:#fff;}
-.footer-wm{font-size:18vw;font-weight:700;letter-spacing:-.06em;line-height:.82;text-align:center;color:rgba(255,255,255,.022);overflow:hidden;white-space:nowrap;pointer-events:none;user-select:none;margin-top:8px;}
-
-/* Responsive */
-@media(max-width:900px){
-  .cin-card-inner{grid-template-columns:1fr;}
-  .cin-card-left,.cin-card-right{display:none;}
-  .s3-inner,.s4-inner,.s6-inner{grid-template-columns:1fr;}
-  .s4-ph{display:none;}
-  .stats-inner{grid-template-columns:1fr;gap:2px;}
-  .stat-box:first-child{border-radius:20px 20px 0 0;}
-  .stat-box:last-child{border-radius:0 0 20px 20px;}
-  .cin-badge{display:none;}
+/* ── FAQ ── */
+.faq{padding:100px 24px;background:#F7F7F7;}
+.faq-list{margin-top:48px;display:flex;flex-direction:column;gap:0;}
+details{border-bottom:1px solid rgba(0,0,0,.08);}
+details:first-of-type{border-top:1px solid rgba(0,0,0,.08);}
+summary{
+  display:flex;justify-content:space-between;align-items:center;
+  padding:22px 4px;cursor:pointer;list-style:none;
+  font-size:16px;font-weight:600;color:#0A0A0A;letter-spacing:-.01em;
+  transition:color .18s;
 }
-@media(max-width:600px){
-  .iphone-bezel{width:220px;height:460px;}
-  .s6-dk,.s6-lm{padding:30px;}
-  .footer-nav{display:none;}
-  .g-circle{width:82px;height:82px;font-size:11px;}
-  .g-photo{width:58px;height:58px;}
+summary::-webkit-details-marker{display:none;}
+summary:hover{color:rgba(10,10,10,.7);}
+.faq-icon{
+  width:28px;height:28px;border-radius:50%;border:1px solid rgba(0,0,0,.12);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+  transition:background .2s,transform .3s;
 }
+details[open] .faq-icon{background:#0A0A0A;transform:rotate(45deg);}
+details[open] .faq-icon svg{stroke:#fff;}
+.faq-body{padding:0 4px 22px;font-size:15px;color:rgba(10,10,10,.52);line-height:1.7;}
+
+/* ── CHANGELOG ── */
+.changelog{padding:100px 24px;background:#fff;}
+.cl-grid{margin-top:48px;display:flex;flex-direction:column;gap:0;}
+.cl-item{
+  display:grid;grid-template-columns:120px 1fr;gap:32px;
+  padding:28px 0;border-bottom:1px solid rgba(0,0,0,.07);
+  align-items:start;
+}
+.cl-item:first-child{border-top:1px solid rgba(0,0,0,.07);}
+.cl-v{font-size:13px;font-weight:700;color:#0A0A0A;letter-spacing:-.01em;padding-top:2px;}
+.cl-d{font-size:11px;font-weight:500;color:rgba(10,10,10,.3);margin-top:4px;letter-spacing:.02em;}
+.cl-badge{display:inline-flex;align-items:center;gap:5px;background:#0A0A0A;color:#fff;border-radius:100px;padding:2px 9px;font-size:10px;font-weight:700;letter-spacing:.06em;margin-bottom:8px;}
+.cl-title{font-size:15px;font-weight:600;color:#0A0A0A;margin-bottom:6px;}
+.cl-desc{font-size:13.5px;color:rgba(10,10,10,.45);line-height:1.65;}
+.cl-tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;}
+.cl-tag{font-size:11px;font-weight:600;color:rgba(10,10,10,.45);background:rgba(0,0,0,.06);border-radius:100px;padding:3px 10px;}
+@media(max-width:600px){.cl-item{grid-template-columns:1fr;gap:8px;}}
+
+/* ── DOWNLOAD (dark) ── */
+.dl-section{padding:100px 24px 130px;background:#0A0A0A;position:relative;overflow:hidden;}
+.dl-bg{position:absolute;inset:0;opacity:.07;background-size:cover;background-position:center;}
+.dl-inner{max-width:620px;margin:0 auto;display:flex;flex-direction:column;align-items:center;text-align:center;position:relative;z-index:1;}
+.dl-hl{font-size:clamp(32px,5vw,60px);font-weight:700;letter-spacing:-.04em;line-height:1.05;color:#fff;margin-bottom:16px;text-wrap:balance;}
+.dl-sub{font-size:16px;color:rgba(255,255,255,.38);margin-bottom:36px;line-height:1.6;}
+.dl-btns{display:flex;gap:12px;flex-wrap:wrap;justify-content:center;}
+.btn-dl-light{display:flex;align-items:center;gap:10px;background:#fff;color:#0A0A0A;border-radius:14px;padding:13px 22px;font-size:14px;font-weight:600;cursor:pointer;transition:transform .22s cubic-bezier(.25,1,.5,1),box-shadow .22s;}
+.btn-dl-light:hover{transform:translateY(-2px);box-shadow:0 20px 40px rgba(0,0,0,.5);}
+.btn-dl-ghost{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.07);color:rgba(255,255,255,.35);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:13px 22px;font-size:14px;font-weight:600;opacity:.45;cursor:not-allowed;}
+.dl-note{margin-top:22px;font-size:11.5px;color:rgba(255,255,255,.18);}
+
+/* ── FOOTER ── */
+.footer{border-top:1px solid rgba(0,0,0,.08);padding:36px 24px 52px;background:#fff;}
+.footer-top{max-width:1080px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:20px;}
+.footer-logo{font-size:15px;font-weight:700;letter-spacing:-.025em;color:#0A0A0A;}
+.footer-nav{display:flex;gap:22px;flex-wrap:wrap;}
+.footer-nav a{font-size:12.5px;color:rgba(10,10,10,.35);transition:color .18s;}
+.footer-nav a:hover{color:#0A0A0A;}
+.footer-soc{display:flex;gap:7px;}
+.soc-btn{width:32px;height:32px;border-radius:50%;border:1px solid rgba(0,0,0,.1);display:flex;align-items:center;justify-content:center;color:rgba(10,10,10,.35);transition:border-color .18s,color .18s;}
+.soc-btn:hover{border-color:rgba(0,0,0,.25);color:#0A0A0A;}
+.footer-copy{max-width:1080px;margin:22px auto 0;padding-top:22px;border-top:1px solid rgba(0,0,0,.06);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;font-size:11.5px;color:rgba(10,10,10,.2);}
 </style>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
 </head>
 <body>
 
 <div class="spb" id="spb"></div>
 
-<!-- ══ NAV ══ -->
-<header class="nav-outer">
-  <div class="nav-pill">
-    <span class="nav-logo">SwipeClean</span>
+<!-- NAV -->
+<header class="nav">
+  <div class="nav-inner">
+    <div class="nav-left">
+      <img src="../assets/images/logo.png" alt="SwipeClean" style="width:36px;height:36px;border-radius:9px;flex-shrink:0;vertical-align:middle;"/>
+      <span class="nav-logo">SwipeClean</span>
+      <span class="nav-version">Beta · v1.0.14</span>
+    </div>
     <nav class="nav-links">
       <a href="#features">Fonctionnalités</a>
-      <a href="#how">Comment ça marche</a>
-      <a href="#reviews">Avis</a>
+      <a href="#gestures">Gestes</a>
+      <a href="#faq">FAQs</a>
+      <a href="#changelog">Changelog</a>
       <a href="#download">Télécharger</a>
     </nav>
-    <div class="nav-right">
-      <a href="#download" class="nav-cta">
-        <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M2.5 5.5L6 9l3.5-3.5M1 11h10" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        Télécharger
-      </a>
-    </div>
+    <a href="https://github.com/xeloriom-sketch/SwipeClean/releases/download/v1.0.14-beta/SwipeClean-15-1.0.14-beta.apk" class="nav-cta">
+      <svg width="11" height="11" viewBox="0 0 12 12" fill="none"><path d="M6 1v7M2.5 5.5L6 9l3.5-3.5M1 11h10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Télécharger
+    </a>
   </div>
 </header>
 
-<!-- ══ CINEMATIC HERO ══ -->
-<section class="cin-section" id="top">
-  <div class="film-grain" aria-hidden="true"></div>
-  <div class="bg-grid" aria-hidden="true"></div>
-
-  <!-- Text layer -->
-  <div class="cin-text" id="cinText">
-    <div class="cin-badge-pill" id="cinBadgePill">
-      <span class="cin-badge-pill-dot"></span>
-      Version Beta · Android disponible maintenant
-    </div>
-    <p class="cin-t1">Libérez votre galerie,</p>
-    <p class="cin-t2">en un geste.</p>
-    <p class="cin-sub" id="cinSub">SwipeClean trie vos photos en swipant. Supprimez, gardez, mettez en favoris — libérez des Go en quelques minutes.</p>
-    <div class="cin-hero-btns" id="cinHeroBtns">
-      <a href="https://github.com/xeloriom-sketch/SwipeClean/releases/download/v1.0.14-beta/SwipeClean-15-1.0.14-beta.apk" class="btn-apk">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85-.29-.15-.65-.06-.83.22l-1.88 3.24A9.53 9.53 0 0 0 12 8a9.53 9.53 0 0 0-4.47 1.09L5.65 5.87c-.19-.29-.56-.38-.85-.22-.3.16-.42.54-.26.85l1.84 3.18A9.42 9.42 0 0 0 2.5 18H21.5a9.42 9.42 0 0 0-3.9-8.52zM7.5 15.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm9 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>
-        <div><div style="font-size:10px;opacity:.5;font-weight:500;margin-bottom:1px">Télécharger l'</div>APK Android</div>
-      </a>
-      <div class="btn-ios-cin">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-        <div><div style="font-size:10px;opacity:.5;font-weight:500;margin-bottom:1px">Bientôt sur</div>iOS App Store</div>
-      </div>
+<!-- HERO -->
+<section class="hero" id="top">
+  <h1 class="hero-h1" id="hH1">
+    Libérez votre galerie.<br/><span class="dim">En un geste.</span>
+  </h1>
+  <p class="hero-sub" id="hSub">SwipeClean trie vos photos par swipe. Supprimez, gardez, mettez en favoris — libérez des Go en quelques minutes.</p>
+  <div class="hero-btns" id="hBtns">
+    <a href="https://github.com/xeloriom-sketch/SwipeClean/releases/download/v1.0.14-beta/SwipeClean-15-1.0.14-beta.apk" class="btn-primary">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85-.29-.15-.65-.06-.83.22l-1.88 3.24A9.53 9.53 0 0 0 12 8a9.53 9.53 0 0 0-4.47 1.09L5.65 5.87c-.19-.29-.56-.38-.85-.22-.3.16-.42.54-.26.85l1.84 3.18A9.42 9.42 0 0 0 2.5 18H21.5a9.42 9.42 0 0 0-3.9-8.52zM7.5 15.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm9 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>
+      <div><div class="lbl-sub">Télécharger l'</div>APK Android</div>
+    </a>
+    <div class="btn-ghost">
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+      <div><div class="lbl-sub">Bientôt sur</div>iOS App Store</div>
     </div>
   </div>
 
-  <!-- CTA layer -->
-  <div class="cin-cta" id="cinCTA">
-    <p class="cin-cta-hl">Téléchargez SwipeClean.</p>
-    <p class="cin-cta-sub">Disponible maintenant sur Android · iOS bientôt</p>
-    <div class="cin-dl-btns">
-      <a href="https://github.com/xeloriom-sketch/SwipeClean/releases/download/v1.0.14-beta/SwipeClean-15-1.0.14-beta.apk" class="btn-apk">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85-.29-.15-.65-.06-.83.22l-1.88 3.24A9.53 9.53 0 0 0 12 8a9.53 9.53 0 0 0-4.47 1.09L5.65 5.87c-.19-.29-.56-.38-.85-.22-.3.16-.42.54-.26.85l1.84 3.18A9.42 9.42 0 0 0 2.5 18H21.5a9.42 9.42 0 0 0-3.9-8.52zM7.5 15.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm9 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>
-        <div><div style="font-size:10px;opacity:.55;font-weight:500;margin-bottom:1px">Télécharger l'</div>APK Android</div>
-      </a>
-      <div class="btn-ios-cin">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-        <div><div style="font-size:10px;opacity:.55;font-weight:500;margin-bottom:1px">Bientôt sur</div>iOS App Store</div>
-      </div>
+  <!-- Photo grid -->
+  <div class="hero-photos rv" id="hPhotos">
+    <div class="hp">
+      <img src="https://picsum.photos/id/1039/500/700" alt="Vacances"/>
+      <span class="hp-label">Vacances</span>
     </div>
-  </div>
-
-  <!-- THE MAIN CARD -->
-  <div class="cin-card" id="cinCard">
-    <svg style="position:absolute;width:0;height:0">
-      <defs>
-        <linearGradient id="rg" x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stop-color="rgba(255,255,255,.9)"/>
-          <stop offset="100%" stop-color="rgba(255,255,255,.3)"/>
-        </linearGradient>
-      </defs>
-    </svg>
-    <div class="cin-card-sheen" id="cardSheen"></div>
-    <div class="cin-card-inner">
-
-      <!-- Left text -->
-      <div class="cin-card-left" id="cinCardLeft">
-        <h3>La galerie propre.<br/>Le souvenir intact.</h3>
-        <p>SwipeClean trie vos photos en quelques gestes intuitifs. Supprimez, gardez, mettez en favoris — en un seul swipe.</p>
-      </div>
-
-      <!-- Phone center -->
-      <div class="cin-phone-wrap" id="cinPhoneWrap">
-        <div class="iphone-bezel" id="iPhoneBezel">
-          <div class="hw-btn hw-vol1"></div>
-          <div class="hw-btn hw-vol2"></div>
-          <div class="hw-btn hw-vol3"></div>
-          <div class="hw-btn hw-pwr"></div>
-          <div class="iphone-screen">
-            <div class="screen-glare"></div>
-            <div class="dyn-island"><div class="dyn-dot"></div></div>
-            <div class="screen-ui">
-              <div class="sc-header" id="scHdr">
-                <div>
-                  <h4>SwipeClean</h4>
-                  <span style="font-size:18px;font-weight:700;letter-spacing:-.02em">Galerie</span>
-                </div>
-                <div class="sc-av">SC</div>
-              </div>
-              <div class="ring-wrap" id="ringWrap">
-                <svg viewBox="0 0 160 160" aria-hidden="true">
-                  <circle class="ring-bg" cx="80" cy="80" r="70"/>
-                  <circle class="ring-fill" id="ringFill" cx="80" cy="80" r="70"/>
-                </svg>
-                <div class="ring-center">
-                  <span class="ring-n" id="ringN">0</span>
-                  <span class="ring-l">photos triées</span>
-                </div>
-              </div>
-              <div class="sc-photo-area" id="scPhotoArea">
-                <img src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=400&fit=crop&q=80" alt=""/>
-                <div class="sc-photo-lbl">Paysage</div>
-                <div class="swipe-hint" id="swipeHint">SWIPE</div>
-              </div>
-              <div class="sc-btns" id="scBtns">
-                <div class="sc-btn sc-del"><svg width="14" height="14" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="rgba(255,255,255,.75)" stroke-width="2" stroke-linecap="round"/></svg></div>
-                <div class="sc-btn sc-fav"><svg width="11" height="11" viewBox="0 0 24 24" fill="rgba(255,255,255,.65)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
-                <div class="sc-btn sc-kp"><svg width="14" height="14" viewBox="0 0 24 24" fill="rgba(255,255,255,.75)"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
-              </div>
-              <div class="home-bar"></div>
-            </div>
-          </div>
-        </div>
-
-        <!-- Floating badges -->
-        <div class="cin-badge cin-badge1" id="cinBadge1">
-          <div class="cin-badge-ic" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 12l2 2 4-4M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" stroke="rgba(255,255,255,.85)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-          </div>
-          <div>
-            <div class="cin-badge-t">Galerie traitée !</div>
-            <div class="cin-badge-s">+2.3 Go libérés</div>
-          </div>
-        </div>
-        <div class="cin-badge cin-badge2" id="cinBadge2">
-          <div class="cin-badge-ic" style="background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,.8)" stroke-width="2"/><path d="M12 8v4l3 3" stroke="rgba(255,255,255,.8)" stroke-width="2" stroke-linecap="round"/></svg>
-          </div>
-          <div>
-            <div class="cin-badge-t">3 photos / min</div>
-            <div class="cin-badge-s">Rythme optimal</div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Right brand -->
-      <div class="cin-card-right" id="cinCardRight">
-        <span>Swipe<br/>Clean</span>
-      </div>
-
+    <div class="hp">
+      <img src="https://picsum.photos/id/1025/500/700" alt="Portrait"/>
+      <span class="hp-label">Portraits</span>
     </div>
-  </div>
-
-  <!-- Scroll indicator -->
-  <div class="hero-scroll" id="heroScroll">
-    <span>Scroll</span>
-    <div class="hero-scroll-line"></div>
-  </div>
-
-</section>
-
-<!-- BELOW FOLD -->
-<div class="below">
-
-<!-- marquee -->
-<div class="mq"><div class="mq-tr" id="mqTr"></div></div>
-
-<!-- S2 — Trois gestes -->
-<section class="s2" id="how">
-  <div class="s2-w">
-    <h2 class="s2-hl rv">Trois gestes.<br><em>C'est tout.</em></h2>
-    <div class="glist">
-      <div class="gsep"></div>
-      <div class="grow rv d1">
-        <span class="grow-num">01</span>
-        <div class="grow-icon-col">
-          <div class="gicon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M18 6L6 18M6 6l12 12" stroke="#1D1D1F" stroke-width="2.5" stroke-linecap="round"/></svg></div>
-          <div><h3 class="gicon-t">Supprimer</h3><p class="gicon-cat">Swipe gauche</p></div>
-        </div>
-        <p class="grow-desc">Glissez à gauche pour envoyer une photo à la corbeille.</p>
-        <a href="#download" class="grow-btn">Télécharger <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
-      </div>
-      <div class="gsep"></div>
-      <div class="grow rv d2">
-        <span class="grow-num">02</span>
-        <div class="grow-icon-col">
-          <div class="gicon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" stroke="#1D1D1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-          <div><h3 class="gicon-t">Garder</h3><p class="gicon-cat">Swipe droite</p></div>
-        </div>
-        <p class="grow-desc">Glissez à droite pour conserver vos meilleurs souvenirs.</p>
-        <a href="#download" class="grow-btn">Télécharger <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
-      </div>
-      <div class="gsep"></div>
-      <div class="grow rv d3">
-        <span class="grow-num">03</span>
-        <div class="grow-icon-col">
-          <div class="gicon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="#1D1D1F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-          <div><h3 class="gicon-t">Favoris</h3><p class="gicon-cat">Swipe haut</p></div>
-        </div>
-        <p class="grow-desc">Glissez vers le haut pour ajouter une photo à vos favoris.</p>
-        <a href="#download" class="grow-btn">Télécharger <svg width="14" height="14" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
-      </div>
-      <div class="gsep"></div>
+    <div class="hp">
+      <img src="https://picsum.photos/id/1018/500/700" alt="Voyage"/>
+      <span class="hp-label">Voyages</span>
+    </div>
+    <div class="hp">
+      <img src="https://picsum.photos/id/1015/500/700" alt="Nature"/>
+      <span class="hp-label">Nature</span>
     </div>
   </div>
 </section>
 
-<!-- S3 — Explication -->
-<section class="s3" id="about">
-  <div class="s3-inner">
-    <div class="s3-topbar rv">
-      <div class="s3-whoami"><span class="s3-spin">✱</span>QUI NOUS SOMMES</div>
-      <div class="s3-soc">
-        <a href="https://github.com/xeloriom-sketch/SwipeClean" target="_blank" rel="noopener" class="s3-soc-ic" title="GitHub">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.2 11.38.6.1.82-.26.82-.58v-2.02c-3.34.72-4.04-1.61-4.04-1.61-.54-1.38-1.33-1.75-1.33-1.75-1.08-.74.08-.72.08-.72 1.2.08 1.83 1.23 1.83 1.23 1.06 1.82 2.8 1.3 3.48.99.1-.77.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23.96-.27 1.98-.4 3-.4 1.02 0 2.04.13 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.3c0 .32.22.69.83.57C20.57 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
-        </a>
-      </div>
-    </div>
-    <figure class="s3-fig rv">
-      <svg width="100%" height="400" viewBox="0 0 1100 400" preserveAspectRatio="xMidYMid slice" style="border-radius:16px;overflow:hidden;">
-        <defs>
-          <clipPath id="s3clip" clipPathUnits="objectBoundingBox">
-            <path d="M0.09,1 H0.422 H0.75 C0.767,1 0.774,0.962 0.776,0.943 V0.807 C0.777,0.744 0.792,0.732 0.799,0.734 H0.97 C0.996,0.73 1,0.693 1,0.675 V0.07 C1,0.025 0.985,0.005 0.978,0 H0.902 C0.855,0 0.89,0.139 0.85,0.139 H0.02 C0.004,0.142 0,0.18 0,0.199 V0.411 C0,0.449 0.014,0.466 0.02,0.47 H0.052 C0.07,0.471 0.074,0.498 0.073,0.511 V0.916 C0.072,0.983 0.09,1 0.09,1 Z"/>
-          </clipPath>
-        </defs>
-        <image clip-path="url(#s3clip)" preserveAspectRatio="xMidYMid slice" width="100%" height="100%" href="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=1200&fit=crop&q=80"/>
-      </svg>
-    </figure>
-    <div class="s3-stats rv d1">
-      <div class="s3-stat"><span class="s3-statv">500K<em>+</em></span><span class="s3-statl">photos traitées</span><span class="s3-statd">|</span></div>
-      <div class="s3-stat"><span class="s3-statv">4,2 <em>Go</em></span><span class="s3-statl">libérés en moyenne</span></div>
-      <div class="s3-stat" style="margin-left:auto"><span class="s3-statn">3 min</span><span class="s3-statl">pour 100 photos</span></div>
-    </div>
-    <div class="s3-main rv d2">
-      <div>
-        <h2 class="s3-hl">Galerie simplifiée au quotidien.</h2>
-        <div class="s3-cols">
-          <p>Que ce soit pour libérer de l'espace ou retrouver vos meilleurs souvenirs, SwipeClean rend le tri intuitif et agréable.</p>
-          <p>Chaque geste est pensé pour être rapide et naturel — comme feuilleter un album photo.</p>
+<!-- PHONE MOCKUP -->
+<div class="mockup-outer" id="mockupWrap">
+  <div class="mockup-glow"></div>
+  <div class="phone">
+    <div class="phbtn v1 phbtn-l"></div><div class="phbtn v2 phbtn-l"></div>
+    <div class="phbtn v3 phbtn-l"></div><div class="phbtn pw phbtn-r"></div>
+    <div class="phone-screen">
+      <div class="phone-glare"></div>
+      <div class="dyn"></div>
+      <div class="phone-ui">
+        <div class="ph-header">
+          <span class="ph-title">Galerie</span>
+          <span class="ph-count">342</span>
         </div>
+        <div class="card-stack">
+          <div class="sc sc-back">
+            <img src="https://picsum.photos/id/1011/400/600" alt="" loading="lazy"/>
+          </div>
+          <div class="sc sc-front">
+            <img src="https://picsum.photos/id/1043/400/600" alt=""/>
+            <div class="sc-ovr ovr-del"><span class="ovr-lbl" style="color:#FF3C3C;border-color:#FF3C3C;">Supprimer</span></div>
+            <div class="sc-ovr ovr-kp"><span class="ovr-lbl" style="color:#22c55e;border-color:#22c55e;transform:rotate(12deg);">Garder</span></div>
+            <div class="sc-ovr ovr-fav"><span class="ovr-lbl" style="color:#EAB308;border-color:#EAB308;transform:rotate(-10deg);">Favoris ★</span></div>
+          </div>
+        </div>
+        <div class="ph-btns">
+          <div class="ph-btn"><svg width="13" height="13" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="rgba(255,255,255,.6)" stroke-width="2" stroke-linecap="round"/></svg></div>
+          <div class="ph-btn sm"><svg width="10" height="10" viewBox="0 0 24 24" fill="rgba(255,255,255,.5)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg></div>
+          <div class="ph-btn"><svg width="13" height="13" viewBox="0 0 24 24" fill="rgba(255,255,255,.6)"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg></div>
+        </div>
+        <div class="ph-bar"></div>
       </div>
-      <div class="s3-cta-col">
-        <p class="s3-cta-label">Prêt à libérer votre espace ?</p>
-        <a href="#download" class="s3-cta-btn">Télécharger <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></a>
+    </div>
+  </div>
+</div>
+
+<!-- MARQUEE -->
+<div class="mq"><div class="mq-track" id="mqTr"></div></div>
+
+<!-- FEATURES -->
+<section class="features" id="features">
+  <div class="W">
+    <p class="eyebrow rv">Tout ce qu'il vous faut</p>
+    <h2 class="section-hl rv d1">Conçu pour vider votre galerie,<br/>pas pour compliquer votre vie.</h2>
+    <div class="features-grid">
+      <div class="feat rv d1">
+        <div class="feat-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="rgba(10,10,10,.6)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3 class="feat-title">Corbeille avec purge auto</h3>
+        <p class="feat-desc">Les photos supprimées restent récupérables. Purge automatique configurable à 7 ou 30 jours.</p>
+      </div>
+      <div class="feat rv d2">
+        <div class="feat-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M21 21l-6-6m2-5a7 7 0 1 1-14 0 7 7 0 0 1 14 0z" stroke="rgba(10,10,10,.6)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3 class="feat-title">Photos &amp; vidéos</h3>
+        <p class="feat-desc">Swipez sur toute votre galerie : photos et vidéos triées ensemble, avec prévisualisation intégrée.</p>
+      </div>
+      <div class="feat rv d3">
+        <div class="feat-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M9 18V5l12-2v13" stroke="rgba(10,10,10,.6)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" stroke="rgba(10,10,10,.6)" stroke-width="1.8"/></svg></div>
+        <h3 class="feat-title">Sons &amp; vibrations</h3>
+        <p class="feat-desc">Son et haptic distincts pour supprimer, garder et mettre en favoris. Tout réglable dans les paramètres.</p>
+      </div>
+      <div class="feat rv d1">
+        <div class="feat-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" stroke="rgba(10,10,10,.6)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3 class="feat-title">Statistiques détaillées</h3>
+        <p class="feat-desc">Suivez vos photos triées, supprimées, gardées et favorites. L'espace exact libéré est calculé en temps réel.</p>
+      </div>
+      <div class="feat rv d2">
+        <div class="feat-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="rgba(10,10,10,.6)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+        <h3 class="feat-title">16 succès à débloquer</h3>
+        <p class="feat-desc">Du premier swipe jusqu'à 5 000 photos triées, en passant par l'oiseau de nuit et la corbeille vidée.</p>
+      </div>
+      <div class="feat rv d3">
+        <div class="feat-ic"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="4" stroke="rgba(10,10,10,.6)" stroke-width="1.8"/><path d="M12 2v2M12 20v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M2 12h2M20 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" stroke="rgba(10,10,10,.6)" stroke-width="1.8" stroke-linecap="round"/></svg></div>
+        <h3 class="feat-title">Mode sombre &amp; reprise</h3>
+        <p class="feat-desc">Thème clair/sombre automatique ou manuel. Votre position dans la galerie est sauvegardée entre les sessions.</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- S4 -->
-<section class="s4">
-  <div class="s4-inner">
-    <div>
-      <p class="tag">Organisation</p>
-      <h2 class="s4-hl rv">Triez album par album.</h2>
-      <p class="s4-p rv d1">Vacances, famille, selfies — chaque album à son rythme. Reprenez là où vous vous êtes arrêtés.</p>
-      <div class="feat-list rv d2">
-        <div class="feat-item">
-          <div class="feat-ic" style="background:#EBEBEB;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M19 11H5M19 11l-4-4m4 4l-4 4" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-          <div><h4>Reprise automatique</h4><p>Votre position est mémorisée à chaque session.</p></div>
+<!-- IMAGE STRIP -->
+<div class="img-strip rv">
+  <div class="img-strip-item"><img src="https://picsum.photos/id/1016/700/430" alt="" loading="lazy"/></div>
+  <div class="img-strip-item"><img src="https://picsum.photos/id/1028/700/430" alt="" loading="lazy"/></div>
+  <div class="img-strip-item"><img src="https://picsum.photos/id/1035/700/430" alt="" loading="lazy"/></div>
+  <div class="img-strip-item"><img src="https://picsum.photos/id/1019/700/430" alt="" loading="lazy"/></div>
+</div>
+
+<!-- GESTURES -->
+<section class="gestures" id="gestures">
+  <div class="W">
+    <p class="eyebrow rv">Comment ça marche</p>
+    <h2 class="section-hl rv d1">Trois gestes. C'est tout.</h2>
+    <div class="gest-grid">
+      <div class="gest rv d1" style="border-top:3px solid rgba(220,38,38,.18);">
+        <div class="gest-bigic" style="background:rgba(220,38,38,.07);color:rgba(220,38,38,.7);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12l7 7M5 12l7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
-        <div class="feat-item">
-          <div class="feat-ic" style="background:#EBEBEB;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" stroke="#555" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-          <div><h4>Corbeille sécurisée</h4><p>Confirmation avant suppression définitive.</p></div>
-        </div>
-        <div class="feat-item">
-          <div class="feat-ic" style="background:#EBEBEB;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="#555" stroke-width="2"/><path d="M12 8v4l3 3" stroke="#555" stroke-width="2" stroke-linecap="round"/></svg></div>
-          <div><h4>Sons &amp; vibrations</h4><p>Retour sensoriel pour chaque geste.</p></div>
-        </div>
+        <p class="gest-dir"><span class="gest-arrow" style="background:rgba(220,38,38,.1);"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M19 12H5M5 12l7 7M5 12l7-7" stroke="rgba(220,38,38,.85)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Swipe gauche</p>
+        <h3 class="gest-name">Supprimer</h3>
+        <p class="gest-desc">Envoyez une photo à la corbeille. Elle y reste jusqu'à la purge que vous décidez.</p>
       </div>
-    </div>
-    <div class="s4-ph rv d1">
-      <div class="s4-ui">
-        <div class="alb-pill"><svg width="9" height="9" viewBox="0 0 9 9" fill="rgba(255,255,255,.5)"><path d="M0 0h3.8v3.8H0zm5.2 0H9v3.8H5.2zM0 5.2h3.8V9H0zm5.2 0H9V9H5.2z"/></svg>Albums · 24</div>
-        <div class="alb-grid">
-          <div class="alb-tile"><img src="https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=100&fit=crop&q=55" onerror="this.parentElement.style.background='#1a472a'"/></div>
-          <div class="alb-tile"><img src="https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=100&fit=crop&q=55" onerror="this.parentElement.style.background='#0d1b2a'"/></div>
-          <div class="alb-tile"><img src="https://images.unsplash.com/photo-1469474968028-56623f02e42e?w=100&fit=crop&q=55" onerror="this.parentElement.style.background='#1a1a2a'"/></div>
-          <div class="alb-tile"><img src="https://images.unsplash.com/photo-1501854140801-50d01698950b?w=100&fit=crop&q=55" onerror="this.parentElement.style.background='#2a0d1a'"/></div>
-          <div class="alb-tile"><img src="https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?w=100&fit=crop&q=55" onerror="this.parentElement.style.background='#2d1b69'"/></div>
-          <div class="alb-tile"><img src="https://images.unsplash.com/photo-1519681393784-d120267933ba?w=100&fit=crop&q=55" onerror="this.parentElement.style.background='#134e5e'"/></div>
+      <div class="gest rv d2" style="border-top:3px solid rgba(22,163,74,.18);">
+        <div class="gest-bigic" style="background:rgba(22,163,74,.07);color:rgba(22,163,74,.7);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M19 12l-7 7M19 12l-7-7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
-        <div class="alb-info"><div class="alb-sub">Vacances été 2024</div><div class="alb-count">238 photos</div></div>
+        <p class="gest-dir"><span class="gest-arrow" style="background:rgba(22,163,74,.1);"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M5 12h14M19 12l-7 7M19 12l-7-7" stroke="rgba(22,163,74,.85)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Swipe droite</p>
+        <h3 class="gest-name">Garder</h3>
+        <p class="gest-desc">Conservez une photo. Elle reste intacte dans votre galerie sans modification.</p>
+      </div>
+      <div class="gest rv d3" style="border-top:3px solid rgba(202,138,4,.18);">
+        <div class="gest-bigic" style="background:rgba(202,138,4,.07);color:rgba(202,138,4,.7);">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <p class="gest-dir"><span class="gest-arrow" style="background:rgba(202,138,4,.1);"><svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M12 19V5M5 12l7-7 7 7" stroke="rgba(202,138,4,.85)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Swipe haut</p>
+        <h3 class="gest-name">Favoris</h3>
+        <p class="gest-desc">Marquez une photo comme favorite pour la retrouver en un instant dans l'onglet dédié.</p>
       </div>
     </div>
   </div>
 </section>
 
-<!-- Stats -->
-<section class="stats">
+<!-- STATS -->
+<div class="stats-band">
   <div class="stats-inner">
-    <div class="stat-box"><div class="stat-n" id="statN">500 000<em>+</em></div><div class="stat-l">photos triées chaque jour</div></div>
-    <div class="stat-box" style="text-align:center"><div class="stat-n"><em>4.2</em> Go</div><div class="stat-l">libérés en moyenne</div></div>
-    <div class="stat-box" style="text-align:right"><div class="stat-n">3 <em>min</em></div><div class="stat-l">pour 100 photos</div></div>
-  </div>
-</section>
-
-<!-- S5 Reviews -->
-<section class="s5" id="reviews">
-  <div class="s5-h rv">
-    <p class="tag">Ils ont libéré leur galerie</p>
-    <h2 class="s5-hl">Des milliers de galeries nettoyées.</h2>
-    <p class="s5-sub">Rejoignez ceux qui ont repris le contrôle de leurs photos.</p>
-  </div>
-  <div style="overflow:hidden"><div class="ts-track" id="tsTr"></div></div>
-</section>
-
-<!-- S6 Download -->
-<section class="s6" id="download">
-  <div class="s6-inner">
-    <div class="s6-dk rv">
-      <div class="s6-aura"></div>
-      <div class="s6-topimg">
-        <img src="https://images.unsplash.com/photo-1533227268428-f9ed0900fb3b?w=900&fit=crop&q=75" onerror="this.style.display='none';this.nextElementSibling.style.display='block'"/>
-        <div class="s6-topimg-fb" style="display:none;height:100%"></div>
-      </div>
-      <div class="s6-features">
-        <div class="s6-f"><h4><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="rgba(255,255,255,.5)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Corbeille sécurisée</h4><p>Vos photos attendent confirmation avant d'être effacées.</p></div>
-        <div class="s6-f"><h4><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><path d="M9 18V5l12-2v13" stroke="rgba(255,255,255,.5)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="6" cy="18" r="3" stroke="rgba(255,255,255,.5)" stroke-width="2"/></svg>Sons &amp; vibrations haptiques</h4><p>Chaque geste a son retour sensoriel.</p></div>
-        <div class="s6-f"><h4><svg width="12" height="12" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,.5)" stroke-width="2"/><path d="M12 8v4l3 3" stroke="rgba(255,255,255,.5)" stroke-width="2" stroke-linecap="round"/></svg>Reprise automatique</h4><p>SwipeClean mémorise votre position.</p></div>
-      </div>
+    <div class="stat rv">
+      <div class="stat-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="rgba(255,255,255,.22)" stroke-width="1.8"/><path d="M3 15l5-5 4 4 3-3 6 6" stroke="rgba(255,255,255,.22)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="stat-n" id="statN">500 000<em>+</em></div>
+      <div class="stat-l">Photos triées</div>
     </div>
-    <div class="s6-lm rv d2">
-      <p class="tag" style="color:rgba(29,29,31,.4)">Disponible maintenant</p>
-      <h3 class="s6-lm-hl">Libérez votre espace, gardez vos souvenirs.</h3>
-      <div class="s6-btns">
-        <a href="https://github.com/xeloriom-sketch/SwipeClean/releases/download/v1.0.14-beta/SwipeClean-15-1.0.14-beta.apk" class="s6-btn">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85-.29-.15-.65-.06-.83.22l-1.88 3.24A9.53 9.53 0 0 0 12 8a9.53 9.53 0 0 0-4.47 1.09L5.65 5.87c-.19-.29-.56-.38-.85-.22-.3.16-.42.54-.26.85l1.84 3.18A9.42 9.42 0 0 0 2.5 18H21.5a9.42 9.42 0 0 0-3.9-8.52zM7.5 15.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm9 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>
-          APK Android
-        </a>
-        <div class="s6-btn soon">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
-          iOS — Bientôt
-        </div>
-      </div>
-      <div class="s6-mini-wrap">
-        <div class="s6-mini">
-          <div class="s6-mbar"><span>9:41</span><span>▮▮</span></div>
-          <div class="s6-mbody">
-            <span class="s6-mlbl">Triez. Libérez.</span>
-            <div class="s6-mimg"><svg width="26" height="26" viewBox="0 0 24 24" fill="rgba(255,255,255,.45)"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg></div>
-            <div class="s6-mbtns">
-              <svg width="10" height="10" viewBox="0 0 15 15" fill="none"><path d="M2 2l11 11M13 2L2 13" stroke="rgba(255,255,255,.55)" stroke-width="2" stroke-linecap="round"/></svg>
-              <svg width="8" height="8" viewBox="0 0 24 24" fill="rgba(255,255,255,.45)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              <svg width="10" height="10" viewBox="0 0 24 24" fill="rgba(255,255,255,.55)"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-            </div>
-          </div>
-        </div>
-      </div>
+    <div class="stat rv d1">
+      <div class="stat-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" stroke="rgba(255,255,255,.22)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M12 11v6M9 14l3-3 3 3" stroke="rgba(255,255,255,.22)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="stat-n">4,2 <em>Go</em></div>
+      <div class="stat-l">Libérés en moyenne</div>
+    </div>
+    <div class="stat rv d2">
+      <div class="stat-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="rgba(255,255,255,.22)" stroke-width="1.8"/><path d="M12 6v6l4 2" stroke="rgba(255,255,255,.22)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      <div class="stat-n">3 <em>min</em></div>
+      <div class="stat-l">Pour 100 photos</div>
     </div>
   </div>
+</div>
+
+<!-- REVIEWS -->
+<section class="reviews" id="reviews">
+  <div class="reviews-head rv">
+    <h2 class="rv-hl">Des galeries libérées.</h2>
+    <p class="rv-sub">Rejoignez ceux qui ont repris le contrôle de leurs photos.</p>
+  </div>
+  <div style="overflow:hidden"><div class="rv-track" id="rvTr"></div></div>
 </section>
 
-<!-- Footer -->
+<!-- FAQ -->
+<section class="faq" id="faq">
+  <div class="W">
+    <p class="eyebrow rv">Questions fréquentes</p>
+    <h2 class="section-hl rv d1">FAQs</h2>
+    <div class="faq-list" style="margin-top:48px;">
+      <details class="rv d1">
+        <summary>SwipeClean est-il gratuit ?<span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span></summary>
+        <p class="faq-body">Oui, totalement gratuit. Aucun abonnement, aucune publicité, aucune limite — SwipeClean est open source et gratuit pour toujours.</p>
+      </details>
+      <details class="rv d2">
+        <summary>Mes photos sont-elles en sécurité ?<span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span></summary>
+        <p class="faq-body">Absolument. SwipeClean ne transfère aucune donnée sur Internet. Toutes vos photos restent sur votre appareil. L'app fonctionne entièrement hors ligne.</p>
+      </details>
+      <details class="rv d3">
+        <summary>Comment annuler une suppression ?<span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span></summary>
+        <p class="faq-body">Les photos supprimées vont dans la corbeille SwipeClean, pas directement dans la poubelle système. Vous pouvez les restaurer à tout moment depuis l'onglet Corbeille, avant de choisir de les supprimer définitivement.</p>
+      </details>
+      <details class="rv d1">
+        <summary>SwipeClean fonctionne-t-il sur iOS ?<span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span></summary>
+        <p class="faq-body">Pas encore — la version Android est disponible dès maintenant. L'app iOS est en développement actif et sera disponible prochainement sur l'App Store.</p>
+      </details>
+      <details class="rv d2">
+        <summary>Quelles permissions sont nécessaires ?<span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span></summary>
+        <p class="faq-body">SwipeClean demande uniquement l'accès à votre galerie photo pour lire et organiser vos médias. Aucune permission réseau, contacts, ou localisation n'est requise.</p>
+      </details>
+      <details class="rv d3">
+        <summary>Les vidéos sont-elles supportées ?<span class="faq-icon"><svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M5 1v8M1 5h8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg></span></summary>
+        <p class="faq-body">Oui. SwipeClean trie photos et vidéos ensemble ou séparément. Vous pouvez prévisualiser vos vidéos directement dans le swipe avant de décider.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- CHANGELOG -->
+<section class="changelog" id="changelog">
+  <div class="W">
+    <p class="eyebrow rv">Historique des versions</p>
+    <h2 class="section-hl rv d1">Changelog</h2>
+    <div class="cl-grid">
+      <div class="cl-item rv d1">
+        <div>
+          <div class="cl-v">v1.0.14</div>
+          <div class="cl-d">Août 2024</div>
+        </div>
+        <div>
+          <span class="cl-badge">Dernière version</span>
+          <h3 class="cl-title">Correction du flicker d'animation</h3>
+          <p class="cl-desc">Résolution du problème d'animation sur la carte suivante lors d'un swipe rapide. Amélioration de la fluidité globale du stack de cartes.</p>
+          <div class="cl-tags"><span class="cl-tag">Fix</span><span class="cl-tag">Animation</span><span class="cl-tag">Performance</span></div>
+        </div>
+      </div>
+      <div class="cl-item rv d2">
+        <div>
+          <div class="cl-v">v1.0.13</div>
+          <div class="cl-d">Juillet 2024</div>
+        </div>
+        <div>
+          <h3 class="cl-title">Replay du tutoriel &amp; améliorations Settings</h3>
+          <p class="cl-desc">Ajout d'un bouton de replay du tutoriel dans les Paramètres. Nouvelles options de personnalisation du son et des vibrations.</p>
+          <div class="cl-tags"><span class="cl-tag">Nouveau</span><span class="cl-tag">Settings</span></div>
+        </div>
+      </div>
+      <div class="cl-item rv d3">
+        <div>
+          <div class="cl-v">v1.0.12</div>
+          <div class="cl-d">Juillet 2024</div>
+        </div>
+        <div>
+          <h3 class="cl-title">Achievements + animations Lottie</h3>
+          <p class="cl-desc">Introduction de l'écran Succès avec 16 achievements à débloquer. Animations Lottie dans le chargement et les notifications de succès.</p>
+          <div class="cl-tags"><span class="cl-tag">Nouveau</span><span class="cl-tag">Achievements</span><span class="cl-tag">Animations</span></div>
+        </div>
+      </div>
+      <div class="cl-item rv d1">
+        <div>
+          <div class="cl-v">v1.0.10</div>
+          <div class="cl-d">Juin 2024</div>
+        </div>
+        <div>
+          <h3 class="cl-title">Statistiques &amp; écran Stats</h3>
+          <p class="cl-desc">Nouvel onglet Stats : suivi de vos photos triées, supprimées et mises en favoris. Graphiques de progression et compteurs en temps réel.</p>
+          <div class="cl-tags"><span class="cl-tag">Nouveau</span><span class="cl-tag">Stats</span></div>
+        </div>
+      </div>
+      <div class="cl-item rv d2">
+        <div>
+          <div class="cl-v">v1.0.1</div>
+          <div class="cl-d">Mai 2024</div>
+        </div>
+        <div>
+          <h3 class="cl-title">Première version publique Beta</h3>
+          <p class="cl-desc">Lancement de SwipeClean Beta sur Android. Swipe gauche/droite/haut, galerie complète, corbeille, favoris, et onboarding interactif.</p>
+          <div class="cl-tags"><span class="cl-tag">Lancement</span><span class="cl-tag">Beta</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section class="dl-section" id="download">
+  <div class="dl-bg" style="background:radial-gradient(ellipse at 60% 40%, rgba(255,255,255,.05) 0%, transparent 70%);"></div>
+  <div class="dl-inner">
+    <h2 class="dl-hl rv">Libérez votre espace, maintenant.</h2>
+    <p class="dl-sub rv d1">Gratuit sur Android. iOS arrive bientôt.</p>
+    <div class="dl-btns rv d2">
+      <a href="https://github.com/xeloriom-sketch/SwipeClean/releases/download/v1.0.14-beta/SwipeClean-15-1.0.14-beta.apk" class="btn-dl-light">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M17.6 9.48l1.84-3.18c.16-.31.04-.69-.26-.85-.29-.15-.65-.06-.83.22l-1.88 3.24A9.53 9.53 0 0 0 12 8a9.53 9.53 0 0 0-4.47 1.09L5.65 5.87c-.19-.29-.56-.38-.85-.22-.3.16-.42.54-.26.85l1.84 3.18A9.42 9.42 0 0 0 2.5 18H21.5a9.42 9.42 0 0 0-3.9-8.52zM7.5 15.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2zm9 0a1 1 0 1 1 0-2 1 1 0 0 1 0 2z"/></svg>
+        <div><div class="lbl-sub">Télécharger l'</div>APK Android</div>
+      </a>
+      <div class="btn-dl-ghost">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor"><path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/></svg>
+        <div><div class="lbl-sub">Bientôt sur</div>iOS App Store</div>
+      </div>
+    </div>
+    <p class="dl-note rv d3">Gratuit · Aucune inscription · Android 8.0+</p>
+  </div>
+</section>
+
+<!-- FOOTER -->
 <footer class="footer">
-  <div class="footer-top">
-    <div class="footer-logo">SwipeClean</div>
-    <nav class="footer-nav"><a href="#top">Accueil</a><a href="#features">Fonctionnalités</a><a href="#how">Comment ça marche</a><a href="#download">Télécharger</a></nav>
-    <div class="footer-soc">
-      <a href="#" class="soc-i" aria-label="X"><svg width="12" height="12" viewBox="0 0 15 15" fill="currentColor"><path d="M11.9 1.5h2.1l-4.7 5.3 5.5 7.2h-4.3l-3.3-4.3-3.8 4.3H1.3l5-5.7L.9 1.5h4.4l3 3.9 3.6-3.9zM11.1 13h1.2L4 2.6H2.7L11.1 13z"/></svg></a>
-      <a href="#" class="soc-i" aria-label="Instagram"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="2" width="20" height="20" rx="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none"/></svg></a>
-      <a href="https://github.com/xeloriom-sketch/SwipeClean" class="soc-i" aria-label="GitHub"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg></a>
+  <div class="W">
+    <div class="footer-top">
+      <span class="footer-logo">SwipeClean</span>
+      <nav class="footer-nav">
+        <a href="#top">Accueil</a>
+        <a href="#features">Fonctionnalités</a>
+        <a href="#gestures">Gestes</a>
+        <a href="#faq">FAQs</a>
+        <a href="#changelog">Changelog</a>
+        <a href="#download">Télécharger</a>
+      </nav>
+      <div class="footer-soc">
+        <a href="https://github.com/xeloriom-sketch/SwipeClean" target="_blank" rel="noopener" class="soc-btn" aria-label="GitHub">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.44 9.8 8.2 11.38.6.1.82-.26.82-.58v-2.02c-3.34.72-4.04-1.61-4.04-1.61-.54-1.38-1.33-1.75-1.33-1.75-1.08-.74.08-.72.08-.72 1.2.08 1.83 1.23 1.83 1.23 1.06 1.82 2.8 1.3 3.48.99.1-.77.42-1.3.76-1.6-2.67-.3-5.47-1.33-5.47-5.93 0-1.31.47-2.38 1.24-3.22-.12-.3-.54-1.52.12-3.18 0 0 1.01-.32 3.3 1.23.96-.27 1.98-.4 3-.4 1.02 0 2.04.13 3 .4 2.28-1.55 3.29-1.23 3.29-1.23.66 1.66.24 2.88.12 3.18.77.84 1.23 1.91 1.23 3.22 0 4.61-2.81 5.63-5.48 5.92.43.37.81 1.1.81 2.22v3.3c0 .32.22.69.83.57C20.57 21.8 24 17.3 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        </a>
+      </div>
+    </div>
+    <div class="footer-copy">
+      <span>© 2024 SwipeClean</span>
+      <span>Fait avec soin · Android &amp; iOS bientôt</span>
     </div>
   </div>
-  <div class="footer-wm">SwipeClean</div>
 </footer>
-</div><!-- .below -->
 
 <script>
-
-/* ── SCROLL BAR ── */
-const spb=document.getElementById('spb');
 window.addEventListener('scroll',()=>{
-  const sc=document.documentElement.scrollTop,h=document.documentElement.scrollHeight-window.innerHeight;
-  if(spb)spb.style.width=(sc/h*100)+'%';
+  const s=document.documentElement.scrollTop,h=document.documentElement.scrollHeight-window.innerHeight;
+  document.getElementById('spb').style.width=(s/h*100)+'%';
 },{passive:true});
 
-/* ── REVEAL ── */
-document.body.classList.add('js');
-const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}}),{threshold:.07});
+['hBadge','hH1','hSub','hBtns'].forEach((id,i)=>{
+  const el=document.getElementById(id);if(!el)return;
+  el.style.cssText='opacity:0;transform:translateY(18px);';
+  setTimeout(()=>{el.style.cssText='transition:opacity .85s cubic-bezier(.16,1,.3,1),transform .85s cubic-bezier(.16,1,.3,1);opacity:1;transform:none;';},120+i*160);
+});
+
+const io=new IntersectionObserver(es=>es.forEach(e=>{
+  if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}
+}),{threshold:.07});
 document.querySelectorAll('.rv').forEach(el=>io.observe(el));
 
-/* ── MARQUEE ── */
-const tips=[{t:'Swipe gauche — Supprimer',c:'#1D1D1F'},{t:'Swipe droite — Garder',c:'#555'},{t:'Swipe haut — Favoris',c:'#888'},{t:'Corbeille sécurisée incluse',c:'#1D1D1F'},{t:'Position mémorisée automatiquement',c:'#555'},{t:'Sons & vibrations pour chaque geste',c:'#888'},{t:'Triez album par album',c:'#1D1D1F'},{t:'Libérez des Go en quelques minutes',c:'#555'}];
-const mqEl=document.getElementById('mqTr');let mh='';
-for(let r=0;r<3;r++)tips.forEach(t=>{mh+=`<div class="mq-item"><span class="mq-dot" style="background:${t.c}"></span>${t.t}</div>`;});
-mqEl.innerHTML=mh;
+const mqItems=[
+  {t:'Swipe gauche — Supprimer',i:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6" stroke="rgba(255,255,255,.4)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'},
+  {t:'Swipe droite — Garder',i:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M20 6L9 17l-5-5" stroke="rgba(255,255,255,.4)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>'},
+  {t:'Swipe haut — Favoris',i:'<svg width="11" height="11" viewBox="0 0 24 24" fill="rgba(255,255,255,.4)"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>'},
+  {t:'Corbeille sécurisée',i:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" stroke="rgba(255,255,255,.4)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'},
+  {t:'Position mémorisée',i:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" stroke="rgba(255,255,255,.4)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'},
+  {t:'Sons & vibrations',i:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M9 18V5l12-2v13M6 15a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM18 13a3 3 0 1 0 0 6 3 3 0 0 0 0-6z" stroke="rgba(255,255,255,.4)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'},
+  {t:'16 succès à débloquer',i:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M8 21h8M12 17v4M17 3H7l-1 8h10l-1-8zM4 3h2M18 3h2M4 7s-1 4 2 4M20 7s1 4-2 4" stroke="rgba(255,255,255,.4)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'},
+  {t:'Tri photos & vidéos',i:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" stroke="rgba(255,255,255,.4)" stroke-width="1.8"/><path d="M10 8l6 4-6 4V8z" fill="rgba(255,255,255,.4)"/></svg>'},
+  {t:'Libérez des Go en minutes',i:'<svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="rgba(255,255,255,.4)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>'},
+];
+const mq=document.getElementById('mqTr');let h='';
+for(let r=0;r<5;r++)mqItems.forEach(({t,i})=>{h+=`<div class="mq-item">${i}${t}</div>`;});
+mq.innerHTML=h;
 
-/* ── TESTIMONIALS ── */
-const names=['Sophie M.','Thomas K.','Laura B.','Antoine R.','Camille D.','Julien P.','Emma V.','Pierre L.'];
-const revs=["J'avais 8 000 photos sur mon téléphone. Avec SwipeClean, tout trié en une heure !","Le son du swipe est tellement satisfaisant. J'ai libéré 5 Go en une soirée.","Enfin une app qui rend le nettoyage de galerie agréable. Je recommande !","Simple, rapide, efficace. J'adore pouvoir reprendre là où j'avais laissé.","Les favoris sont géniaux pour retrouver mes meilleures photos instantanément.","Le mode album est parfait. J'ai trié mes vacances en 15 minutes.","L'animation de swipe est tellement fluide, on ne veut plus s'arrêter.","Mes 12 Go de photos traités en quelques jours. Magique."];
-const avatars=['https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=80&h=80&fit=crop&q=80','https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&q=80','https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=80&h=80&fit=crop&q=80','https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=80&h=80&fit=crop&q=80','https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=80&h=80&fit=crop&q=80','https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=80&h=80&fit=crop&q=80','https://images.unsplash.com/photo-1580489944761-15a19d654956?w=80&h=80&fit=crop&q=80','https://images.unsplash.com/photo-1528892952291-009c663ce843?w=80&h=80&fit=crop&q=80'];
-const grads=['linear-gradient(135deg,#667eea,#764ba2)','linear-gradient(135deg,#f093fb,#f5576c)','linear-gradient(135deg,#4facfe,#00f2fe)','linear-gradient(135deg,#43e97b,#38f9d7)','linear-gradient(135deg,#f7971e,#ffd200)','linear-gradient(135deg,#f5576c,#f093fb)','linear-gradient(135deg,#0ba360,#3cba92)','linear-gradient(135deg,#00c3ff,#ffff1c)'];
-const tEl=document.getElementById('tsTr');let th='';
-for(let r=0;r<2;r++)names.forEach((n,i)=>{
-  const av=`<img src="${avatars[i]}" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.style.display='none';this.parentElement.style.background='${grads[i]}'"/>`;
-  th+=`<div class="tc"><div class="tc-stars">★★★★★</div><p class="tc-txt">${revs[i]}</p><div class="tc-foot"><div class="tc-av">${av}</div><div><div class="tc-name">${n}</div><div class="tc-sub">Utilisateur vérifié · Beta</div></div></div></div>`;
+const names=['Sophie M.','Thomas K.','Laura B.','Antoine R.','Camille D.','Julien P.'];
+const texts=["J'avais 8 000 photos. Avec SwipeClean, tout trié en une heure !","Le son du swipe est tellement satisfaisant. J'ai libéré 5 Go en une soirée.","Enfin une app qui rend le nettoyage de galerie agréable.","Simple, rapide, efficace. J'adore reprendre là où j'avais laissé.","Les favoris sont géniaux pour retrouver mes meilleures photos.","Le mode album est parfait. Mes vacances triées en 15 minutes."];
+const avatars=['https://i.pravatar.cc/80?img=1','https://i.pravatar.cc/80?img=3','https://i.pravatar.cc/80?img=5','https://i.pravatar.cc/80?img=8','https://i.pravatar.cc/80?img=12','https://i.pravatar.cc/80?img=15'];
+const rvEl=document.getElementById('rvTr');let rh='';
+for(let r=0;r<3;r++)names.forEach((n,i)=>{
+  rh+=`<div class="tc"><div class="tc-stars">★★★★★</div><p class="tc-txt">${texts[i]}</p><div class="tc-foot"><div class="tc-av"><img src="${avatars[i]}" alt="" loading="lazy" onerror="this.style.display='none'"/></div><div><div class="tc-name">${n}</div><div class="tc-role">Utilisateur Beta</div></div></div></div>`;
 });
-tEl.innerHTML=th;
+rvEl.innerHTML=rh;
 
-/* ── STAT COUNTER ── */
 const sn=document.getElementById('statN');
-if(sn){const sio=new IntersectionObserver(([e])=>{if(e.isIntersecting){let t0=null;(function run(ts){if(!t0)t0=ts;const p=Math.min((ts-t0)/2200,1),ease=1-Math.pow(1-p,3);sn.innerHTML=Math.floor(ease*500000).toLocaleString('fr-FR')+'<em>+</em>';if(p<1)requestAnimationFrame(run);else sn.innerHTML='500 000<em>+</em>';if(p>=1)sio.disconnect();})(performance.now());}},{threshold:.6});sio.observe(sn);}
+if(sn){const sio=new IntersectionObserver(([e])=>{if(e.isIntersecting){let t0=null;(function r(ts){if(!t0)t0=ts;const p=Math.min((ts-t0)/2000,1),e2=1-Math.pow(1-p,3);sn.innerHTML=Math.floor(e2*500000).toLocaleString('fr-FR')+'<em>+</em>';if(p<1)requestAnimationFrame(r);else sn.innerHTML='500 000<em>+</em>';if(p>=1)sio.disconnect();})(performance.now());}},{threshold:.5});sio.observe(sn);}
 
-/* ── CARD MOUSE SHEEN ── */
-const card=document.getElementById('cinCard'),sheen=document.getElementById('cardSheen');
-const bezel=document.getElementById('iPhoneBezel');
-let rafId=0;
-window.addEventListener('mousemove',e=>{
-  cancelAnimationFrame(rafId);
-  rafId=requestAnimationFrame(()=>{
-    if(card&&sheen){
-      const r=card.getBoundingClientRect();
-      card.style.setProperty('--mx',`${e.clientX-r.left}px`);
-      card.style.setProperty('--my',`${e.clientY-r.top}px`);
-    }
-    if(bezel&&window.scrollY<window.innerHeight*1.5){
-      const x=(e.clientX/window.innerWidth-.5)*2;
-      const y=(e.clientY/window.innerHeight-.5)*2;
-      bezel.style.transform=`perspective(1000px) rotateY(${x*10}deg) rotateX(${-y*10}deg)`;
-    }
-  });
-});
-
-/* ── SMOOTH SCROLL ── */
 document.querySelectorAll('a[href^="#"]').forEach(a=>{
-  a.addEventListener('click',e=>{const el=document.getElementById(a.getAttribute('href').slice(1));if(el){e.preventDefault();el.scrollIntoView({behavior:'smooth'});}});
+  a.addEventListener('click',e=>{const t=document.getElementById(a.getAttribute('href').slice(1));if(t){e.preventDefault();t.scrollIntoView({behavior:'smooth'});}});
 });
 
-/* ── CINEMATIC GSAP TIMELINE ── */
-if(typeof gsap!=='undefined'&&typeof ScrollTrigger!=='undefined'){
-  gsap.registerPlugin(ScrollTrigger);
-
-  /* Intro: staggered entrance sequence */
-  gsap.fromTo('#cinBadgePill',
-    {opacity:0,y:18,filter:'blur(8px)'},
-    {opacity:1,y:0,filter:'blur(0px)',duration:0.9,ease:'expo.out',delay:.15}
-  );
-  gsap.from('.cin-t1',{opacity:0,y:60,filter:'blur(20px)',rotationX:-20,duration:1.8,ease:'expo.out',delay:.45});
-  gsap.to('.cin-t2',{clipPath:'inset(0 0% 0 0)',duration:1.4,ease:'power4.inOut',delay:1.1});
-  gsap.fromTo('#cinSub',
-    {opacity:0,y:24,filter:'blur(10px)'},
-    {opacity:1,y:0,filter:'blur(0px)',duration:1.2,ease:'expo.out',delay:1.6}
-  );
-  gsap.fromTo('#cinHeroBtns',
-    {opacity:0,y:36,filter:'blur(14px)'},
-    {opacity:1,y:0,filter:'blur(0px)',duration:1.4,ease:'expo.out',delay:2.1}
-  );
-  gsap.fromTo('#heroScroll',
-    {opacity:0,y:10},
-    {opacity:1,y:0,duration:1.2,ease:'power2.out',delay:3.2}
-  );
-
-  /* Scroll-pinned timeline */
-  const tl=gsap.timeline({
-    scrollTrigger:{
-      trigger:'.cin-section',
-      start:'top top',
-      end:'+=6500',
-      pin:true,
-      scrub:1,
-      anticipatePin:1,
-    }
-  });
-
-  tl
-    /* 0-2: background text fades, card rises */
-    .to('#cinText',{scale:1.12,filter:'blur(18px)',opacity:.15,ease:'power2.inOut',duration:2},0)
-    .to('.bg-grid',{opacity:.1,ease:'power2.inOut',duration:2},0)
-    .to('#cinCard',{y:0,ease:'power3.inOut',duration:2},0)
-
-    /* 2-3.5: card expands to full screen */
-    .to('#cinCard',{width:'100%',height:'100%',borderRadius:'0px',ease:'power3.inOut',duration:1.5})
-
-    /* 3-5.5: phone animates in from below with 3D */
-    .fromTo('#cinPhoneWrap',
-      {y:350,z:-500,rotationX:52,rotationY:-28,opacity:0,scale:.55},
-      {y:0,z:0,rotationX:0,rotationY:0,opacity:1,scale:1,ease:'expo.out',duration:2.5},
-      '-=0.6'
-    )
-
-    /* 4-5: screen elements appear */
-    .to('#scHdr',{opacity:1,duration:.8,ease:'power2.out'},'-=1.8')
-    .to('#ringWrap',{opacity:1,duration:.8,ease:'power2.out'},'-=1.6')
-    .to('#scPhotoArea',{opacity:1,duration:.8,ease:'power2.out'},'-=1.4')
-    .to('#scBtns',{opacity:1,duration:.8,ease:'power2.out'},'-=1.2')
-
-    /* progress ring fill */
-    .to('#ringFill',{strokeDashoffset:88,duration:2,ease:'power3.inOut'},'-=2.5')
-    /* counter */
-    .to('#ringN',{innerHTML:342,snap:{innerHTML:1},duration:2,ease:'expo.out'},'-=2.5')
-
-    /* badges float in */
-    .fromTo('#cinBadge1',{y:90,opacity:0,scale:.7,rotationZ:-8},{y:0,opacity:1,scale:1,rotationZ:0,ease:'back.out(1.5)',duration:1.4},'-=2.0')
-    .fromTo('#cinBadge2',{y:90,opacity:0,scale:.7,rotationZ:8},{y:0,opacity:1,scale:1,rotationZ:0,ease:'back.out(1.5)',duration:1.4},'-=1.8')
-
-    /* card text slides in */
-    .fromTo('#cinCardLeft',{x:-50,opacity:0},{x:0,opacity:1,ease:'power4.out',duration:1.5},'-=1.5')
-    .fromTo('#cinCardRight',{x:50,opacity:0},{x:0,opacity:1,ease:'expo.out',duration:1.5},'<')
-
-    /* HOLD */
-    .to({},{duration:2.5})
-
-    /* card shrinks, CTA appears */
-    .set('#cinText',{opacity:0})
-    .to(['#cinPhoneWrap','#cinBadge1','#cinBadge2','#cinCardLeft','#cinCardRight'],
-      {scale:.88,y:-44,opacity:0,ease:'power3.in',duration:1.2,stagger:.04}
-    )
-    .to('#cinCard',{
-      width:'clamp(80vw,85vw,92vw)',
-      height:'clamp(80vh,85vh,92vh)',
-      borderRadius:'40px',
-      ease:'expo.inOut',duration:1.8
-    },'pullback')
-    .to('#cinCTA',{opacity:1,scale:1,filter:'blur(0px)',ease:'expo.inOut',duration:1.8,
-      onStart:()=>{document.getElementById('cinCTA').classList.add('active');}
-    },'pullback')
-
-    /* card exits up */
-    .to('#cinCard',{y:-(window.innerHeight+400),ease:'power3.in',duration:1.5});
+// Phone gentle tilt on mouse move
+const phone=document.querySelector('.phone');
+if(phone&&window.matchMedia('(pointer:fine)').matches){
+  const wrap=phone.closest('.mockup-outer');
+  wrap.style.perspective='1400px';
+  phone.style.transition='transform .6s cubic-bezier(.25,1,.5,1)';
+  let raf=null;
+  document.addEventListener('mousemove',e=>{
+    if(raf)return;
+    raf=requestAnimationFrame(()=>{
+      const r=phone.getBoundingClientRect();
+      if(r.bottom<-100||r.top>window.innerHeight+100){raf=null;return;}
+      const cx=r.left+r.width/2,cy=r.top+r.height/2;
+      const dx=Math.max(-7,Math.min(7,(e.clientX-cx)/60));
+      const dy=Math.max(-5,Math.min(5,(e.clientY-cy)/60));
+      phone.style.transform=`rotateY(${dx}deg) rotateX(${-dy}deg)`;
+      raf=null;
+    });
+  },{passive:true});
 }
 </script>
 </body>
