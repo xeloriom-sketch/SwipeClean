@@ -19,6 +19,7 @@ import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { isNotificationsEnabled, setNotificationsEnabled, getNotifHour, setNotifHour, scheduleDailyReminder } from "../../utils/notifications";
+import * as Updates from "expo-updates";
 
 const DARK_MODE_KEY = "@app_dark_mode";
 const VIBRATE_KEY = "@app_vibrate_swipe";
@@ -51,6 +52,7 @@ export default function SettingsScreen() {
   const [autoTrashDays, setAutoTrashDays] = useState<0 | 7 | 30>(0);
   const [showAbout, setShowAbout] = useState(false);
   const [notifHour, setNotifHourState] = useState(10);
+  const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "downloading" | "ready" | "uptodate">("idle");
 
   useEffect(() => {
     (async () => {
@@ -103,6 +105,29 @@ export default function SettingsScreen() {
     const newVal = !notifications;
     setNotifications(newVal);
     await setNotificationsEnabled(newVal, notifHour);
+  };
+
+  const checkForUpdate = async () => {
+    if (__DEV__) { Alert.alert("Info", "Mises à jour désactivées en développement."); return; }
+    setUpdateStatus("checking");
+    try {
+      const check = await Updates.checkForUpdateAsync();
+      if (!check.isAvailable) { setUpdateStatus("uptodate"); return; }
+      setUpdateStatus("downloading");
+      await Updates.fetchUpdateAsync();
+      setUpdateStatus("ready");
+      Alert.alert(
+        "Mise à jour prête",
+        "Une nouvelle version est installée. Redémarrer maintenant ?",
+        [
+          { text: "Plus tard", style: "cancel", onPress: () => setUpdateStatus("idle") },
+          { text: "Redémarrer", onPress: () => Updates.reloadAsync() },
+        ]
+      );
+    } catch {
+      setUpdateStatus("idle");
+      Alert.alert("Erreur", "Impossible de vérifier les mises à jour. Vérifiez votre connexion.");
+    }
   };
 
   const changeNotifHour = async (delta: number) => {
@@ -303,6 +328,33 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      {/* Update button */}
+      <TouchableOpacity
+        onPress={checkForUpdate}
+        disabled={updateStatus === "checking" || updateStatus === "downloading"}
+        style={[styles.updateBtn, { backgroundColor: darkMode ? "#1a1a1a" : "#fff" }]}
+        activeOpacity={0.7}
+      >
+        <View style={styles.updateBtnLeft}>
+          <Ionicons
+            name={updateStatus === "ready" ? "checkmark-circle" : updateStatus === "uptodate" ? "checkmark-circle-outline" : "cloud-download-outline"}
+            size={wp(5.5)}
+            color={updateStatus === "ready" ? "#34C759" : updateStatus === "uptodate" ? "#34C759" : (darkMode ? "#fff" : "#000")}
+          />
+          <View>
+            <Text style={[styles.optionText, darkMode && styles.darkText]}>Vérifier les mises à jour</Text>
+            {sub(
+              updateStatus === "checking" ? "Vérification…"
+              : updateStatus === "downloading" ? "Téléchargement…"
+              : updateStatus === "ready" ? "Prête — redémarrez l'app"
+              : updateStatus === "uptodate" ? "Vous êtes à jour ✓"
+              : "Vérifier manuellement"
+            )}
+          </View>
+        </View>
+        <Ionicons name="chevron-forward" size={wp(4)} color={darkMode ? "#555" : "#bbb"} />
+      </TouchableOpacity>
+
       {/* About */}
       <TouchableOpacity
         onPress={toggleAbout}
@@ -375,6 +427,23 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   badgeText: { fontSize: 13, fontWeight: "700" },
+
+  updateBtn: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginHorizontal: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    borderRadius: 16,
+    marginBottom: 8,
+  },
+  updateBtnLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
 
   hourPicker: {
     flexDirection: "row",
