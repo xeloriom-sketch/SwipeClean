@@ -2,7 +2,17 @@ import * as Notifications from "expo-notifications";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const NOTIF_KEY = "@app_notifications";
+const NOTIF_HOUR_KEY = "@app_notif_hour";
 const DAILY_NOTIF_ID = "swipeclean_daily_reminder";
+
+export async function getNotifHour(): Promise<number> {
+  const val = await AsyncStorage.getItem(NOTIF_HOUR_KEY);
+  return val !== null ? Number(val) : 10;
+}
+
+export async function setNotifHour(hour: number): Promise<void> {
+  await AsyncStorage.setItem(NOTIF_HOUR_KEY, String(hour));
+}
 
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -19,7 +29,8 @@ export async function requestNotifPermission(): Promise<boolean> {
   return status === "granted";
 }
 
-export async function scheduleDailyReminder() {
+export async function scheduleDailyReminder(hour?: number) {
+  const h = hour ?? (await getNotifHour());
   await Notifications.cancelScheduledNotificationAsync(DAILY_NOTIF_ID).catch(() => {});
   await Notifications.scheduleNotificationAsync({
     identifier: DAILY_NOTIF_ID,
@@ -29,7 +40,7 @@ export async function scheduleDailyReminder() {
     },
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.DAILY,
-      hour: 10,
+      hour: h,
       minute: 0,
     },
   });
@@ -55,11 +66,11 @@ export async function isNotificationsEnabled(): Promise<boolean> {
   return val !== "false";
 }
 
-export async function setNotificationsEnabled(enabled: boolean) {
+export async function setNotificationsEnabled(enabled: boolean, hour?: number) {
   await AsyncStorage.setItem(NOTIF_KEY, enabled ? "true" : "false");
   if (enabled) {
     const granted = await requestNotifPermission();
-    if (granted) await scheduleDailyReminder();
+    if (granted) await scheduleDailyReminder(hour);
   } else {
     await cancelDailyReminder();
   }

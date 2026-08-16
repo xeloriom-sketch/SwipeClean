@@ -24,7 +24,7 @@ import { Image } from "expo-image";
 import { Audio } from "expo-av";
 import * as Notifications from "expo-notifications";
 import AppLoader from "../../components/AppLoader";
-import { checkSwipeMilestones, checkAndUnlock, type Achievement } from "../../utils/achievements";
+import { checkSwipeMilestones, checkAndUnlock, checkNightSwipe, checkFavMilestones, type Achievement } from "../../utils/achievements";
 
 // react-native-video requires a native build — not available in Expo Go
 let VideoPlayer: React.ComponentType<any> | null = null;
@@ -261,6 +261,7 @@ const MediaCard = React.memo(function MediaCard({
           transition={0}
           cachePolicy="memory"
           priority="high"
+          recyclingKey={item.id}
         />
       </Animated.View>
       <LinearGradient
@@ -297,11 +298,13 @@ const SwipeableCard = ({
   const imagePanY = useSharedValue(0);
   const isZoomedIn = useSharedValue(false);
   const savedScale = useSharedValue(1);
-  const mountProgress = useSharedValue(isTop ? 1 : 0);
+  const mountProgress = useSharedValue(0);
 
   useEffect(() => {
-    if (!isTop) {
-      mountProgress.value = withSpring(1, { damping: 14, stiffness: 55 });
+    if (isTop) {
+      mountProgress.value = withTiming(1, { duration: 200 });
+    } else {
+      mountProgress.value = withSpring(1, { damping: 15, stiffness: 60 });
     }
   }, []);
 
@@ -332,6 +335,7 @@ const SwipeableCard = ({
         { translateX: translateX.value },
         { translateY: translateY.value },
         { rotate: `${rotate}deg` },
+        { scale: 0.94 + 0.06 * mountProgress.value },
       ],
       zIndex: 10,
       opacity: 1,
@@ -683,68 +687,11 @@ function Confetti({ active }: { active: boolean }) {
   );
 }
 
-/* ---- Achievement Toast ---- */
-const AchievementToast = ({ achievement, onDone }: { achievement: Achievement; onDone: () => void }) => {
-  const ty = useSharedValue(-90);
-  const op = useSharedValue(0);
-
-  useEffect(() => {
-    ty.value = withSpring(0, { damping: 14, stiffness: 200 });
-    op.value = withTiming(1, { duration: 280 });
-    const timer = setTimeout(() => {
-      ty.value = withTiming(-90, { duration: 280 });
-      op.value = withTiming(0, { duration: 280 });
-      setTimeout(onDone, 290);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, []);
-
-  const style = useAnimatedStyle(() => ({
-    transform: [{ translateY: ty.value }],
-    opacity: op.value,
-  }));
-
-  return (
-    <Animated.View style={[achieveStyles.toast, style]}>
-      <Text style={achieveStyles.emoji}>{achievement.emoji}</Text>
-      <View style={{ flex: 1 }}>
-        <Text style={achieveStyles.title}>{achievement.title}</Text>
-        <Text style={achieveStyles.desc}>{achievement.desc}</Text>
-      </View>
-    </Animated.View>
-  );
-};
-
-const achieveStyles = StyleSheet.create({
-  toast: {
-    position: "absolute",
-    top: 60,
-    left: 20,
-    right: 20,
-    backgroundColor: "rgba(20,20,28,0.96)",
-    borderRadius: 18,
-    padding: 16,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-    zIndex: 9999,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.4,
-    shadowRadius: 16,
-    elevation: 14,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.1)",
-  },
-  emoji: { fontSize: 32 },
-  title: { color: "#fff", fontSize: 15, fontWeight: "700" },
-  desc: { color: "rgba(255,255,255,0.55)", fontSize: 12, marginTop: 2 },
-});
 
 function fireAchievementNotif(a: Achievement) {
   Notifications.scheduleNotificationAsync({
     content: {
-      title: `${a.emoji} Succès débloqué !`,
+      title: `Succès débloqué !`,
       body: `${a.title} — ${a.desc}`,
     },
     trigger: null,
@@ -754,8 +701,11 @@ function fireAchievementNotif(a: Achievement) {
 /* ---- GalleryScreen ---- */
 export default function GalleryScreen() {
   const [assets, setAssets] = useState<MediaItem[]>([]);
-  const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(true);
+  const cursorRef = useRef<string | undefined>(undefined);
+  const hasMoreRef = useRef(true);
+  const trashRef = useRef<Array<MediaItem & { trashedAt?: number }>>([]);
+  const favoritesRef = useRef<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const isFetching = useRef(false);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -772,8 +722,8 @@ export default function GalleryScreen() {
   const [trashCount, setTrashCount] = useState(0);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [darkAuto, setDarkAuto] = useState(false);
-  const [pendingAchievement, setPendingAchievement] = useState<Achievement | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [lastSwipe, setLastSwipe] = useState<{ item: MediaItem; direction: Exclude<SwipeDirection, null> } | null>(null);
 
   // Load preferences
   useEffect(() => {
@@ -805,6 +755,9 @@ export default function GalleryScreen() {
     Audio.setAudioModeAsync({ playsInSilentModeIOS: true })
       .then(() => initSounds())
       .catch(() => {});
+    return () => {
+      Object.values(preloadedSounds).forEach((s) => s?.unloadAsync().catch(() => {}));
+    };
   }, []);
 
   // Bootstrap
@@ -820,10 +773,12 @@ export default function GalleryScreen() {
         }
 
         // Auto-empty trash if configured
-        const [trashRaw, autoTrashRaw] = await Promise.all([
+        const [trashRaw, autoTrashRaw, favRaw] = await Promise.all([
           AsyncStorage.getItem(TRASH_KEY),
           AsyncStorage.getItem(AUTO_TRASH_DAYS_KEY),
+          AsyncStorage.getItem(FAVORITES_KEY),
         ]);
+        if (favRaw) favoritesRef.current = JSON.parse(favRaw);
         const autoTrashDays = autoTrashRaw ? Number(autoTrashRaw) : 0;
 
         if (trashRaw) {
@@ -842,6 +797,7 @@ export default function GalleryScreen() {
           }
 
           trashArr.forEach((t) => trashCache.current.add(t.id));
+          trashRef.current = trashArr;
           setTrashCount(trashArr.length);
           Notifications.setBadgeCountAsync(trashArr.length).catch(() => {});
         }
@@ -864,7 +820,7 @@ export default function GalleryScreen() {
 
   const fetchAssets = useCallback(
     async (force = false) => {
-      if (isFetching.current || (!hasMore && !force)) return;
+      if (isFetching.current || (!hasMoreRef.current && !force)) return;
       isFetching.current = true;
       try {
         const { status } = await MediaLibrary.requestPermissionsAsync();
@@ -873,8 +829,8 @@ export default function GalleryScreen() {
         const res = await MediaLibrary.getAssetsAsync({
           mediaType: ["photo", "video"],
           first: BATCH_SIZE,
-          after: cursor,
-          sortBy: [["creationTime", !sortOldest]],
+          after: cursorRef.current,
+          sortBy: [["creationTime", sortOldest]],
         });
 
         const items: MediaItem[] = [];
@@ -892,7 +848,9 @@ export default function GalleryScreen() {
                 id: asset.id,
                 uri: uri || null,
                 type: asset.mediaType === "video" ? "video" : "photo",
-                createdAt: asset.creationTime,
+                createdAt: asset.creationTime > 0 && asset.creationTime < 1e10
+                  ? asset.creationTime * 1000
+                  : asset.creationTime,
                 width: asset.width,
                 height: asset.height,
                 duration: asset.duration,
@@ -913,7 +871,8 @@ export default function GalleryScreen() {
           items.forEach((it) => !map.has(it.id) && map.set(it.id, it));
           return Array.from(map.values());
         });
-        setCursor(res.endCursor);
+        cursorRef.current = res.endCursor;
+        hasMoreRef.current = res.hasNextPage;
         setHasMore(res.hasNextPage);
       } catch (err) {
         logger.error("fetchAssets", err);
@@ -921,7 +880,7 @@ export default function GalleryScreen() {
         isFetching.current = false;
       }
     },
-    [cursor, hasMore, sortOldest]
+    [sortOldest]
   );
 
   useEffect(() => {
@@ -936,33 +895,18 @@ export default function GalleryScreen() {
     } catch {}
   }, []);
 
-  const addToTrash = useCallback(async (item: MediaItem) => {
-    try {
-      const raw = await AsyncStorage.getItem(TRASH_KEY);
-      const arr: Array<MediaItem & { trashedAt?: number }> = raw ? JSON.parse(raw) : [];
-      const itemWithDate = { ...item, trashedAt: Date.now() };
-      const next = [itemWithDate, ...arr].slice(0, 1000);
-      await AsyncStorage.setItem(TRASH_KEY, JSON.stringify(next));
-      setTrashCount(next.length);
-      Notifications.setBadgeCountAsync(next.length).catch(() => {});
-    } catch (err) {
-      logger.error("addToTrash", err);
-    }
+  const addToTrash = useCallback((item: MediaItem) => {
+    const entry = { ...item, trashedAt: Date.now() };
+    trashRef.current = [entry, ...trashRef.current].slice(0, 1000);
+    setTrashCount(trashRef.current.length);
+    AsyncStorage.setItem(TRASH_KEY, JSON.stringify(trashRef.current)).catch(() => {});
+    Notifications.setBadgeCountAsync(trashRef.current.length).catch(() => {});
   }, []);
 
-  const addToFavorites = useCallback(async (item: MediaItem) => {
-    try {
-      const raw = await AsyncStorage.getItem(FAVORITES_KEY);
-      const arr: MediaItem[] = raw ? JSON.parse(raw) : [];
-      if (!arr.some((f) => f.id === item.id)) {
-        await AsyncStorage.setItem(
-          FAVORITES_KEY,
-          JSON.stringify([item, ...arr].slice(0, 1000))
-        );
-      }
-    } catch (err) {
-      logger.error("addToFavorites", err);
-    }
+  const addToFavorites = useCallback((item: MediaItem) => {
+    if (favoritesRef.current.some((f) => f.id === item.id)) return;
+    favoritesRef.current = [item, ...favoritesRef.current].slice(0, 1000);
+    AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(favoritesRef.current)).catch(() => {});
   }, []);
 
   const triggerHaptics = useCallback(
@@ -994,28 +938,52 @@ export default function GalleryScreen() {
 
       const showAchievement = (a: Achievement | null) => {
         if (!a) return;
-        setPendingAchievement(a);
         fireAchievementNotif(a);
       };
+
+      setLastSwipe({ item, direction });
 
       if (direction === "left") {
         trashCache.current.add(item.id);
         addToTrash(item);
         checkAndUnlock("first_trash").then(showAchievement);
       } else if (direction === "top") {
+        const isDup = favoritesRef.current.some((f) => f.id === item.id);
+        const newTotal = isDup ? favoritesRef.current.length : favoritesRef.current.length + 1;
         addToFavorites(item);
-        checkAndUnlock("first_fav").then(showAchievement);
+        checkFavMilestones(newTotal).then(showAchievement);
       }
 
       const newSwipeTotal = currentIndex + 1;
       checkSwipeMilestones(newSwipeTotal).then(showAchievement);
+      checkNightSwipe().then(showAchievement);
 
       const newIndex = currentIndex + 1;
       setCurrentIndex(newIndex);
       persistIndex(newIndex);
     },
-    [currentIndex, assets, triggerHaptics, addToTrash, addToFavorites, persistIndex]
+    [currentIndex, assets, triggerHaptics, addToTrash, addToFavorites, persistIndex, soundEnabled]
   );
+
+  const handleUndo = useCallback(() => {
+    if (!lastSwipe || currentIndex === 0) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const { item, direction } = lastSwipe;
+    if (direction === "left") {
+      trashCache.current.delete(item.id);
+      trashRef.current = trashRef.current.filter((i) => i.id !== item.id);
+      setTrashCount(trashRef.current.length);
+      AsyncStorage.setItem(TRASH_KEY, JSON.stringify(trashRef.current)).catch(() => {});
+      Notifications.setBadgeCountAsync(trashRef.current.length).catch(() => {});
+    } else if (direction === "top") {
+      favoritesRef.current = favoritesRef.current.filter((i) => i.id !== item.id);
+      AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(favoritesRef.current)).catch(() => {});
+    }
+    const newIndex = currentIndex - 1;
+    setCurrentIndex(newIndex);
+    persistIndex(newIndex);
+    setLastSwipe(null);
+  }, [lastSwipe, currentIndex, persistIndex]);
 
   const resetGallery = useCallback(async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -1023,11 +991,21 @@ export default function GalleryScreen() {
     stackProgress.value = 0;
     trashCache.current.clear();
     fetchedIds.current.clear();
+    cursorRef.current = undefined;
+    hasMoreRef.current = true;
     setAssets([]);
-    setCursor(undefined);
     setHasMore(true);
     setCurrentIndex(0);
+    setLastSwipe(null);
   }, []);
+
+  // Précharger la 3ème carte — dans un effet pour éviter l'exécution à chaque render
+  useEffect(() => {
+    const third = assets[currentIndex + 2];
+    if (third?.uri && third.type === "photo") {
+      Image.prefetch(third.uri);
+    }
+  }, [currentIndex, assets]);
 
   const mainAnimatedStyle = useAnimatedStyle(() => ({
     opacity: containerOpacity.value,
@@ -1038,7 +1016,6 @@ export default function GalleryScreen() {
 
   const topCard = assets[currentIndex];
   const bottomCard = assets[currentIndex + 1];
-  const remaining = Math.max(0, assets.length - currentIndex);
 
   if (!topCard) {
     if (hasMore) return <FancyLoader dark={darkMode} />;
@@ -1091,14 +1068,6 @@ export default function GalleryScreen() {
     >
       <StatusBar barStyle={darkMode ? "light-content" : "dark-content"} />
 
-      {/* ACHIEVEMENT TOAST */}
-      {pendingAchievement && (
-        <AchievementToast
-          achievement={pendingAchievement}
-          onDone={() => setPendingAchievement(null)}
-        />
-      )}
-
       {/* HEADER */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -1124,6 +1093,11 @@ export default function GalleryScreen() {
         </View>
 
         <View style={{ flexDirection: "row", alignItems: "center" }}>
+          {lastSwipe && (
+            <TouchableOpacity style={styles.headerBtn} onPress={handleUndo}>
+              <Ionicons name="arrow-undo" size={28} color={darkMode ? "#E0E0E0" : "#000"} />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity style={styles.headerBtn} onPress={resetGallery}>
             <ReloadMenuIcon size={34} darkMode={darkMode} />
           </TouchableOpacity>
@@ -1199,6 +1173,23 @@ export default function GalleryScreen() {
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
+                router.push("/Achievements" as any);
+                setMenuOpen(false);
+              }}
+            >
+              <Ionicons
+                name="trophy-outline"
+                size={20}
+                color={darkMode ? "#E0E0E0" : "#000"}
+              />
+              <Text style={[styles.menuText, { color: darkMode ? "#E0E0E0" : "#000" }]}>
+                Succès
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
                 router.push("/Settings");
                 setMenuOpen(false);
               }}
@@ -1251,21 +1242,21 @@ export default function GalleryScreen() {
         <View style={styles.globalActions}>
           <AnimatedActionBtn
             onPress={() => handleSwipe("left")}
-            btnStyle={[styles.actionBtn, styles.actionBtnDelete]}
+            btnStyle={ACTION_BTN_DELETE}
             iconName="close"
             iconSize={BTN_ICON}
             iconColor="#FF4458"
           />
           <AnimatedActionBtn
             onPress={() => handleSwipe("top")}
-            btnStyle={[styles.actionBtn, styles.actionBtnStar]}
+            btnStyle={ACTION_BTN_STAR}
             iconName="star"
             iconSize={BTN_ICON - 6}
             iconColor="#00C9FF"
           />
           <AnimatedActionBtn
             onPress={() => handleSwipe("right")}
-            btnStyle={[styles.actionBtn, styles.actionBtnKeep]}
+            btnStyle={ACTION_BTN_KEEP}
             iconName="heart"
             iconSize={BTN_ICON - 4}
             iconColor="#4CFF5E"
@@ -1558,3 +1549,8 @@ const styles = StyleSheet.create({
   },
 
 });
+
+// Constantes stables pour éviter que React.memo soit annulé par des arrays inline
+const ACTION_BTN_DELETE = [styles.actionBtn, styles.actionBtnDelete];
+const ACTION_BTN_STAR   = [styles.actionBtn, styles.actionBtnStar];
+const ACTION_BTN_KEEP   = [styles.actionBtn, styles.actionBtnKeep];

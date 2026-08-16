@@ -5,7 +5,6 @@ import {
   Text,
   StyleSheet,
   Switch,
-  SafeAreaView,
   StatusBar,
   TouchableOpacity,
   LayoutAnimation,
@@ -14,11 +13,12 @@ import {
   Dimensions,
   Alert,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
-import { isNotificationsEnabled, setNotificationsEnabled } from "../../utils/notifications";
+import { isNotificationsEnabled, setNotificationsEnabled, getNotifHour, setNotifHour, scheduleDailyReminder } from "../../utils/notifications";
 
 const DARK_MODE_KEY = "@app_dark_mode";
 const VIBRATE_KEY = "@app_vibrate_swipe";
@@ -50,10 +50,11 @@ export default function SettingsScreen() {
   const [sortOldest, setSortOldest] = useState(false);
   const [autoTrashDays, setAutoTrashDays] = useState<0 | 7 | 30>(0);
   const [showAbout, setShowAbout] = useState(false);
+  const [notifHour, setNotifHourState] = useState(10);
 
   useEffect(() => {
     (async () => {
-      const [dm, vs, so, snd, dkAuto, atDays, notif] = await Promise.all([
+      const [dm, vs, so, snd, dkAuto, atDays, notif, nh] = await Promise.all([
         AsyncStorage.getItem(DARK_MODE_KEY),
         AsyncStorage.getItem(VIBRATE_KEY),
         AsyncStorage.getItem(SORT_KEY),
@@ -61,6 +62,7 @@ export default function SettingsScreen() {
         AsyncStorage.getItem(AUTO_DARK_KEY),
         AsyncStorage.getItem(AUTO_TRASH_DAYS_KEY),
         isNotificationsEnabled(),
+        getNotifHour(),
       ]);
       if (dm !== null) setDarkMode(dm === "true");
       if (vs !== null) setVibrateSwipe(vs === "true");
@@ -69,6 +71,7 @@ export default function SettingsScreen() {
       if (dkAuto !== null) setDarkAuto(dkAuto === "true");
       if (atDays !== null) setAutoTrashDays(Number(atDays) as 0 | 7 | 30);
       setNotifications(notif);
+      setNotifHourState(nh);
     })();
   }, []);
 
@@ -99,7 +102,14 @@ export default function SettingsScreen() {
   const toggleNotifications = async () => {
     const newVal = !notifications;
     setNotifications(newVal);
-    await setNotificationsEnabled(newVal);
+    await setNotificationsEnabled(newVal, notifHour);
+  };
+
+  const changeNotifHour = async (delta: number) => {
+    const newHour = (notifHour + delta + 24) % 24;
+    setNotifHourState(newHour);
+    await setNotifHour(newHour);
+    if (notifications) await scheduleDailyReminder(newHour);
   };
 
   const toggleSortOrder = async () => {
@@ -222,13 +232,39 @@ export default function SettingsScreen() {
           <View style={styles.optionRow}>
             <View>
               <Text style={[styles.optionText, darkMode && styles.darkText]}>Notifications</Text>
-              {sub("Rappel quotidien à 10h")}
+              {sub("Rappel quotidien de tri")}
             </View>
             <Switch
               value={notifications}
               onValueChange={toggleNotifications}
               trackColor={{ false: "#ddd", true: "#0A84FF" }}
             />
+          </View>
+          {sep}
+          <View style={[styles.optionRow, !notifications && { opacity: 0.4 }]}>
+            <View>
+              <Text style={[styles.optionText, darkMode && styles.darkText]}>Heure du rappel</Text>
+              {sub(`Rappel à ${notifHour.toString().padStart(2, "0")}h00`)}
+            </View>
+            <View style={styles.hourPicker}>
+              <TouchableOpacity
+                onPress={() => notifications && changeNotifHour(-1)}
+                style={[styles.hourBtn, { backgroundColor: darkMode ? "#2a2a2a" : "#f0f0f0" }]}
+                disabled={!notifications}
+              >
+                <Ionicons name="remove" size={wp(5)} color={darkMode ? "#fff" : "#000"} />
+              </TouchableOpacity>
+              <Text style={[styles.hourVal, darkMode && styles.darkText]}>
+                {notifHour.toString().padStart(2, "0")}h
+              </Text>
+              <TouchableOpacity
+                onPress={() => notifications && changeNotifHour(1)}
+                style={[styles.hourBtn, { backgroundColor: darkMode ? "#2a2a2a" : "#f0f0f0" }]}
+                disabled={!notifications}
+              >
+                <Ionicons name="add" size={wp(5)} color={darkMode ? "#fff" : "#000"} />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </View>
@@ -339,6 +375,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   badgeText: { fontSize: 13, fontWeight: "700" },
+
+  hourPicker: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  hourBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  hourVal: {
+    fontSize: wp(4.5),
+    fontWeight: "700",
+    minWidth: 44,
+    textAlign: "center",
+    letterSpacing: -0.5,
+  },
 
   aboutRow: {
     flexDirection: "row",
