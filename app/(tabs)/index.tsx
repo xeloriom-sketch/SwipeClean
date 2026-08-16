@@ -12,7 +12,7 @@ import {
   Pressable,
   useColorScheme,
 } from "react-native";
-import { router } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import * as MediaLibrary from "expo-media-library";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -744,6 +744,27 @@ export default function GalleryScreen() {
       } catch {}
     })();
   }, []);
+
+  // Re-read sort order when returning from Settings and reset gallery instantly
+  useFocusEffect(
+    useCallback(() => {
+      (async () => {
+        try {
+          const so = await AsyncStorage.getItem(SORT_KEY);
+          const newVal = so === "oldest";
+          if (newVal === sortOldest) return;
+          setSortOldest(newVal);
+          // Reset pagination state so fetchAssets runs fresh with new order
+          setAssets([]);
+          setCurrentIndex(0);
+          cursorRef.current = undefined;
+          hasMoreRef.current = true;
+          fetchedIds.current.clear();
+          isFetching.current = false;
+        } catch {}
+      })();
+    }, [sortOldest])
+  );
 
   // Auto dark mode — sync to system scheme when enabled
   useEffect(() => {
