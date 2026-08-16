@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, useColorScheme, Alert } from "react-native";
+import { View, Text, useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import LottieView from "lottie-react-native";
-import * as Updates from "expo-updates";
 
 const TIPS: { icon: keyof typeof import("@expo/vector-icons").Ionicons.glyphMap; text: string }[] = [
   { icon: "hand-left-outline",   text: "Swipe gauche pour envoyer une photo à la corbeille" },
@@ -29,39 +28,12 @@ export default function AppLoader({ dark: darkProp }: { dark?: boolean }) {
   const dark = darkProp !== undefined ? darkProp : scheme === "dark";
 
   const [tip, setTip] = useState(() => pickRandom(TIPS));
-  const [updateLabel, setUpdateLabel] = useState<string | null>(null);
 
   useEffect(() => {
     const id = setInterval(() => {
       setTip(prev => pickRandom(TIPS, prev));
     }, 3500);
     return () => clearInterval(id);
-  }, []);
-
-  // Check for OTA update silently while the loader is visible
-  useEffect(() => {
-    if (__DEV__) return;
-    (async () => {
-      try {
-        setUpdateLabel("Vérification des mises à jour…");
-        const check = await Updates.checkForUpdateAsync();
-        if (check.isAvailable) {
-          setUpdateLabel("Mise à jour disponible, téléchargement…");
-          await Updates.fetchUpdateAsync();
-          setUpdateLabel("Mise à jour prête !");
-          Alert.alert(
-            "Mise à jour installée",
-            "Une nouvelle version a été installée. L'app va redémarrer.",
-            [{ text: "OK", onPress: () => Updates.reloadAsync() }],
-            { cancelable: false }
-          );
-        } else {
-          setUpdateLabel(null);
-        }
-      } catch {
-        setUpdateLabel(null);
-      }
-    })();
   }, []);
 
   const bg   = dark ? "#0d0d0d" : "#f5f5f5";
@@ -82,7 +54,7 @@ export default function AppLoader({ dark: darkProp }: { dark?: boolean }) {
         SwipeClean
       </Text>
       <Text style={{ color: sub, fontSize: 13, marginTop: 6, letterSpacing: 0.4 }}>
-        {updateLabel ?? "Chargement de vos médias…"}
+        {"Chargement de vos médias…"}
       </Text>
 
       {/* Tip card */}

@@ -818,20 +818,17 @@ export default function GalleryScreen() {
     })();
   }, []);
 
-  // Converts a raw MediaLibrary timestamp to a reliable ms epoch.
-  // Android creationTime can be in seconds, and DATE_TAKEN in MediaStore is often
-  // corrupted (old EXIF, transferred files) giving absurd years like 1900 or 1980.
-  // Falls back to modificationTime, then Date.now() as last resort.
+  // Android only: creationTime may be in seconds (not ms), and DATE_TAKEN in
+  // MediaStore is often corrupted for transferred/old files (1900, 1980…).
+  // iOS always returns correct ms timestamps — do not alter them.
   const resolveMediaDate = (creationTime: number, modificationTime: number): number => {
+    if (Platform.OS !== "android") return creationTime;
     const toMs = (t: number) => (t > 0 && t < 1e10 ? t * 1000 : t);
     const isPlausible = (ms: number) => new Date(ms).getFullYear() >= 2000;
-
     const primary = toMs(creationTime);
     if (isPlausible(primary)) return primary;
-
     const fallback = toMs(modificationTime);
     if (isPlausible(fallback)) return fallback;
-
     return Date.now();
   };
 
@@ -872,7 +869,18 @@ export default function GalleryScreen() {
                 fileSize: (info as any).fileSize,
               } as MediaItem;
             } catch {
-              return null;
+              // getAssetInfoAsync failed (SD card, stale MediaStore entry, etc.)
+              // Fall back to basic asset data so the photo is still shown
+              return {
+                id: asset.id,
+                uri: asset.uri,
+                type: asset.mediaType === "video" ? "video" : "photo",
+                createdAt: resolveMediaDate(asset.creationTime, asset.modificationTime),
+                width: asset.width,
+                height: asset.height,
+                duration: asset.duration,
+                fileSize: undefined,
+              } as MediaItem;
             }
           })
         ).then((results) => {
