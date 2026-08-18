@@ -26,6 +26,7 @@ import Animated, {
   useAnimatedStyle,
   withTiming,
   withSpring,
+  runOnJS,
 } from "react-native-reanimated";
 
 const { width } = Dimensions.get("window");
@@ -110,8 +111,9 @@ const FullscreenViewer = ({
   const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
 
   const close = () => {
-    opacity.value = withTiming(0, { duration: 180 });
-    setTimeout(onClose, 180);
+    opacity.value = withTiming(0, { duration: 180 }, (done) => {
+      if (done) runOnJS(onClose)();
+    });
   };
 
   return (
@@ -155,15 +157,14 @@ export default function FavoritesScreen() {
     })();
   }, []);
 
-  const handleRemove = useCallback(
-    async (item: Item) => {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      const updated = images.filter((i) => i.id !== item.id);
-      setImages(updated);
-      await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(updated));
-    },
-    [images]
-  );
+  const handleRemove = useCallback((item: Item) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setImages((prev) => {
+      const updated = prev.filter((i) => i.id !== item.id);
+      AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(updated)).catch(() => {});
+      return updated;
+    });
+  }, []);
 
   const exportToAlbum = useCallback(async () => {
     if (images.length === 0) return;
@@ -249,7 +250,7 @@ export default function FavoritesScreen() {
           keyExtractor={(item) => item.id}
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.gallery}
-          columnWrapperStyle={{ gap: GAP }}
+          columnWrapperStyle={styles.row}
           ItemSeparatorComponent={() => <View style={{ height: GAP }} />}
           renderItem={({ item }) => (
             <FavThumb
@@ -288,6 +289,7 @@ export default function FavoritesScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  row: { gap: GAP },
 
   header: {
     flexDirection: "row",

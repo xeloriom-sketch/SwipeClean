@@ -13,23 +13,27 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as MediaLibrary from "expo-media-library";
+import * as FileSystem from "expo-file-system";
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { FlashList } from "@shopify/flash-list";
 import { Image } from "expo-image";
+import { unlockAndNotify } from "../../utils/achievements";
 
 const { width } = Dimensions.get("window");
 
 const TRASH_KEY = "@app_trash";
 const DARK_MODE_KEY = "@app_dark_mode";
+const FREED_SIZE_KEY = "@app_freed_bytes";
+const DELETED_COUNT_KEY = "@app_deleted_count";
 
 const COLUMNS = 3;
 const GAP = 8;
 const CARD_SIZE = (width - 32 - GAP * COLUMNS) / COLUMNS;
 
-type Item = { id: string; uri: string; type?: string };
+type Item = { id: string; uri: string; type?: string; fileSize?: number };
 
 
 // =====================================================
@@ -159,8 +163,45 @@ export default function TrashScreen() {
           onPress: async () => {
             try {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+              const toDelete = items.filter(i => selectedIds[i.id]);
+
+              // Récupère la taille réelle de chaque photo avant suppression
+              const sizes = await Promise.allSettled(
+                toDelete.map(async (item): Promise<number> => {
+                  if (item.fileSize != null && item.fileSize > 0) return item.fileSize;
+                  // 1er essai : MediaLibrary.getAssetInfoAsync
+                  try {
+                    const info = await MediaLibrary.getAssetInfoAsync(item.id);
+                    const mlSize = (info as any).fileSize as number | undefined;
+                    if (mlSize && mlSize > 0) return mlSize;
+                  } catch {}
+                  // 2e essai : expo-file-system lit la taille depuis l'URI (fiable sur Android)
+                  try {
+                    const fsInfo = await FileSystem.getInfoAsync(item.uri, { size: true });
+                    if (fsInfo.exists && (fsInfo as any).size > 0) return (fsInfo as any).size as number;
+                  } catch {}
+                  return 0;
+                })
+              );
+              const freedBytes = sizes.reduce(
+                (s, r) => s + (r.status === "fulfilled" ? r.value : 0), 0
+              );
+
               await MediaLibrary.deleteAssetsAsync(ids);
-              await persist(items.filter(i => !selectedIds[i.id]));
+              const remaining = items.filter(i => !selectedIds[i.id]);
+              await persist(remaining);
+
+              // Accumuler l'espace libéré ET le nombre de photos supprimées
+              const [prevBytes, prevCount] = await Promise.all([
+                AsyncStorage.getItem(FREED_SIZE_KEY),
+                AsyncStorage.getItem(DELETED_COUNT_KEY),
+              ]);
+              await Promise.all([
+                AsyncStorage.setItem(FREED_SIZE_KEY, String((prevBytes ? Number(prevBytes) : 0) + freedBytes)),
+                AsyncStorage.setItem(DELETED_COUNT_KEY, String((prevCount ? Number(prevCount) : 0) + toDelete.length)),
+              ]);
+
+              if (remaining.length === 0) unlockAndNotify("trash_emptied");
             } catch {}
           },
         },
@@ -205,6 +246,7 @@ export default function TrashScreen() {
           data={items}
           numColumns={COLUMNS}
           keyExtractor={(i) => i.id}
+
           renderItem={({ item }) => (
             <TrashItem
               item={item}

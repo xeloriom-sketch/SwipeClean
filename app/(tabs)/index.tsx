@@ -1,5 +1,5 @@
 // app/(tabs)/index.tsx
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -69,6 +69,7 @@ const BTN_ICON = Math.round(BTN_SIZE * 0.52);
 
 const TRASH_KEY = "@app_trash";
 const FAVORITES_KEY = "@app_favorites";
+const KEPT_KEY = "@app_kept";
 const CARD_INDEX_KEY = "@gallery_last_index_v2";
 const DARK_MODE_KEY = "@app_dark_mode";
 const VIBRATE_KEY = "@app_vibrate_swipe";
@@ -78,7 +79,7 @@ const SOUND_KEY = "@app_sound";
 const AUTO_DARK_KEY = "@app_dark_auto";
 const AUTO_TRASH_DAYS_KEY = "@app_auto_trash_days";
 const BATCH_SIZE = 40;
-const PRELOAD_THRESHOLD = 5;
+const PRELOAD_THRESHOLD = 10;
 const SPLASH_MIN_MS = 0;
 
 const isTablet = SCREEN_WIDTH >= 768;
@@ -105,6 +106,7 @@ type MediaItem = {
 };
 
 type SwipeDirection = "left" | "right" | "top" | "bottom" | null;
+type SwipeableCardRef = { triggerSwipe: (direction: Exclude<SwipeDirection, null>) => void };
 
 /* ---- SVG Icons ---- */
 const ReloadMenuIcon = ({ size = 40, darkMode }: { size?: number; darkMode: boolean }) => (
@@ -173,7 +175,6 @@ const MediaCard = React.memo(function MediaCard({
 
   useEffect(() => {
     setIsMuted(true);
-    if (item.uri && item.type === "photo") Image.prefetch(item.uri);
   }, [item.id]);
 
   if (!item.uri) {
@@ -259,7 +260,7 @@ const MediaCard = React.memo(function MediaCard({
           style={styles.media}
           contentFit="cover"
           transition={0}
-          cachePolicy="memory"
+          cachePolicy="memory-disk"
           priority="high"
           recyclingKey={item.id}
         />
@@ -279,17 +280,12 @@ const MediaCard = React.memo(function MediaCard({
 });
 
 /* ---- SwipeableCard ---- */
-const SwipeableCard = ({
-  item,
-  onSwipe,
-  isTop,
-  stackProgress,
-}: {
+const SwipeableCard = React.forwardRef<SwipeableCardRef, {
   item: MediaItem;
   onSwipe: (direction: Exclude<SwipeDirection, null>) => void;
   isTop: boolean;
   stackProgress: SharedValue<number>;
-}) => {
+}>(function SwipeableCard({ item, onSwipe, isTop, stackProgress }, ref) {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const swipeDir = useSharedValue<SwipeDirection>(null);
@@ -512,6 +508,44 @@ const SwipeableCard = ({
 
   const combinedGesture = Gesture.Simultaneous(panGesture, pinchGesture);
 
+  useImperativeHandle(ref, () => ({
+    triggerSwipe: (direction) => {
+      if (direction === "left") {
+        stackProgress.value = withTiming(1, { duration: 320 });
+        translateX.value = withTiming(-SCREEN_WIDTH * 1.5, { duration: 320 }, (done) => {
+          if (done) {
+            runOnJS(onSwipe)("left");
+            stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
+          }
+        });
+      } else if (direction === "right") {
+        stackProgress.value = withTiming(1, { duration: 320 });
+        translateX.value = withTiming(SCREEN_WIDTH * 1.5, { duration: 320 }, (done) => {
+          if (done) {
+            runOnJS(onSwipe)("right");
+            stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
+          }
+        });
+      } else if (direction === "top") {
+        stackProgress.value = withTiming(1, { duration: 320 });
+        translateY.value = withTiming(-SCREEN_HEIGHT * 1.5, { duration: 320 }, (done) => {
+          if (done) {
+            runOnJS(onSwipe)("top");
+            stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
+          }
+        });
+      } else if (direction === "bottom") {
+        stackProgress.value = withTiming(1, { duration: 280 });
+        translateY.value = withTiming(SCREEN_HEIGHT * 1.5, { duration: 280 }, (done) => {
+          if (done) {
+            runOnJS(onSwipe)("bottom");
+            stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
+          }
+        });
+      }
+    },
+  }));
+
   return (
     <GestureDetector gesture={combinedGesture}>
       <Animated.View
@@ -568,7 +602,7 @@ const SwipeableCard = ({
       </Animated.View>
     </GestureDetector>
   );
-};
+});
 
 /* ---- Sound engine ---- */
 const soundSources = {
@@ -710,7 +744,9 @@ export default function GalleryScreen() {
   const isFetching = useRef(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const trashCache = useRef<Set<string>>(new Set());
+  const keptCache = useRef<Set<string>>(new Set());
   const fetchedIds = useRef<Set<string>>(new Set());
+  const permGranted = useRef(false);
   const containerOpacity = useSharedValue(0);
   const containerScale = useSharedValue(0.98);
   const stackProgress = useSharedValue(0);
@@ -724,6 +760,7 @@ export default function GalleryScreen() {
   const [darkAuto, setDarkAuto] = useState(false);
   const [showConfetti, setShowConfetti] = useState(false);
   const [lastSwipe, setLastSwipe] = useState<{ item: MediaItem; direction: Exclude<SwipeDirection, null> } | null>(null);
+  const topCardRef = useRef<SwipeableCardRef>(null);
 
   // Load preferences
   useEffect(() => {
@@ -754,9 +791,9 @@ export default function GalleryScreen() {
           const newVal = so === "oldest";
           if (newVal === sortOldest) return;
           setSortOldest(newVal);
-          // Reset pagination state so fetchAssets runs fresh with new order
           setAssets([]);
           setCurrentIndex(0);
+          setHasMore(true);
           cursorRef.current = undefined;
           hasMoreRef.current = true;
           fetchedIds.current.clear();
@@ -794,12 +831,14 @@ export default function GalleryScreen() {
         }
 
         // Auto-empty trash if configured
-        const [trashRaw, autoTrashRaw, favRaw] = await Promise.all([
+        const [trashRaw, autoTrashRaw, favRaw, keptRaw] = await Promise.all([
           AsyncStorage.getItem(TRASH_KEY),
           AsyncStorage.getItem(AUTO_TRASH_DAYS_KEY),
           AsyncStorage.getItem(FAVORITES_KEY),
+          AsyncStorage.getItem(KEPT_KEY),
         ]);
         if (favRaw) favoritesRef.current = JSON.parse(favRaw);
+        if (keptRaw) (JSON.parse(keptRaw) as string[]).forEach(id => keptCache.current.add(id));
         const autoTrashDays = autoTrashRaw ? Number(autoTrashRaw) : 0;
 
         if (trashRaw) {
@@ -858,8 +897,11 @@ export default function GalleryScreen() {
       if (isFetching.current || (!hasMoreRef.current && !force)) return;
       isFetching.current = true;
       try {
-        const { status } = await MediaLibrary.requestPermissionsAsync();
-        if (status !== "granted") return;
+        if (!permGranted.current) {
+          const { status } = await MediaLibrary.requestPermissionsAsync();
+          if (status !== "granted") return;
+          permGranted.current = true;
+        }
 
         const res = await MediaLibrary.getAssetsAsync({
           mediaType: ["photo", "video"],
@@ -871,14 +913,18 @@ export default function GalleryScreen() {
         const items: MediaItem[] = [];
         await Promise.allSettled(
           res.assets.map(async (asset) => {
-            if (trashCache.current.has(asset.id) || fetchedIds.current.has(asset.id)) return null;
+            if (trashCache.current.has(asset.id) || keptCache.current.has(asset.id) || fetchedIds.current.has(asset.id)) return null;
             fetchedIds.current.add(asset.id);
             try {
-              const info = await MediaLibrary.getAssetInfoAsync(asset.id);
-              const uri =
-                Platform.OS === "android"
-                  ? info.uri
-                  : info.localUri || info.uri;
+              let uri = asset.uri;
+              let fileSize: number | undefined;
+              // Android: asset.uri is already a usable content:// or file:// URI — no extra call needed
+              // iOS: ph:// URIs must be resolved to localUri via getAssetInfoAsync
+              if (Platform.OS === "ios" && uri.startsWith("ph://")) {
+                const info = await MediaLibrary.getAssetInfoAsync(asset.id);
+                uri = info.localUri || info.uri || asset.uri;
+                fileSize = (info as any).fileSize;
+              }
               return {
                 id: asset.id,
                 uri: uri || null,
@@ -887,11 +933,9 @@ export default function GalleryScreen() {
                 width: asset.width,
                 height: asset.height,
                 duration: asset.duration,
-                fileSize: (info as any).fileSize,
+                fileSize,
               } as MediaItem;
             } catch {
-              // getAssetInfoAsync failed (SD card, stale MediaStore entry, etc.)
-              // Fall back to basic asset data so the photo is still shown
               return {
                 id: asset.id,
                 uri: asset.uri,
@@ -953,6 +997,26 @@ export default function GalleryScreen() {
     AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(favoritesRef.current)).catch(() => {});
   }, []);
 
+  const addToKept = useCallback((id: string) => {
+    if (keptCache.current.has(id)) return;
+    keptCache.current.add(id);
+    AsyncStorage.getItem(KEPT_KEY).then(raw => {
+      const arr: string[] = raw ? JSON.parse(raw) : [];
+      if (!arr.includes(id)) {
+        arr.unshift(id);
+        AsyncStorage.setItem(KEPT_KEY, JSON.stringify(arr.slice(0, 10000))).catch(() => {});
+      }
+    }).catch(() => {});
+  }, []);
+
+  const removeFromKept = useCallback((id: string) => {
+    keptCache.current.delete(id);
+    AsyncStorage.getItem(KEPT_KEY).then(raw => {
+      const arr: string[] = raw ? JSON.parse(raw) : [];
+      AsyncStorage.setItem(KEPT_KEY, JSON.stringify(arr.filter(i => i !== id))).catch(() => {});
+    }).catch(() => {});
+  }, []);
+
   const triggerHaptics = useCallback(
     (direction: Exclude<SwipeDirection, null>) => {
       if (!vibrateSwipe) return;
@@ -991,10 +1055,13 @@ export default function GalleryScreen() {
         trashCache.current.add(item.id);
         addToTrash(item);
         checkAndUnlock("first_trash").then(showAchievement);
+      } else if (direction === "right") {
+        addToKept(item.id);
       } else if (direction === "top") {
         const isDup = favoritesRef.current.some((f) => f.id === item.id);
         const newTotal = isDup ? favoritesRef.current.length : favoritesRef.current.length + 1;
         addToFavorites(item);
+        addToKept(item.id);
         checkFavMilestones(newTotal).then(showAchievement);
       }
 
@@ -1006,7 +1073,7 @@ export default function GalleryScreen() {
       setCurrentIndex(newIndex);
       persistIndex(newIndex);
     },
-    [currentIndex, assets, triggerHaptics, addToTrash, addToFavorites, persistIndex, soundEnabled]
+    [currentIndex, assets, triggerHaptics, addToTrash, addToFavorites, addToKept, persistIndex, soundEnabled]
   );
 
   const handleUndo = useCallback(() => {
@@ -1019,9 +1086,12 @@ export default function GalleryScreen() {
       setTrashCount(trashRef.current.length);
       AsyncStorage.setItem(TRASH_KEY, JSON.stringify(trashRef.current)).catch(() => {});
       Notifications.setBadgeCountAsync(trashRef.current.length).catch(() => {});
+    } else if (direction === "right") {
+      removeFromKept(item.id);
     } else if (direction === "top") {
       favoritesRef.current = favoritesRef.current.filter((i) => i.id !== item.id);
       AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(favoritesRef.current)).catch(() => {});
+      removeFromKept(item.id);
     }
     const newIndex = currentIndex - 1;
     setCurrentIndex(newIndex);
@@ -1031,23 +1101,43 @@ export default function GalleryScreen() {
 
   const resetGallery = useCallback(async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await AsyncStorage.removeItem(CARD_INDEX_KEY);
+    await AsyncStorage.multiRemove([CARD_INDEX_KEY, KEPT_KEY]);
     stackProgress.value = 0;
     trashCache.current.clear();
+    keptCache.current.clear();
     fetchedIds.current.clear();
     cursorRef.current = undefined;
     hasMoreRef.current = true;
+    isFetching.current = false;
     setAssets([]);
     setHasMore(true);
     setCurrentIndex(0);
     setLastSwipe(null);
   }, []);
 
-  // Précharger la 3ème carte — dans un effet pour éviter l'exécution à chaque render
+  const handleSortToggle = useCallback(() => {
+    const newSort = !sortOldest;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSortOldest(newSort);
+    setAssets([]);
+    setCurrentIndex(0);
+    setHasMore(true);
+    setLastSwipe(null);
+    cursorRef.current = undefined;
+    hasMoreRef.current = true;
+    fetchedIds.current.clear();
+    isFetching.current = false;
+    stackProgress.value = 0;
+    AsyncStorage.setItem(SORT_KEY, newSort ? "oldest" : "newest").catch(() => {});
+  }, [sortOldest]);
+
+  // Précharger les 8 prochaines cartes en cache disque pour éviter les écrans noirs
   useEffect(() => {
-    const third = assets[currentIndex + 2];
-    if (third?.uri && third.type === "photo") {
-      Image.prefetch(third.uri);
+    for (let i = 1; i <= 8; i++) {
+      const next = assets[currentIndex + i];
+      if (next?.uri && next.type === "photo") {
+        Image.prefetch(next.uri, { cachePolicy: "disk" }).catch(() => {});
+      }
     }
   }, [currentIndex, assets]);
 
@@ -1062,7 +1152,7 @@ export default function GalleryScreen() {
   const bottomCard = assets[currentIndex + 1];
 
   if (!topCard) {
-    if (hasMore) return <FancyLoader dark={darkMode} />;
+    if (hasMore || isFetching.current) return <FancyLoader dark={darkMode} />;
     return (
       <SafeAreaView
         style={[
@@ -1114,12 +1204,21 @@ export default function GalleryScreen() {
 
       {/* HEADER */}
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => setMenuOpen((v) => !v)}
-          style={styles.headerBtn}
-        >
-          <Ionicons name="menu" size={34} color={darkMode ? "#E0E0E0" : "#000"} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", alignItems: "center" }}>
+          <TouchableOpacity
+            onPress={() => setMenuOpen((v) => !v)}
+            style={styles.headerBtn}
+          >
+            <Ionicons name="menu" size={34} color={darkMode ? "#E0E0E0" : "#000"} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.headerBtn} onPress={handleSortToggle}>
+            <Ionicons
+              name={sortOldest ? "arrow-up-outline" : "arrow-down-outline"}
+              size={34}
+              color={sortOldest ? "#00C9FF" : (darkMode ? "#E0E0E0" : "#000")}
+            />
+          </TouchableOpacity>
+        </View>
 
         <View
           style={{ position: "absolute", left: 0, right: 0, alignItems: "center" }}
@@ -1261,6 +1360,18 @@ export default function GalleryScreen() {
         {/* Card stack */}
         <View style={styles.swiperContainer}>
           <View style={styles.stackWrap}>
+            {/* Pré-décodage des prochaines cartes en mémoire pour éviter l'écran noir au swipe rapide */}
+            {assets.slice(currentIndex + 2, currentIndex + 10).map(asset =>
+              asset?.uri && asset.type === "photo" ? (
+                <Image
+                  key={`pre_${asset.id}`}
+                  source={{ uri: asset.uri }}
+                  style={{ position: "absolute", width: RESPONSIVE.cardWidth, height: RESPONSIVE.cardHeight, opacity: 0.01, zIndex: -1 }}
+                  cachePolicy="memory"
+                  priority="high"
+                />
+              ) : null
+            )}
             {bottomCard && (
               <SwipeableCard
                 key={bottomCard.id}
@@ -1272,6 +1383,7 @@ export default function GalleryScreen() {
             )}
             {topCard && (
               <SwipeableCard
+                ref={topCardRef}
                 key={topCard.id}
                 item={topCard}
                 onSwipe={handleSwipe}
@@ -1285,21 +1397,21 @@ export default function GalleryScreen() {
         {/* ACTION BUTTONS */}
         <View style={styles.globalActions}>
           <AnimatedActionBtn
-            onPress={() => handleSwipe("left")}
+            onPress={() => topCardRef.current?.triggerSwipe("left")}
             btnStyle={ACTION_BTN_DELETE}
             iconName="close"
             iconSize={BTN_ICON}
             iconColor="#FF4458"
           />
           <AnimatedActionBtn
-            onPress={() => handleSwipe("top")}
+            onPress={() => topCardRef.current?.triggerSwipe("top")}
             btnStyle={ACTION_BTN_STAR}
             iconName="star"
             iconSize={BTN_ICON - 6}
             iconColor="#00C9FF"
           />
           <AnimatedActionBtn
-            onPress={() => handleSwipe("right")}
+            onPress={() => topCardRef.current?.triggerSwipe("right")}
             btnStyle={ACTION_BTN_KEEP}
             iconName="heart"
             iconSize={BTN_ICON - 4}

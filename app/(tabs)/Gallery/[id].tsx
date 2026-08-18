@@ -44,8 +44,8 @@ const TRASH_KEY = "@app_trash";
 const FAVORITES_KEY = "@app_favorites";
 const DARK_MODE_KEY = "@app_dark_mode";
 const VIBRATE_KEY = "@app_vibrate_swipe";
-const BATCH_SIZE = 40;
-const PRELOAD_THRESHOLD = 5;
+const BATCH_SIZE = 60;
+const PRELOAD_THRESHOLD = 15;
 
 const isTablet = SCREEN_WIDTH >= 768;
 const RESPONSIVE = {
@@ -132,10 +132,6 @@ async function playSwipeSound(type: "delete" | "keep" | "star") {
 
 /* ---------- MediaCard ---------- */
 const MediaCard = React.memo(function MediaCard({ item }: { item: MediaItem }) {
-  useEffect(() => {
-    if (item.uri) Image.prefetch(item.uri);
-  }, [item.uri]);
-
   return (
     <View style={styles.card}>
       {item.uri ? (
@@ -144,8 +140,9 @@ const MediaCard = React.memo(function MediaCard({ item }: { item: MediaItem }) {
           style={styles.media}
           contentFit="cover"
           transition={0}
-          cachePolicy="memory"
+          cachePolicy="memory-disk"
           priority="high"
+          recyclingKey={item.id}
         />
       ) : (
         <View style={[styles.card, styles.mediaError]}>
@@ -291,12 +288,15 @@ export default function GalleryIdScreen() {
 
   const systemScheme = useColorScheme();
   const [assets, setAssets] = useState<MediaItem[]>([]);
-  const [cursor, setCursor] = useState<string | undefined>(undefined);
   const [hasMore, setHasMore] = useState(true);
+  const hasMoreRef = useRef(true);
+  const cursorRef = useRef<string | undefined>(undefined);
+  const fetchedIds = useRef<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const isFetching = useRef(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const trashCache = useRef<Set<string>>(new Set());
+  const permGranted = useRef(false);
   const containerOpacity = useSharedValue(0);
   const containerScale = useSharedValue(0.98);
   const stackProgress = useSharedValue(0);
@@ -327,27 +327,37 @@ export default function GalleryIdScreen() {
 
   const fetchAssets = useCallback(
     async (force = false) => {
-      if (isFetching.current || (!hasMore && !force)) return;
+      if (isFetching.current || (!hasMoreRef.current && !force)) return;
       isFetching.current = true;
       try {
-        const { status } = await MediaLibrary.requestPermissionsAsync();
-        if (status !== "granted") return;
+        if (!permGranted.current) {
+          const { status } = await MediaLibrary.requestPermissionsAsync();
+          if (status !== "granted") return;
+          permGranted.current = true;
+        }
         const res = await MediaLibrary.getAssetsAsync({
           mediaType: ["photo"],
           first: BATCH_SIZE,
-          after: cursor,
+          after: cursorRef.current,
           sortBy: [["creationTime", false]],
           album: id as string,
         });
         const items: MediaItem[] = [];
         await Promise.allSettled(
           res.assets.map(async (asset) => {
-            if (trashCache.current.has(asset.id)) return null;
+            if (trashCache.current.has(asset.id) || fetchedIds.current.has(asset.id)) return null;
+            fetchedIds.current.add(asset.id);
             try {
-              const info = await MediaLibrary.getAssetInfoAsync(asset.id);
-              const uri = Platform.OS === "android" ? info.uri : info.localUri || info.uri;
-              return { id: asset.id, uri: uri || null, type: "photo", createdAt: asset.creationTime, width: asset.width, height: asset.height } as MediaItem;
-            } catch { return null; }
+              let uri = asset.uri;
+              // iOS ph:// URIs need resolution; Android content:// works directly
+              if (Platform.OS === "ios" && uri.startsWith("ph://")) {
+                const info = await MediaLibrary.getAssetInfoAsync(asset.id);
+                uri = info.localUri || info.uri || asset.uri;
+              }
+              return { id: asset.id, uri: uri || asset.uri, type: "photo", createdAt: asset.creationTime, width: asset.width, height: asset.height } as MediaItem;
+            } catch {
+              return { id: asset.id, uri: asset.uri, type: "photo", createdAt: asset.creationTime, width: asset.width, height: asset.height } as MediaItem;
+            }
           })
         ).then((results) => {
           results.forEach((r) => r.status === "fulfilled" && r.value && items.push(r.value));
@@ -357,22 +367,21 @@ export default function GalleryIdScreen() {
           items.forEach((it) => !map.has(it.id) && map.set(it.id, it));
           return Array.from(map.values());
         });
-        setCursor(res.endCursor);
+        cursorRef.current = res.endCursor;
+        hasMoreRef.current = res.hasNextPage;
         setHasMore(res.hasNextPage);
       } catch {}
       finally { isFetching.current = false; }
     },
-    [cursor, hasMore, id]
+    [id]
   );
 
-  // Bootstrap
+  // Bootstrap — index toujours à 0 pour éviter "Tout est traité" erroné
   useEffect(() => {
     (async () => {
       try {
         const trashRaw = await AsyncStorage.getItem(TRASH_KEY);
         if (trashRaw) (JSON.parse(trashRaw) as MediaItem[]).forEach((t) => trashCache.current.add(t.id));
-        const saved = await AsyncStorage.getItem(CARD_INDEX_KEY);
-        if (saved) setCurrentIndex(Number(saved));
         await fetchAssets();
       } catch {}
       finally {
@@ -390,9 +399,7 @@ export default function GalleryIdScreen() {
     }
   }, [assets.length, currentIndex, hasMore, fetchAssets]);
 
-  const persistIndex = useCallback(async (idx: number) => {
-    try { await AsyncStorage.setItem(CARD_INDEX_KEY, String(idx)); } catch {}
-  }, [CARD_INDEX_KEY]);
+  const persistIndex = useCallback((_idx: number) => {}, []);
 
   const addToTrash = useCallback(async (item: MediaItem) => {
     try {
@@ -433,14 +440,16 @@ export default function GalleryIdScreen() {
 
   const resetGallery = useCallback(async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await AsyncStorage.removeItem(CARD_INDEX_KEY);
     stackProgress.value = 0;
     trashCache.current.clear();
+    fetchedIds.current.clear();
+    cursorRef.current = undefined;
+    hasMoreRef.current = true;
+    isFetching.current = false;
     setAssets([]);
-    setCursor(undefined);
     setHasMore(true);
     setCurrentIndex(0);
-  }, [CARD_INDEX_KEY]);
+  }, []);
 
   const mainAnimatedStyle = useAnimatedStyle(() => ({
     opacity: containerOpacity.value,
@@ -453,7 +462,7 @@ export default function GalleryIdScreen() {
   const bottomCard = assets[currentIndex + 1];
 
   if (!topCard) {
-    if (hasMore) return <AppLoader dark={darkMode} />;
+    if (hasMore || isFetching.current) return <AppLoader dark={darkMode} />;
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: darkMode ? "#121212" : "#F5F5F5" }]}>
         <View style={styles.emptyContainer}>
@@ -504,6 +513,18 @@ export default function GalleryIdScreen() {
         {/* Card stack */}
         <View style={styles.swiperContainer}>
           <View style={styles.stackWrap}>
+            {/* Pré-décodage en mémoire pour éviter les écrans noirs */}
+            {assets.slice(currentIndex + 2, currentIndex + 10).map(asset =>
+              asset?.uri && asset.type === "photo" ? (
+                <Image
+                  key={`pre_${asset.id}`}
+                  source={{ uri: asset.uri }}
+                  style={{ position: "absolute", width: RESPONSIVE.cardWidth, height: RESPONSIVE.cardHeight, opacity: 0.01, zIndex: -1 }}
+                  cachePolicy="memory"
+                  priority="high"
+                />
+              ) : null
+            )}
             {bottomCard && (
               <SwipeableCard
                 key={bottomCard.id}

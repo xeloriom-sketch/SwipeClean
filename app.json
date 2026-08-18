@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "SwipeClean a besoin d'accéder à vos photos pour vous permettre de les organiser.",
-        "NSPhotoLibraryAddUsageDescription": "SwipeClean a besoin de sauvegarder des photos dans votre bibliothèque."
+        "NSPhotoLibraryAddUsageDescription": "SwipeClean a besoin de sauvegarder des photos dans votre bibliothèque.",
+        "ITSAppUsesNonExemptEncryption": false
       },
       "bundleIdentifier": "com.houirib.SwipeClean"
     },

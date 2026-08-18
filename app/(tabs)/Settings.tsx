@@ -6,6 +6,7 @@ import {
   StyleSheet,
   Switch,
   StatusBar,
+  ScrollView,
   TouchableOpacity,
   LayoutAnimation,
   UIManager,
@@ -23,7 +24,6 @@ import * as Updates from "expo-updates";
 
 const DARK_MODE_KEY = "@app_dark_mode";
 const VIBRATE_KEY = "@app_vibrate_swipe";
-export const SORT_KEY = "@app_sort_order";
 export const SOUND_KEY = "@app_sound";
 export const AUTO_DARK_KEY = "@app_dark_auto";
 export const AUTO_TRASH_DAYS_KEY = "@app_auto_trash_days";
@@ -48,7 +48,6 @@ export default function SettingsScreen() {
   const [vibrateSwipe, setVibrateSwipe] = useState(true);
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [notifications, setNotifications] = useState(true);
-  const [sortOldest, setSortOldest] = useState(false);
   const [autoTrashDays, setAutoTrashDays] = useState<0 | 7 | 30>(0);
   const [showAbout, setShowAbout] = useState(false);
   const [notifHour, setNotifHourState] = useState(10);
@@ -56,10 +55,9 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     (async () => {
-      const [dm, vs, so, snd, dkAuto, atDays, notif, nh] = await Promise.all([
+      const [dm, vs, snd, dkAuto, atDays, notif, nh] = await Promise.all([
         AsyncStorage.getItem(DARK_MODE_KEY),
         AsyncStorage.getItem(VIBRATE_KEY),
-        AsyncStorage.getItem(SORT_KEY),
         AsyncStorage.getItem(SOUND_KEY),
         AsyncStorage.getItem(AUTO_DARK_KEY),
         AsyncStorage.getItem(AUTO_TRASH_DAYS_KEY),
@@ -68,7 +66,6 @@ export default function SettingsScreen() {
       ]);
       if (dm !== null) setDarkMode(dm === "true");
       if (vs !== null) setVibrateSwipe(vs === "true");
-      if (so !== null) setSortOldest(so === "oldest");
       if (snd !== null) setSoundEnabled(snd !== "false");
       if (dkAuto !== null) setDarkAuto(dkAuto === "true");
       if (atDays !== null) setAutoTrashDays(Number(atDays) as 0 | 7 | 30);
@@ -137,12 +134,6 @@ export default function SettingsScreen() {
     if (notifications) await scheduleDailyReminder(newHour);
   };
 
-  const toggleSortOrder = async () => {
-    const newVal = !sortOldest;
-    setSortOldest(newVal);
-    await AsyncStorage.setItem(SORT_KEY, newVal ? "oldest" : "newest");
-  };
-
   const cycleAutoTrash = async () => {
     const next: 0 | 7 | 30 = autoTrashDays === 0 ? 7 : autoTrashDays === 7 ? 30 : 0;
     setAutoTrashDays(next);
@@ -178,17 +169,22 @@ export default function SettingsScreen() {
         <View style={{ width: wp(7) }} />
       </View>
 
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 32 }}
+        keyboardShouldPersistTaps="handled"
+      >
+
       {/* Section: Apparence */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: darkMode ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.35)" }]}>
           APPARENCE
         </Text>
         <View style={[styles.card, { backgroundColor: darkMode ? "#1a1a1a" : "#fff" }]}>
-          {/* Dark mode auto */}
           <View style={styles.optionRow}>
             <View>
-              <Text style={[styles.optionText, darkMode && styles.darkText]}>Mode auto (système)</Text>
-              {sub("Suit le thème iOS/Android")}
+              <Text style={[styles.optionText, darkMode && styles.darkText]}>Thème automatique</Text>
+              {sub(darkAuto ? "Suit le mode clair/sombre de votre téléphone" : "Mode manuel activé")}
             </View>
             <Switch
               value={darkAuto}
@@ -197,9 +193,11 @@ export default function SettingsScreen() {
             />
           </View>
           {sep}
-          {/* Dark mode manual */}
           <View style={[styles.optionRow, darkAuto && { opacity: 0.4 }]}>
-            <Text style={[styles.optionText, darkMode && styles.darkText]}>Mode sombre</Text>
+            <View>
+              <Text style={[styles.optionText, darkMode && styles.darkText]}>Mode sombre</Text>
+              {sub(darkAuto ? "Désactivez le thème auto pour changer" : "Fond noir pour économiser la batterie")}
+            </View>
             <Switch
               value={darkMode}
               onValueChange={darkAuto ? undefined : toggleDarkMode}
@@ -210,14 +208,17 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      {/* Section: Son & Retour */}
+      {/* Section: Swipe */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: darkMode ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.35)" }]}>
-          SON & RETOUR
+          GESTES DE SWIPE
         </Text>
         <View style={[styles.card, { backgroundColor: darkMode ? "#1a1a1a" : "#fff" }]}>
           <View style={styles.optionRow}>
-            <Text style={[styles.optionText, darkMode && styles.darkText]}>Sons de swipe</Text>
+            <View>
+              <Text style={[styles.optionText, darkMode && styles.darkText]}>Sons</Text>
+              {sub("Bruit à chaque swipe")}
+            </View>
             <Switch
               value={soundEnabled}
               onValueChange={toggleSound}
@@ -226,7 +227,10 @@ export default function SettingsScreen() {
           </View>
           {sep}
           <View style={styles.optionRow}>
-            <Text style={[styles.optionText, darkMode && styles.darkText]}>Vibration swipe</Text>
+            <View>
+              <Text style={[styles.optionText, darkMode && styles.darkText]}>Vibration</Text>
+              {sub("Retour haptique au swipe")}
+            </View>
             <Switch
               value={vibrateSwipe}
               onValueChange={toggleVibrate}
@@ -243,9 +247,11 @@ export default function SettingsScreen() {
         </Text>
         <View style={[styles.card, { backgroundColor: darkMode ? "#1a1a1a" : "#fff" }]}>
           <TouchableOpacity style={styles.optionRow} onPress={cycleAutoTrash} activeOpacity={0.7}>
-            <View>
-              <Text style={[styles.optionText, darkMode && styles.darkText]}>Vider automatiquement</Text>
-              {sub("Photos trop anciennes dans la corbeille")}
+            <View style={{ flex: 1, marginRight: 12 }}>
+              <Text style={[styles.optionText, darkMode && styles.darkText]}>Suppression automatique</Text>
+              {sub(autoTrashDays === 0
+                ? "Les photos restent dans la corbeille indéfiniment"
+                : `Les photos de plus de ${autoTrashDays} jours sont supprimées`)}
             </View>
             <View style={[styles.badge, { backgroundColor: autoTrashDays > 0 ? "#FF4458" : (darkMode ? "#333" : "#eee") }]}>
               <Text style={[styles.badgeText, { color: autoTrashDays > 0 ? "#fff" : (darkMode ? "#888" : "#999") }]}>
@@ -253,11 +259,19 @@ export default function SettingsScreen() {
               </Text>
             </View>
           </TouchableOpacity>
-          {sep}
+        </View>
+      </View>
+
+      {/* Section: Notifications */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: darkMode ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.35)" }]}>
+          RAPPELS
+        </Text>
+        <View style={[styles.card, { backgroundColor: darkMode ? "#1a1a1a" : "#fff" }]}>
           <View style={styles.optionRow}>
             <View>
-              <Text style={[styles.optionText, darkMode && styles.darkText]}>Notifications</Text>
-              {sub("Rappel quotidien de tri")}
+              <Text style={[styles.optionText, darkMode && styles.darkText]}>Rappel quotidien</Text>
+              {sub("Notification pour penser à trier vos photos")}
             </View>
             <Switch
               value={notifications}
@@ -269,7 +283,7 @@ export default function SettingsScreen() {
           <View style={[styles.optionRow, !notifications && { opacity: 0.4 }]}>
             <View>
               <Text style={[styles.optionText, darkMode && styles.darkText]}>Heure du rappel</Text>
-              {sub(`Rappel à ${notifHour.toString().padStart(2, "0")}h00`)}
+              {sub(`Vous serez notifié à ${notifHour.toString().padStart(2, "0")}h00`)}
             </View>
             <View style={styles.hourPicker}>
               <TouchableOpacity
@@ -294,24 +308,12 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      {/* Section: Galerie */}
+      {/* Section: App */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: darkMode ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.35)" }]}>
-          GALERIE
+          APPLICATION
         </Text>
         <View style={[styles.card, { backgroundColor: darkMode ? "#1a1a1a" : "#fff" }]}>
-          <View style={styles.optionRow}>
-            <View>
-              <Text style={[styles.optionText, darkMode && styles.darkText]}>Trier les plus anciennes d'abord</Text>
-              {sub("Par défaut : les plus récentes")}
-            </View>
-            <Switch
-              value={sortOldest}
-              onValueChange={toggleSortOrder}
-              trackColor={{ false: "#ddd", true: "#0A84FF" }}
-            />
-          </View>
-          {sep}
           <TouchableOpacity
             style={styles.optionRow}
             onPress={async () => {
@@ -321,55 +323,57 @@ export default function SettingsScreen() {
           >
             <View>
               <Text style={[styles.optionText, darkMode && styles.darkText]}>Revoir le tutoriel</Text>
-              {sub("Apprendre les gestes")}
+              {sub("Apprendre les gestes ← → ↑")}
             </View>
             <Ionicons name="play-circle-outline" size={wp(5.5)} color={darkMode ? "#fff" : "#000"} />
           </TouchableOpacity>
+          {sep}
+          <TouchableOpacity
+            onPress={checkForUpdate}
+            disabled={updateStatus === "checking" || updateStatus === "downloading"}
+            style={styles.optionRow}
+            activeOpacity={0.7}
+          >
+            <View style={styles.updateBtnLeft}>
+              <Ionicons
+                name={updateStatus === "ready" ? "checkmark-circle" : updateStatus === "uptodate" ? "checkmark-circle-outline" : "cloud-download-outline"}
+                size={wp(5.5)}
+                color={updateStatus === "ready" ? "#34C759" : updateStatus === "uptodate" ? "#34C759" : (darkMode ? "#fff" : "#000")}
+              />
+              <View>
+                <Text style={[styles.optionText, darkMode && styles.darkText]}>Mises à jour</Text>
+                {sub(
+                  updateStatus === "checking" ? "Vérification en cours…"
+                  : updateStatus === "downloading" ? "Téléchargement…"
+                  : updateStatus === "ready" ? "Prête — redémarrez l'app ✓"
+                  : updateStatus === "uptodate" ? "Vous êtes à jour ✓"
+                  : "Appuyez pour vérifier"
+                )}
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={wp(4)} color={darkMode ? "#555" : "#bbb"} />
+          </TouchableOpacity>
+          {sep}
+          <TouchableOpacity
+            onPress={toggleAbout}
+            style={styles.optionRow}
+            activeOpacity={0.7}
+          >
+            <View>
+              <Text style={[styles.optionText, darkMode && styles.darkText]}>À propos</Text>
+              {sub(`SwipeClean v${Constants.expoConfig?.version ?? "—"}-beta`)}
+            </View>
+            <Ionicons name={showAbout ? "chevron-up" : "chevron-down"} size={wp(5)} color={darkMode ? "#888" : "#aaa"} />
+          </TouchableOpacity>
+          {showAbout && (
+            <View style={[styles.aboutBox, { backgroundColor: darkMode ? "#111" : "#f5f5f5" }]}>
+              <Text style={[styles.aboutLine, { color: darkMode ? "#888" : "#aaa" }]}>© 2025 SwipeClean · Tous droits réservés</Text>
+            </View>
+          )}
         </View>
       </View>
 
-      {/* Update button */}
-      <TouchableOpacity
-        onPress={checkForUpdate}
-        disabled={updateStatus === "checking" || updateStatus === "downloading"}
-        style={[styles.updateBtn, { backgroundColor: darkMode ? "#1a1a1a" : "#fff" }]}
-        activeOpacity={0.7}
-      >
-        <View style={styles.updateBtnLeft}>
-          <Ionicons
-            name={updateStatus === "ready" ? "checkmark-circle" : updateStatus === "uptodate" ? "checkmark-circle-outline" : "cloud-download-outline"}
-            size={wp(5.5)}
-            color={updateStatus === "ready" ? "#34C759" : updateStatus === "uptodate" ? "#34C759" : (darkMode ? "#fff" : "#000")}
-          />
-          <View>
-            <Text style={[styles.optionText, darkMode && styles.darkText]}>Vérifier les mises à jour</Text>
-            {sub(
-              updateStatus === "checking" ? "Vérification…"
-              : updateStatus === "downloading" ? "Téléchargement…"
-              : updateStatus === "ready" ? "Prête — redémarrez l'app"
-              : updateStatus === "uptodate" ? "Vous êtes à jour ✓"
-              : "Vérifier manuellement"
-            )}
-          </View>
-        </View>
-        <Ionicons name="chevron-forward" size={wp(4)} color={darkMode ? "#555" : "#bbb"} />
-      </TouchableOpacity>
-
-      {/* About */}
-      <TouchableOpacity
-        onPress={toggleAbout}
-        style={[styles.aboutRow, { backgroundColor: darkMode ? "#1a1a1a" : "#fff" }]}
-        activeOpacity={0.7}
-      >
-        <Text style={[styles.optionText, darkMode && styles.darkText]}>À propos</Text>
-        <Ionicons name={showAbout ? "chevron-up" : "chevron-down"} size={wp(5)} color={darkMode ? "#888" : "#aaa"} />
-      </TouchableOpacity>
-      {showAbout && (
-        <View style={[styles.aboutBox, { backgroundColor: darkMode ? "#111" : "#f5f5f5" }]}>
-          <Text style={[styles.aboutLine, { color: darkMode ? "#888" : "#aaa" }]}>SwipeClean · Version {Constants.expoConfig?.version ?? "—"}-beta</Text>
-          <Text style={[styles.aboutLine, { color: darkMode ? "#888" : "#aaa" }]}>© 2025 SwipeClean · Tous droits réservés</Text>
-        </View>
-      )}
+      </ScrollView>
     </SafeAreaView>
   );
 }

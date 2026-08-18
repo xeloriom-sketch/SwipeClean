@@ -1,8 +1,8 @@
 import { useEffect } from "react";
+import { Alert } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { Stack } from "expo-router";
 import * as Updates from "expo-updates";
-import * as Notifications from "expo-notifications";
 
 function useAutoUpdate() {
   useEffect(() => {
@@ -14,17 +14,15 @@ function useAutoUpdate() {
         if (cancelled || !check.isAvailable) return;
         await Updates.fetchUpdateAsync();
         if (cancelled) return;
-        // Notify user before restarting
-        await Notifications.scheduleNotificationAsync({
-          content: {
-            title: "SwipeClean mis à jour ✓",
-            body: "Une nouvelle version a été installée. L'app redémarre…",
-          },
-          trigger: null,
-        }).catch(() => {});
-        // Short delay so the notification appears before reload
-        await new Promise(r => setTimeout(r, 1200));
-        if (!cancelled) await Updates.reloadAsync();
+        Alert.alert(
+          "Mise à jour disponible 🎉",
+          "Une nouvelle version de SwipeClean est prête. Redémarrer maintenant ?",
+          [
+            { text: "Plus tard", style: "cancel" },
+            { text: "Redémarrer", onPress: () => Updates.reloadAsync() },
+          ],
+          { cancelable: false }
+        );
       } catch {}
     })();
     return () => { cancelled = true; };
