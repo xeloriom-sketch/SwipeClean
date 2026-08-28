@@ -112,8 +112,6 @@
             border-radius: 28px !important;
             display: block !important;
         }
-
-        /* ── HERO SCROLL SCENE (300vh JS wrapper — collapse on mobile) ── */
         #card-scroll-scene { height: auto !important; }
         #Hero {
             position: static !important;
@@ -146,22 +144,7 @@
             height: auto !important;
             min-height: 260px !important;
         }
-        /* NextSection h2 char spans (nextTitleMod applies translateY per char) */
-        #NextSection h2 span { transform: none !important; opacity: 1 !important; }
-
-        #NextSection .bg-yellow-300,
-        #NextSection .bg-pink-300 {
-            opacity: 1 !important;
-            transform: none !important;
-        }
-        /* NextSection stat numbers — override RAF textContent via ::after */
-        #NextSection .text-7xl[data-final] { color: transparent !important; position: relative !important; }
-        #NextSection .text-7xl[data-final]::after {
-            content: attr(data-final);
-            color: #000;
-            position: absolute;
-            left: 0; top: 0;
-        }
+        #NextSection > div.flex.flex-row > div[class*="-mt-"] { margin-top: 0 !important; }
 
         /* ── FONCTIONNALITÉS ── */
         #integSection {
@@ -188,12 +171,10 @@
             height: 5rem !important;
             margin-bottom: 0 !important;
             align-self: auto !important;
-            opacity: 1 !important;
-            transform: scale(1) rotate(var(--r, 0deg)) !important;
         }
         #wolloBanner { display: none !important; }
 
-        /* ── SOCIAL (mob-nav-hide gère le layout principal) ── */
+        /* ── SOCIAL ── */
         .social-card p.text-9xl {
             font-size: 3.5rem !important;
             line-height: 1.05 !important;
@@ -202,10 +183,6 @@
             font-size: 1.15rem !important;
             padding: 16px 20px !important;
             line-height: 1.35 !important;
-        }
-        .social-card-img {
-            transform: scale(1) !important;
-            opacity: 1 !important;
         }
 
         /* ── TEXT SECTION ── */
@@ -219,14 +196,11 @@
         }
         #Text h2 {
             font-size: clamp(2rem, 5vw, 3.5rem) !important;
-            visibility: visible !important;
-            opacity: 1 !important;
             line-height: 1.15 !important;
             overflow: visible !important;
         }
-        #Text h2 span span { transform: none !important; opacity: 1 !important; }
 
-        /* ── STATS (nombercolone) ── */
+        /* ── STATS ── */
         #nombercolone { padding: 40px 24px !important; }
         .nb-row {
             grid-template-columns: 1fr !important;
@@ -238,7 +212,6 @@
             height: 56vw !important;
             border-radius: 20px !important;
             clip-path: none !important;
-            transform: none !important;
             object-fit: cover !important;
         }
         .nb-row > div[style] {
@@ -248,9 +221,7 @@
         }
         .nb-row h3 {
             font-size: clamp(4rem, 18vw, 7rem) !important;
-            padding-top: 48px !important;
-            opacity: 1 !important;
-            transform: none !important;
+            padding-top: 0 !important;
         }
         .nb-row h3 > span.absolute {
             position: static !important;
@@ -263,23 +234,9 @@
             transform: rotate(-3deg) !important;
         }
         .nb-row p.text-xl {
-            opacity: 1 !important;
-            transform: none !important;
             font-size: 0.97rem !important;
             line-height: 1.65 !important;
             padding-left: 0 !important;
-        }
-        /* Spans with scroll-animated opacity/transform — force visible */
-        #nombercolone span[style*="opacity"] { opacity: 1 !important; transform: none !important; }
-        #nombercolone [style*="scale"] { scale: 1 !important; opacity: 1 !important; }
-        /* Overlay final values: data-final attr set by fix(), ::after overrides RAF-driven textContent */
-        #nombercolone h3 span[data-final] { color: transparent !important; position: relative !important; }
-        #nombercolone h3 span[data-final]::after {
-            content: attr(data-final);
-            color: #000;
-            position: absolute;
-            left: 0; top: 0;
-            font-variant-numeric: tabular-nums;
         }
 
         /* ── AVIS ── */
@@ -296,15 +253,12 @@
             gap: 14px !important;
             justify-content: center !important;
         }
-        #avis .grid > .-mt-47 { margin-top: 0 !important; }
+        #avis .grid > div[class*="-mt-"] { margin-top: 0 !important; }
         .avis-card {
             width: 100% !important;
             height: auto !important;
             min-height: 220px !important;
             margin-top: 0 !important;
-            opacity: 1 !important;
-            transform: none !important;
-            transition: none !important;
             border-radius: 20px !important;
         }
         .avis-card p.w-5\/6 {
@@ -332,7 +286,6 @@
             line-height: 1.2 !important;
         }
         #faq .max-w-\[65vw\] { max-width: 100% !important; }
-        .faq-item { opacity: 1 !important; transform: none !important; }
 
         /* ── FOOTER ── */
         footer { padding: 20px !important; gap: 32px !important; }
@@ -340,8 +293,6 @@
             flex-direction: column !important;
             height: auto !important;
             border-radius: 24px !important;
-            transform: none !important;
-            opacity: 1 !important;
         }
         #footerCard > div:first-child {
             padding: 52px 28px !important;
@@ -543,7 +494,7 @@
     #mob-hamburger  { display: flex   !important; }
     nav > div:first-child { padding: 0 !important; }
     /* Social cards — rectangles verticaux sur mobile */
-    .social-card { transform: scale(1) !important; margin-top: 0 !important; width: 88vw !important; max-width: 460px !important; height: auto !important; min-height: 420px !important; border-radius: 24px !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; }
+    .social-card { margin-top: 0 !important; width: 88vw !important; max-width: 460px !important; height: auto !important; min-height: 420px !important; border-radius: 24px !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; }
     .social-card > div:last-child { flex: 1 !important; height: auto !important; min-height: 260px !important; max-height: none !important; }
     #social { height: auto !important; overflow: visible !important; }
     #social > div { flex-direction: column !important; height: auto !important; overflow: visible !important; align-items: center !important; padding: 80px 16px 48px !important; gap: 24px !important; }
@@ -1548,12 +1499,8 @@
         });
     }
 
-    /* ── Mobile: fix social cards (remove JS scale) ── */
+    /* Hashtags sans physique sur mobile */
     if (window.innerWidth <= 1100) {
-        document.querySelectorAll('.social-card').forEach(function(c) {
-            c.style.transform = 'scale(1)';
-        });
-        /* Show hashtags statically without physics */
         window._noPhysics = true;
         document.querySelectorAll('.hashtag-hidden').forEach(function(b) {
             b.classList.remove('hashtag-hidden');
@@ -1587,49 +1534,38 @@
         document.querySelectorAll('.mob-link').forEach(function(l){l.style.opacity='0';l.style.transform='translateX(20px)';});
     }
 
-    /* ───── Mobile layout (JS overrides — infaillible vs Tailwind) ───── */
+    /* ───── Mobile layout — layout uniquement, animations JS préservées ───── */
     (function(){
         if (window.innerWidth > 1100) return;
         var isMobile = window.innerWidth <= 640;
 
         function fix() {
-            var nav = document.querySelector('nav');
-            var navLinks = document.querySelector('.nav-links');
-            var navRight = nav ? nav.querySelector('div:last-child') : null;
-            var hamburger = document.getElementById('mob-hamburger');
-
-            /* NAV — target by ID (infaillible) */
+            /* NAV — via setAttribute pour battre Tailwind */
             var nl = document.getElementById('nav-links-desk');
             var nr = document.getElementById('nav-right-desk');
+            var nav = document.querySelector('nav');
+            var hamburger = document.getElementById('mob-hamburger');
             if (nl) { nl.setAttribute('style', 'display:none!important;visibility:hidden!important;'); }
             if (nr) { nr.setAttribute('style', 'display:none!important;'); }
             if (nav) { nav.style.setProperty('padding', '14px 20px', 'important'); }
-            /* Logo div padding reset */
             var logoDiv = nav ? nav.firstElementChild : null;
             if (logoDiv) { logoDiv.style.setProperty('padding', '0', 'important'); }
             if (hamburger) { hamburger.style.setProperty('display', 'flex', 'important'); }
 
-            /* HERO SCROLL SCENE — collapse 300vh container to auto */
+            /* HERO SCROLL SCENE — collapse 300vh → auto */
             var scene = document.getElementById('card-scroll-scene');
             if (scene) { scene.style.height = 'auto'; scene.style.overflow = 'visible'; }
             var hero = document.getElementById('Hero');
-            if (hero) {
-                hero.style.position = 'static';
-                hero.style.minHeight = 'auto';
-                hero.style.overflow = 'visible';
-                hero.style.justifyContent = 'flex-start';
-            }
+            if (hero) { hero.style.position = 'static'; hero.style.minHeight = 'auto'; hero.style.overflow = 'visible'; }
 
-            /* HERO h1 — fix overflow + font size */
+            /* HERO h1 — font size + overflow */
             var h1 = document.querySelector('#Hero h1');
             if (h1) {
                 h1.style.fontSize = isMobile ? 'clamp(1.85rem, 8vw, 2.6rem)' : 'clamp(2.2rem, 5.5vw, 4rem)';
-                h1.style.paddingTop = '88px';
                 h1.style.lineHeight = '1.18';
                 h1.style.wordBreak = 'break-word';
                 h1.style.overflowWrap = 'break-word';
             }
-            /* Remove overflow:hidden that clips the h1 */
             var heroInner = document.querySelector('#Hero .overflow-hidden');
             if (heroInner) {
                 heroInner.style.overflow = 'visible';
@@ -1637,11 +1573,8 @@
                 heroInner.style.width = '100%';
                 heroInner.style.boxSizing = 'border-box';
             }
-            /* Hero buttons row */
-            var heroBtns = document.querySelector('#Hero .flex.items-center.justify-center.space-x-5');
-            if (heroBtns) { heroBtns.style.flexWrap = 'wrap'; heroBtns.style.justifyContent = 'center'; heroBtns.style.gap = '12px'; }
 
-            /* SOCIAL section layout */
+            /* SOCIAL — layout (pas d'override de transform/opacity) */
             var socialSection = document.getElementById('social');
             if (socialSection) { socialSection.style.height = 'auto'; socialSection.style.overflow = 'visible'; }
             var socialFlex = socialSection ? socialSection.querySelector('.flex.items-center') : null;
@@ -1650,132 +1583,54 @@
                 socialFlex.style.height = 'auto';
                 socialFlex.style.overflow = 'visible';
                 socialFlex.style.marginTop = '0';
-                socialFlex.style.padding = (isMobile ? '80px 16px 48px' : '80px 24px 60px');
+                socialFlex.style.padding = isMobile ? '80px 16px 48px' : '80px 24px 60px';
                 socialFlex.style.gap = '24px';
             }
 
-            /* Disable hashtag physics on mobile */
+            /* HASHTAGS — désactiver physique, afficher statiquement */
             window._noPhysics = true;
-
-            /* Social card images */
-            document.querySelectorAll('.social-card-img').forEach(function(img){
-                img.style.transform = 'scale(1)';
-                img.style.opacity = '1';
-            });
-
-            /* Text section — make visible */
-            var textSec = document.getElementById('Text');
-            if (textSec) {
-                textSec.style.height = 'auto';
-                textSec.style.minHeight = '0';
-                var h2 = textSec.querySelector('h2');
-                if (h2) { h2.style.visibility = 'visible'; h2.style.opacity = '1'; }
-                /* reveal all animated word spans */
-                textSec.querySelectorAll('span span').forEach(function(sp){ sp.style.transform = 'none'; sp.style.opacity = '1'; });
-            }
-
-            /* integSection images — integMod sets opacity:0 initially */
-            document.querySelectorAll('.integ-img').forEach(function(img){
-                img.style.opacity = '1';
-                img.style.transform = 'scale(1) rotate(' + (img.style.getPropertyValue('--r') || '0deg') + ')';
-            });
-
-            /* Numbers (nombercolone) — show final values + full opacity */
-            document.querySelectorAll('#nombercolone .nb-row').forEach(function(row){
-                row.style.gridTemplateColumns = '1fr';
-                row.style.gap = '20px';
-                row.style.padding = '40px 0';
-                var img = row.querySelector('img');
-                if (img) { img.style.width = '100%'; img.style.height = '52vw'; img.style.borderRadius = '20px'; img.style.clipPath = 'none'; img.style.transform = 'none'; }
-                /* number spans — show + set data-final for CSS ::after overlay */
-                row.querySelectorAll('span[style*="opacity"]').forEach(function(sp){
-                    sp.style.opacity = '1';
-                    sp.style.transform = 'none';
-                    /* Set data-final so CSS ::after shows correct value over RAF-driven text */
-                    if (!sp.getAttribute('data-final')) {
-                        var h3 = sp.parentElement;
-                        var allH3 = document.querySelectorAll('#nombercolone h3');
-                        var idx = [].indexOf.call(allH3, h3);
-                        var finals = ['+50K', '4Go', '3min'];
-                        if (idx >= 0 && idx < finals.length) {
-                            sp.setAttribute('data-final', finals[idx]);
-                        }
-                    }
-                });
-                /* badge + paragraph */
-                var badge = row.querySelector('[style*="scale"]');
-                if (badge) { badge.style.scale = '1'; badge.style.opacity = '1'; }
-                var para = row.querySelector('p[style*="opacity"]');
-                if (para) { para.style.opacity = '1'; para.style.transform = 'none'; }
-            });
-
-            /* statsMod cards (NextSection yellow+pink) */
-            var ns = document.getElementById('NextSection');
-            if (ns) {
-                ns.style.padding = isMobile ? '36px 16px 48px' : '48px 28px 56px';
-                ns.style.borderRadius = isMobile ? '20px 20px 0 0' : '28px 28px 0 0';
-                ns.style.marginTop = '-10vh';
-                var nsH2 = ns.querySelector('h2');
-                if (nsH2) { nsH2.style.fontSize = isMobile ? 'clamp(1.65rem, 7vw, 2.4rem)' : 'clamp(1.9rem, 5vw, 3.5rem)'; nsH2.style.textAlign = 'center'; }
-                var nsRow = ns.querySelector('.flex.flex-row');
-                if (nsRow) {
-                    nsRow.style.flexDirection = 'column';
-                    nsRow.style.gap = '20px';
-                    nsRow.style.overflow = 'visible';
-                    nsRow.querySelectorAll(':scope > div').forEach(function(d){ d.style.width = '100%'; d.style.height = 'auto'; d.style.minHeight = '200px'; });
-                }
-                ['.bg-yellow-300', '.bg-pink-300'].forEach(function(sel){
-                    var c = ns.querySelector(sel);
-                    if (c) { c.style.opacity = '1'; c.style.transform = 'none'; }
-                });
-                /* Set data-final on NextSection stat numbers for CSS ::after overlay */
-                var yNum = ns.querySelector('.bg-yellow-300 .text-7xl');
-                var pNum = ns.querySelector('.bg-pink-300 .text-7xl');
-                if (yNum && !yNum.getAttribute('data-final')) yNum.setAttribute('data-final', '+68%');
-                if (pNum && !pNum.getAttribute('data-final')) pNum.setAttribute('data-final', '+42%');
-                var stTitle = ns.querySelector('p[style*="opacity"]');
-                if (stTitle) { stTitle.style.opacity = '1'; stTitle.style.transform = 'none'; }
-            }
-
-            /* Avis cards — show them */
-            document.querySelectorAll('.avis-card').forEach(function(c){
-                c.style.opacity = '1';
-                c.style.transform = 'none';
-                c.style.transition = 'none';
-            });
-            var avisGrid = document.querySelector('#avis .grid');
-            if (avisGrid) { avisGrid.style.gridTemplateColumns = isMobile ? '1fr' : 'repeat(2, 1fr)'; avisGrid.style.gap = '14px'; }
-            var avisPt = document.querySelector('#avis .pt-64');
-            if (avisPt) { avisPt.style.paddingTop = '40px'; }
-
-            /* FAQ items */
-            document.querySelectorAll('.faq-item').forEach(function(item){
-                item.style.opacity = '1';
-                item.style.transform = 'none';
-                item.style.transition = 'none';
-            });
-
-            /* Footer card */
-            var footerCard = document.getElementById('footerCard');
-            if (footerCard) { footerCard.style.transform = 'none'; footerCard.style.opacity = '1'; }
-
-            /* Hashtag buttons */
-            document.querySelectorAll('.hashtag-hidden').forEach(function(b){
+            document.querySelectorAll('.hashtag-hidden').forEach(function(b) {
                 b.classList.remove('hashtag-hidden');
                 b.style.opacity = '1';
                 b.style.transform = 'none';
                 b.style.position = 'static';
             });
+
+            /* STATS — override style inline (20vw → flex column) */
+            document.querySelectorAll('#nombercolone .nb-row > div > div[style*="grid-template-columns"]').forEach(function(d) {
+                d.style.display = 'flex';
+                d.style.flexDirection = 'column';
+                d.style.gap = '12px';
+            });
+
+            /* NEXTSECTION layout */
+            var ns = document.getElementById('NextSection');
+            if (ns) {
+                var nsRow = ns.querySelector('.flex.flex-row');
+                if (nsRow) {
+                    nsRow.style.flexDirection = 'column';
+                    nsRow.style.gap = '16px';
+                    nsRow.style.overflow = 'visible';
+                    [].forEach.call(nsRow.querySelectorAll(':scope > div'), function(d) {
+                        d.style.width = '100%';
+                        d.style.height = 'auto';
+                        d.style.marginTop = '0';
+                    });
+                }
+            }
+
+            /* AVIS — layout only */
+            var avisGrid = document.querySelector('#avis .grid');
+            if (avisGrid) { avisGrid.style.gridTemplateColumns = isMobile ? '1fr' : 'repeat(2, 1fr)'; avisGrid.style.gap = '14px'; }
+            var avisPt = document.querySelector('#avis .pt-64');
+            if (avisPt) { avisPt.style.paddingTop = '40px'; }
+            document.querySelectorAll('#avis .grid > div[class*="-mt-"]').forEach(function(c) { c.style.marginTop = '0'; });
         }
 
-        /* Run immediately and after DOM is ready */
         fix();
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', fix);
-        }
-        /* Re-run after animations settle */
-        setTimeout(fix, 500);
-        setTimeout(fix, 1500);
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', fix); }
+        setTimeout(fix, 400);
+        setTimeout(fix, 1200);
     })();
     </script>
 
