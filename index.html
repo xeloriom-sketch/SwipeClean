@@ -1319,11 +1319,30 @@
             var navRight = nav ? nav.querySelector('div:last-child') : null;
             var hamburger = document.getElementById('mob-hamburger');
 
-            /* NAV */
-            if (nav) { nav.style.padding = '14px 20px'; }
-            if (navLinks) { navLinks.style.display = 'none'; navLinks.style.visibility = 'hidden'; }
-            if (navRight) { navRight.style.display = 'none'; navRight.style.visibility = 'hidden'; }
-            if (hamburger) { hamburger.style.display = 'flex'; }
+            /* NAV — use :scope for direct children, setProperty for !important */
+            if (nav) {
+                nav.style.setProperty('padding', '14px 20px', 'important');
+                /* Direct children only */
+                var navKids = Array.from(nav.querySelectorAll(':scope > div'));
+                /* [0]=logo  [1]=nav-links  [2]=télécharger */
+                if (navKids[1]) {
+                    navKids[1].style.setProperty('display', 'none', 'important');
+                    navKids[1].style.setProperty('visibility', 'hidden', 'important');
+                }
+                if (navKids[2]) {
+                    navKids[2].style.setProperty('display', 'none', 'important');
+                }
+                /* Reduce logo div padding */
+                if (navKids[0]) {
+                    navKids[0].style.setProperty('padding', '0', 'important');
+                }
+            }
+            /* Also target by class as backup */
+            document.querySelectorAll('.nav-links').forEach(function(el) {
+                el.style.setProperty('display', 'none', 'important');
+                el.style.setProperty('visibility', 'hidden', 'important');
+            });
+            if (hamburger) { hamburger.style.setProperty('display', 'flex', 'important'); }
 
             /* HERO h1 — fix overflow + font size */
             var h1 = document.querySelector('#Hero h1');
