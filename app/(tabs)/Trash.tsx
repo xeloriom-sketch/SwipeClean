@@ -20,7 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { FlashList } from "@shopify/flash-list";
 import { Image } from "expo-image";
-import { unlockAndNotify } from "../../utils/achievements";
+import { unlockAndNotify, checkStorageMilestones, notifyAchievement } from "../../utils/achievements";
 
 const { width } = Dimensions.get("window");
 
@@ -169,16 +169,13 @@ export default function TrashScreen() {
               const sizes = await Promise.allSettled(
                 toDelete.map(async (item): Promise<number> => {
                   if (item.fileSize != null && item.fileSize > 0) return item.fileSize;
-                  // 1er essai : MediaLibrary.getAssetInfoAsync
                   try {
                     const info = await MediaLibrary.getAssetInfoAsync(item.id);
-                    const mlSize = (info as any).fileSize as number | undefined;
-                    if (mlSize && mlSize > 0) return mlSize;
-                  } catch {}
-                  // 2e essai : expo-file-system lit la taille depuis l'URI (fiable sur Android)
-                  try {
-                    const fsInfo = await FileSystem.getInfoAsync(item.uri, { size: true });
-                    if (fsInfo.exists && (fsInfo as any).size > 0) return (fsInfo as any).size as number;
+                    const localUri = info.localUri;
+                    if (localUri && !localUri.startsWith("ph://")) {
+                      const sz = new FileSystem.File(localUri).size;
+                      if (sz > 0) return sz;
+                    }
                   } catch {}
                   return 0;
                 })
@@ -196,12 +193,19 @@ export default function TrashScreen() {
                 AsyncStorage.getItem(FREED_SIZE_KEY),
                 AsyncStorage.getItem(DELETED_COUNT_KEY),
               ]);
+              const newTotalBytes = (prevBytes ? Number(prevBytes) : 0) + freedBytes;
               await Promise.all([
-                AsyncStorage.setItem(FREED_SIZE_KEY, String((prevBytes ? Number(prevBytes) : 0) + freedBytes)),
+                AsyncStorage.setItem(FREED_SIZE_KEY, String(newTotalBytes)),
                 AsyncStorage.setItem(DELETED_COUNT_KEY, String((prevCount ? Number(prevCount) : 0) + toDelete.length)),
               ]);
 
               if (remaining.length === 0) unlockAndNotify("trash_emptied");
+
+              // Succès stockage
+              if (freedBytes > 0) {
+                const storageAchievement = await checkStorageMilestones(newTotalBytes);
+                if (storageAchievement) notifyAchievement(storageAchievement);
+              }
             } catch {}
           },
         },

@@ -29,6 +29,13 @@ export const ALL_ACHIEVEMENTS: Achievement[] = [
   // Corbeille
   { id: "first_trash",   icon: "trash",              color: "#4CFF5E", title: "Première corbeille",    desc: "Tu as fait le ménage !" },
   { id: "trash_emptied", icon: "sparkles",           color: "#BF5AF2", title: "Corbeille vidée",       desc: "Propre et net !" },
+  // Stockage libéré
+  { id: "freed_10mb",    icon: "leaf-outline",       color: "#4CFF5E", title: "10 Mo libérés",         desc: "C'est un début !" },
+  { id: "freed_100mb",   icon: "cube-outline",       color: "#34C759", title: "100 Mo libérés",        desc: "De l'air dans ton téléphone !" },
+  { id: "freed_500mb",   icon: "server-outline",     color: "#30D158", title: "500 Mo libérés",        desc: "Grand ménage de printemps !" },
+  { id: "freed_1gb",     icon: "cloud-done-outline", color: "#00C7BE", title: "1 Go libéré",           desc: "Tu es une machine à nettoyer !" },
+  { id: "freed_5gb",     icon: "planet-outline",     color: "#0A84FF", title: "5 Go libérés",          desc: "Presque autant qu'un iPhone vide !" },
+  { id: "freed_10gb",    icon: "infinite",           color: "#BF5AF2", title: "10 Go libérés",         desc: "Légende du stockage !" },
   // Galerie
   { id: "gallery_open",  icon: "images",             color: "#6366F1", title: "Explorateur",           desc: "Tu as ouvert une galerie !" },
   { id: "night_swipe",   icon: "moon",               color: "#818CF8", title: "Oiseau de nuit",        desc: "Trié des photos après minuit !" },
@@ -95,4 +102,27 @@ export async function checkFavMilestones(total: number): Promise<Achievement | n
   const milestones: Record<number, string> = { 1: "first_fav", 10: "favs_10", 50: "favs_50" };
   const id = milestones[total];
   return id ? checkAndUnlock(id) : null;
+}
+
+const MB = 1_048_576;
+const GB = 1_073_741_824;
+
+export async function checkStorageMilestones(totalFreedBytes: number): Promise<Achievement | null> {
+  const milestones: Array<[number, string]> = [
+    [10 * MB,   "freed_10mb"],
+    [100 * MB,  "freed_100mb"],
+    [500 * MB,  "freed_500mb"],
+    [1 * GB,    "freed_1gb"],
+    [5 * GB,    "freed_5gb"],
+    [10 * GB,   "freed_10gb"],
+  ];
+  // Cherche le palier le plus haut atteint qui n'est pas encore débloqué
+  for (let i = milestones.length - 1; i >= 0; i--) {
+    const [threshold, id] = milestones[i];
+    if (totalFreedBytes >= threshold) {
+      const result = await checkAndUnlock(id);
+      if (result) return result;
+    }
+  }
+  return null;
 }

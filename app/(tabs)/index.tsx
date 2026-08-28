@@ -11,9 +11,12 @@ import {
   StatusBar,
   Pressable,
   useColorScheme,
+  Alert,
+  Linking,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
 import * as MediaLibrary from "expo-media-library";
+import * as FileSystem from "expo-file-system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path } from "react-native-svg";
@@ -25,25 +28,33 @@ import { Audio } from "expo-av";
 import * as Notifications from "expo-notifications";
 import AppLoader from "../../components/AppLoader";
 import { checkSwipeMilestones, checkAndUnlock, checkNightSwipe, checkFavMilestones, type Achievement } from "../../utils/achievements";
+import { devLog } from "../../utils/devLogger";
 
 // react-native-video requires a native build — not available in Expo Go
 let VideoPlayer: React.ComponentType<any> | null = null;
 let ResizeMode: { COVER: string } = { COVER: "cover" };
 try {
-  // hasViewManagerConfig returns false when the native module isn't compiled in
-  if (UIManager.hasViewManagerConfig?.("RCTVideo")) {
-    const rnv = require("react-native-video");
+  const rnv = require("react-native-video");
+  if (rnv && rnv.default) {
     VideoPlayer = rnv.default;
     ResizeMode = rnv.ResizeMode ?? { COVER: "cover" };
+    devLog("Video", "VideoPlayer chargé OK", "info");
+  } else {
+    devLog("Video", "require OK mais rnv.default est null", "warn");
   }
-} catch {}
+} catch (e: any) {
+  devLog("Video", `require react-native-video FAILED: ${e?.message ?? e}`, "error");
+}
 
 class VideoErrorBoundary extends React.Component<
-  { fallback: React.ReactNode; children: React.ReactNode },
+  { fallback: React.ReactNode; children: React.ReactNode; uri?: string },
   { hasError: boolean }
 > {
   state = { hasError: false };
-  static getDerivedStateFromError() { return { hasError: true }; }
+  static getDerivedStateFromError(e: any) {
+    devLog("Video", `VideoErrorBoundary: ${e?.message ?? e}`, "error");
+    return { hasError: true };
+  }
   render() {
     return this.state.hasError ? this.props.fallback : this.props.children;
   }
@@ -59,6 +70,7 @@ import Animated, {
   interpolate,
   Extrapolate,
   SharedValue,
+  Easing,
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
@@ -67,6 +79,7 @@ const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const BTN_SIZE = Math.min(Math.round(SCREEN_WIDTH * 0.16), 66);
 const BTN_ICON = Math.round(BTN_SIZE * 0.52);
 
+const REVIEW_PROMPTED_KEY = "@app_review_prompted";
 const TRASH_KEY = "@app_trash";
 const FAVORITES_KEY = "@app_favorites";
 const KEPT_KEY = "@app_kept";
@@ -78,7 +91,7 @@ const SORT_KEY = "@app_sort_order";
 const SOUND_KEY = "@app_sound";
 const AUTO_DARK_KEY = "@app_dark_auto";
 const AUTO_TRASH_DAYS_KEY = "@app_auto_trash_days";
-const BATCH_SIZE = 40;
+const BATCH_SIZE = 60;
 const PRELOAD_THRESHOLD = 10;
 const SPLASH_MIN_MS = 0;
 
@@ -191,10 +204,12 @@ const MediaCard = React.memo(function MediaCard({
   }
 
   if (item.type === "video") {
+    devLog("Video", `Rendu vidéo id=${item.id} uri=${item.uri?.slice(0, 60)} player=${VideoPlayer ? "OK" : "NULL"}`, VideoPlayer ? "info" : "warn");
     return (
       <View style={styles.card}>
         {VideoPlayer ? (
           <VideoErrorBoundary
+            uri={item.uri ?? undefined}
             fallback={
               <View style={[styles.media, { backgroundColor: "#111", justifyContent: "center", alignItems: "center" }]}>
                 <Ionicons name="play-circle-outline" size={64} color="rgba(255,255,255,0.4)" />
@@ -259,7 +274,7 @@ const MediaCard = React.memo(function MediaCard({
           source={{ uri: item.uri }}
           style={styles.media}
           contentFit="cover"
-          transition={0}
+          transition={isTop ? 0 : 180}
           cachePolicy="memory-disk"
           priority="high"
           recyclingKey={item.id}
@@ -298,9 +313,9 @@ const SwipeableCard = React.forwardRef<SwipeableCardRef, {
 
   useEffect(() => {
     if (isTop) {
-      mountProgress.value = withTiming(1, { duration: 200 });
+      mountProgress.value = 1;
     } else {
-      mountProgress.value = withSpring(1, { damping: 15, stiffness: 60 });
+      mountProgress.value = withSpring(1, { damping: 32, stiffness: 80, mass: 1.2 });
     }
   }, []);
 
@@ -466,42 +481,43 @@ const SwipeableCard = React.forwardRef<SwipeableCardRef, {
         imagePanY.value = withSpring(imagePanY.value, { damping: 18 });
         return;
       }
+      const FLYOFF = { duration: 400, easing: Easing.in(Easing.quad) } as const;
       if (swipeDir.value === "left") {
-        stackProgress.value = withTiming(1, { duration: 320 });
-        translateX.value = withTiming(-SCREEN_WIDTH * 1.5, { duration: 320 }, (done) => {
+        stackProgress.value = withTiming(1, { duration: 400 });
+        translateX.value = withTiming(-SCREEN_WIDTH * 1.5, FLYOFF, (done) => {
           if (done) {
             runOnJS(onSwipe)("left");
             stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
           }
         });
       } else if (swipeDir.value === "right") {
-        stackProgress.value = withTiming(1, { duration: 320 });
-        translateX.value = withTiming(SCREEN_WIDTH * 1.5, { duration: 320 }, (done) => {
+        stackProgress.value = withTiming(1, { duration: 400 });
+        translateX.value = withTiming(SCREEN_WIDTH * 1.5, FLYOFF, (done) => {
           if (done) {
             runOnJS(onSwipe)("right");
             stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
           }
         });
       } else if (swipeDir.value === "top") {
-        stackProgress.value = withTiming(1, { duration: 320 });
-        translateY.value = withTiming(-SCREEN_HEIGHT * 1.5, { duration: 320 }, (done) => {
+        stackProgress.value = withTiming(1, { duration: 400 });
+        translateY.value = withTiming(-SCREEN_HEIGHT * 1.5, FLYOFF, (done) => {
           if (done) {
             runOnJS(onSwipe)("top");
             stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
           }
         });
       } else if (swipeDir.value === "bottom") {
-        stackProgress.value = withTiming(1, { duration: 280 });
-        translateY.value = withTiming(SCREEN_HEIGHT * 1.5, { duration: 280 }, (done) => {
+        stackProgress.value = withTiming(1, { duration: 380 });
+        translateY.value = withTiming(SCREEN_HEIGHT * 1.5, { duration: 380, easing: Easing.in(Easing.quad) }, (done) => {
           if (done) {
             runOnJS(onSwipe)("bottom");
             stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
           }
         });
       } else {
-        translateX.value = withSpring(0, { damping: 18, stiffness: 260 });
-        translateY.value = withSpring(0, { damping: 18, stiffness: 260 });
-        stackProgress.value = withSpring(0, { damping: 18, stiffness: 260 });
+        translateX.value = withSpring(0, { damping: 26, stiffness: 140 });
+        translateY.value = withSpring(0, { damping: 26, stiffness: 140 });
+        stackProgress.value = withSpring(0, { damping: 26, stiffness: 140 });
         swipeDir.value = null;
       }
     });
@@ -510,33 +526,34 @@ const SwipeableCard = React.forwardRef<SwipeableCardRef, {
 
   useImperativeHandle(ref, () => ({
     triggerSwipe: (direction) => {
+      const FLYOFF = { duration: 400, easing: Easing.in(Easing.quad) } as const;
       if (direction === "left") {
-        stackProgress.value = withTiming(1, { duration: 320 });
-        translateX.value = withTiming(-SCREEN_WIDTH * 1.5, { duration: 320 }, (done) => {
+        stackProgress.value = withTiming(1, { duration: 400 });
+        translateX.value = withTiming(-SCREEN_WIDTH * 1.5, FLYOFF, (done) => {
           if (done) {
             runOnJS(onSwipe)("left");
             stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
           }
         });
       } else if (direction === "right") {
-        stackProgress.value = withTiming(1, { duration: 320 });
-        translateX.value = withTiming(SCREEN_WIDTH * 1.5, { duration: 320 }, (done) => {
+        stackProgress.value = withTiming(1, { duration: 400 });
+        translateX.value = withTiming(SCREEN_WIDTH * 1.5, FLYOFF, (done) => {
           if (done) {
             runOnJS(onSwipe)("right");
             stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
           }
         });
       } else if (direction === "top") {
-        stackProgress.value = withTiming(1, { duration: 320 });
-        translateY.value = withTiming(-SCREEN_HEIGHT * 1.5, { duration: 320 }, (done) => {
+        stackProgress.value = withTiming(1, { duration: 400 });
+        translateY.value = withTiming(-SCREEN_HEIGHT * 1.5, FLYOFF, (done) => {
           if (done) {
             runOnJS(onSwipe)("top");
             stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
           }
         });
       } else if (direction === "bottom") {
-        stackProgress.value = withTiming(1, { duration: 280 });
-        translateY.value = withTiming(SCREEN_HEIGHT * 1.5, { duration: 280 }, (done) => {
+        stackProgress.value = withTiming(1, { duration: 380 });
+        translateY.value = withTiming(SCREEN_HEIGHT * 1.5, { duration: 380, easing: Easing.in(Easing.quad) }, (done) => {
           if (done) {
             runOnJS(onSwipe)("bottom");
             stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
@@ -644,8 +661,8 @@ const AnimatedActionBtn = React.memo(function AnimatedActionBtn({
     <Animated.View style={[btnStyle, animStyle]}>
       <TouchableOpacity
         onPress={onPress}
-        onPressIn={() => { sc.value = withSpring(0.84, { damping: 14, stiffness: 500 }); }}
-        onPressOut={() => { sc.value = withSpring(1, { damping: 11, stiffness: 380 }); }}
+        onPressIn={() => { sc.value = withSpring(0.88, { damping: 18, stiffness: 300 }); }}
+        onPressOut={() => { sc.value = withSpring(1, { damping: 22, stiffness: 200 }); }}
         activeOpacity={1}
         style={{ flex: 1, justifyContent: "center", alignItems: "center" }}
       >
@@ -746,6 +763,7 @@ export default function GalleryScreen() {
   const trashCache = useRef<Set<string>>(new Set());
   const keptCache = useRef<Set<string>>(new Set());
   const fetchedIds = useRef<Set<string>>(new Set());
+  const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const permGranted = useRef(false);
   const containerOpacity = useSharedValue(0);
   const containerScale = useSharedValue(0.98);
@@ -872,8 +890,8 @@ export default function GalleryScreen() {
         logger.error("init", err);
       } finally {
         setLoading(false);
-        containerOpacity.value = withTiming(1, { duration: 500 });
-        containerScale.value = withSpring(1, { damping: 15 });
+        containerOpacity.value = withTiming(1, { duration: 600, easing: Easing.out(Easing.cubic) });
+        containerScale.value = withSpring(1, { damping: 28, stiffness: 90, mass: 1.1 });
       }
     })();
   }, []);
@@ -910,49 +928,22 @@ export default function GalleryScreen() {
           sortBy: [["creationTime", sortOldest]],
         });
 
+        // Zéro appel async par photo — expo-image 3.x gère ph:// nativement sur iOS
         const items: MediaItem[] = [];
-        await Promise.allSettled(
-          res.assets.map(async (asset) => {
-            if (trashCache.current.has(asset.id) || keptCache.current.has(asset.id) || fetchedIds.current.has(asset.id)) return null;
-            fetchedIds.current.add(asset.id);
-            try {
-              let uri = asset.uri;
-              let fileSize: number | undefined;
-              // Android: asset.uri is already a usable content:// or file:// URI — no extra call needed
-              // iOS: ph:// URIs must be resolved to localUri via getAssetInfoAsync
-              if (Platform.OS === "ios" && uri.startsWith("ph://")) {
-                const info = await MediaLibrary.getAssetInfoAsync(asset.id);
-                uri = info.localUri || info.uri || asset.uri;
-                fileSize = (info as any).fileSize;
-              }
-              return {
-                id: asset.id,
-                uri: uri || null,
-                type: asset.mediaType === "video" ? "video" : "photo",
-                createdAt: resolveMediaDate(asset.creationTime, asset.modificationTime),
-                width: asset.width,
-                height: asset.height,
-                duration: asset.duration,
-                fileSize,
-              } as MediaItem;
-            } catch {
-              return {
-                id: asset.id,
-                uri: asset.uri,
-                type: asset.mediaType === "video" ? "video" : "photo",
-                createdAt: resolveMediaDate(asset.creationTime, asset.modificationTime),
-                width: asset.width,
-                height: asset.height,
-                duration: asset.duration,
-                fileSize: undefined,
-              } as MediaItem;
-            }
-          })
-        ).then((results) => {
-          results.forEach(
-            (r) => r.status === "fulfilled" && r.value && items.push(r.value)
-          );
-        });
+        for (const asset of res.assets) {
+          if (trashCache.current.has(asset.id) || keptCache.current.has(asset.id) || fetchedIds.current.has(asset.id)) continue;
+          fetchedIds.current.add(asset.id);
+          items.push({
+            id: asset.id,
+            uri: asset.uri || null,
+            type: asset.mediaType === "video" ? "video" : "photo",
+            createdAt: resolveMediaDate(asset.creationTime, asset.modificationTime),
+            width: asset.width,
+            height: asset.height,
+            duration: asset.duration,
+            fileSize: undefined,
+          });
+        }
 
         setAssets((prev) => {
           const map = new Map(prev.map((p) => [p.id, p]));
@@ -962,8 +953,9 @@ export default function GalleryScreen() {
         cursorRef.current = res.endCursor;
         hasMoreRef.current = res.hasNextPage;
         setHasMore(res.hasNextPage);
-      } catch (err) {
+      } catch (err: any) {
         logger.error("fetchAssets", err);
+        devLog("Fetch", `fetchAssets FAILED: ${err?.message ?? err}`, "error");
       } finally {
         isFetching.current = false;
       }
@@ -977,10 +969,11 @@ export default function GalleryScreen() {
     }
   }, [assets.length, currentIndex, hasMore, fetchAssets]);
 
-  const persistIndex = useCallback(async (idx: number) => {
-    try {
-      await AsyncStorage.setItem(CARD_INDEX_KEY, String(idx));
-    } catch {}
+  const persistIndex = useCallback((idx: number) => {
+    if (persistTimer.current) clearTimeout(persistTimer.current);
+    persistTimer.current = setTimeout(() => {
+      AsyncStorage.setItem(CARD_INDEX_KEY, String(idx)).catch(() => {});
+    }, 800);
   }, []);
 
   const addToTrash = useCallback((item: MediaItem) => {
@@ -989,6 +982,27 @@ export default function GalleryScreen() {
     setTrashCount(trashRef.current.length);
     AsyncStorage.setItem(TRASH_KEY, JSON.stringify(trashRef.current)).catch(() => {});
     Notifications.setBadgeCountAsync(trashRef.current.length).catch(() => {});
+
+    // Lazy fetch taille en arrière-plan (ne bloque pas l'animation de swipe)
+    if (!item.fileSize) {
+      (async () => {
+        try {
+          const info = await MediaLibrary.getAssetInfoAsync(item.id);
+          const localUri = info.localUri;
+          if (localUri && !localUri.startsWith("ph://")) {
+            const size = new FileSystem.File(localUri).size;
+            if (size > 0) {
+              const idx = trashRef.current.findIndex((e) => e.id === item.id);
+              if (idx >= 0) {
+                trashRef.current[idx] = { ...trashRef.current[idx], fileSize: size };
+                AsyncStorage.setItem(TRASH_KEY, JSON.stringify(trashRef.current)).catch(() => {});
+                devLog("Trash", `fileSize lazy=${(size / 1048576).toFixed(2)}Mo id=${item.id}`, "info");
+              }
+            }
+          }
+        } catch {}
+      })();
+    }
   }, []);
 
   const addToFavorites = useCallback((item: MediaItem) => {
@@ -1040,6 +1054,7 @@ export default function GalleryScreen() {
       if (!item) return;
 
       triggerHaptics(direction);
+      devLog("Swipe", `dir=${direction} type=${item.type} id=${item.id} size=${item.fileSize ?? "?"}`, "info");
       if (soundEnabled && direction !== "bottom") {
         playSwipeSound(direction === "left" ? "delete" : direction === "right" ? "keep" : "star");
       }
@@ -1054,7 +1069,7 @@ export default function GalleryScreen() {
       if (direction === "left") {
         trashCache.current.add(item.id);
         addToTrash(item);
-        checkAndUnlock("first_trash").then(showAchievement);
+        setTimeout(() => checkAndUnlock("first_trash").then(showAchievement), 0);
       } else if (direction === "right") {
         addToKept(item.id);
       } else if (direction === "top") {
@@ -1062,16 +1077,42 @@ export default function GalleryScreen() {
         const newTotal = isDup ? favoritesRef.current.length : favoritesRef.current.length + 1;
         addToFavorites(item);
         addToKept(item.id);
-        checkFavMilestones(newTotal).then(showAchievement);
+        setTimeout(() => checkFavMilestones(newTotal).then(showAchievement), 0);
       }
 
       const newSwipeTotal = currentIndex + 1;
-      checkSwipeMilestones(newSwipeTotal).then(showAchievement);
-      checkNightSwipe().then(showAchievement);
+      setTimeout(() => {
+        checkSwipeMilestones(newSwipeTotal).then(showAchievement);
+        checkNightSwipe().then(showAchievement);
+      }, 0);
 
       const newIndex = currentIndex + 1;
       setCurrentIndex(newIndex);
       persistIndex(newIndex);
+
+      // Demande de review après 10 swipes (iOS uniquement, une seule fois)
+      if (Platform.OS === "ios" && newSwipeTotal === 10) {
+        setTimeout(async () => {
+          try {
+            const already = await AsyncStorage.getItem(REVIEW_PROMPTED_KEY);
+            if (already) return;
+            await AsyncStorage.setItem(REVIEW_PROMPTED_KEY, "1");
+            Alert.alert(
+              "Tu aimes SwipeClean ? ⭐",
+              "Ça prend 30 secondes et ça aide vraiment l'app à grandir 🙏",
+              [
+                { text: "Plus tard", style: "cancel" },
+                {
+                  text: "Noter l'app",
+                  onPress: () => {
+                    Linking.openURL("itms-apps://itunes.apple.com/app/id6802313349?action=write-review");
+                  },
+                },
+              ]
+            );
+          } catch {}
+        }, 1500);
+      }
     },
     [currentIndex, assets, triggerHaptics, addToTrash, addToFavorites, addToKept, persistIndex, soundEnabled]
   );
@@ -1131,12 +1172,12 @@ export default function GalleryScreen() {
     AsyncStorage.setItem(SORT_KEY, newSort ? "oldest" : "newest").catch(() => {});
   }, [sortOldest]);
 
-  // Précharger les 8 prochaines cartes en cache disque pour éviter les écrans noirs
+  // Précharger les prochaines cartes en mémoire pour éviter les écrans noirs (surtout iOS)
   useEffect(() => {
-    for (let i = 1; i <= 8; i++) {
+    for (let i = 0; i <= 8; i++) {
       const next = assets[currentIndex + i];
       if (next?.uri && next.type === "photo") {
-        Image.prefetch(next.uri, { cachePolicy: "disk" }).catch(() => {});
+        Image.prefetch(next.uri, { cachePolicy: "memory-disk" }).catch(() => {});
       }
     }
   }, [currentIndex, assets]);

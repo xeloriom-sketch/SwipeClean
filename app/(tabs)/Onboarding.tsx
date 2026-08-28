@@ -1,5 +1,5 @@
 // app/(tabs)/Onboarding.tsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -31,496 +31,693 @@ import * as Haptics from "expo-haptics";
 const { width, height } = Dimensions.get("window");
 const ONBOARDED_KEY = "@app_onboarded";
 
+const CARD_W = width * 0.75;
+const CARD_H = CARD_W * 1.36;
+
+type Dir = "left" | "right" | "up" | "down" | "trash";
+
 const STEPS = [
   {
     key: "delete",
+    dir: "left" as Dir,
     color: "#FF3B5C",
     dark: "#1C0008",
-    icon: "close" as const,
+    cardTop: "#1a0510" as const,
+    cardBot: "#0f1d3a" as const,
     label: "SWIPE GAUCHE",
     title: "Direction\nla corbeille.",
-    desc: "Glissez à gauche pour mettre une photo en corbeille — pas de suppression immédiate ! Vous pouvez toujours récupérer vos photos.",
-    anim: "shake",
-    type: "interactive" as const,
-  },
-  {
-    key: "trash",
-    color: "#FF9500",
-    dark: "#1A0A00",
+    desc: "Pas de suppression immédiate — récupérez toujours vos photos depuis la Corbeille.",
     icon: "trash-outline" as const,
-    label: "LA CORBEILLE",
-    title: "Vous gardez\nle contrôle.",
-    desc: "La Corbeille regroupe vos photos avant suppression définitive. Videz-la en un tap — ou récupérez ce que vous regrettez.",
-    anim: "bounce",
-    type: "flow" as const,
   },
   {
     key: "keep",
+    dir: "right" as Dir,
     color: "#30D158",
     dark: "#001408",
-    icon: "heart" as const,
+    cardTop: "#0a1f14" as const,
+    cardBot: "#1f5c40" as const,
     label: "SWIPE DROITE",
     title: "Gardez ce\nqui compte.",
-    desc: "Glissez à droite pour conserver vos souvenirs précieux. La photo reste dans votre galerie, intacte.",
-    anim: "pulse",
-    type: "normal" as const,
+    desc: "La photo reste dans votre galerie, intacte. Vos souvenirs sont préservés.",
+    icon: "heart" as const,
   },
   {
     key: "star",
+    dir: "up" as Dir,
     color: "#0A84FF",
     dark: "#00061A",
-    icon: "star" as const,
+    cardTop: "#00061a" as const,
+    cardBot: "#1a2d4a" as const,
     label: "SWIPE HAUT",
     title: "Créez vos\nfavoris.",
-    desc: "Glissez vers le haut pour épingler vos meilleures photos. Retrouvez-les instantanément dans l'onglet Favoris.",
-    anim: "spin",
-    type: "normal" as const,
+    desc: "Épinglez vos meilleures photos. Retrouvez-les instantanément dans l'onglet Favoris.",
+    icon: "star" as const,
   },
   {
     key: "skip",
-    color: "#EBEBF5",
-    dark: "#0D0D10",
-    icon: "play-skip-forward" as const,
+    dir: "down" as Dir,
+    color: "#BF5AF2",
+    dark: "#0D0014",
+    cardTop: "#0d0014" as const,
+    cardBot: "#2d1a4a" as const,
     label: "SWIPE BAS",
     title: "Passez si\nvous hésitez.",
     desc: "Pas sûr ? Glissez vers le bas pour décider plus tard. Aucune décision forcée.",
-    anim: "slide",
-    type: "normal" as const,
+    icon: "play-skip-forward" as const,
+  },
+  {
+    key: "trash",
+    dir: "trash" as Dir,
+    color: "#FF9500",
+    dark: "#1A0A00",
+    cardTop: "#1a0a00" as const,
+    cardBot: "#4a2800" as const,
+    label: "LA CORBEILLE",
+    title: "Vous gardez\nle contrôle.",
+    desc: "Sélectionnez des photos, puis restaurez ou supprimez-les définitivement.",
+    icon: "trash" as const,
   },
 ];
 
-/* ─── Ripple rings ─────────────────────────────────────────── */
-function Ripples({ color }: { color: string }) {
-  const rings = [0, 1, 2].map(() => ({
-    scale: useSharedValue(0.6),
-    opacity: useSharedValue(0),
+/* ─── Pulsing arrow hint ───────────────────────────────────── */
+function ArrowHint({ dir, color }: { dir: Dir; color: string }) {
+  const op = useSharedValue(0.25);
+  const shift = useSharedValue(0);
+
+  useEffect(() => {
+    op.value = withRepeat(
+      withSequence(withTiming(1, { duration: 600 }), withTiming(0.25, { duration: 600 })),
+      -1, false
+    );
+    shift.value = withRepeat(
+      withSequence(withTiming(10, { duration: 600 }), withTiming(0, { duration: 600 })),
+      -1, false
+    );
+    return () => { cancelAnimation(op); cancelAnimation(shift); };
+  }, [dir]);
+
+  const s = useAnimatedStyle(() => ({
+    opacity: op.value,
+    transform: [
+      { translateX: dir === "left" ? -shift.value : dir === "right" ? shift.value : 0 },
+      { translateY: dir === "up" ? -shift.value : dir === "down" ? shift.value : 0 },
+    ],
   }));
 
-  useEffect(() => {
-    rings.forEach((r, i) => {
-      cancelAnimation(r.scale);
-      cancelAnimation(r.opacity);
-      r.scale.value = 0.6;
-      r.opacity.value = 0;
-      r.scale.value = withDelay(i * 500, withRepeat(withTiming(2.2, { duration: 2000 }), -1, false));
-      r.opacity.value = withDelay(
-        i * 500,
-        withRepeat(withSequence(withTiming(0.35, { duration: 200 }), withTiming(0, { duration: 1800 })), -1, false)
-      );
-    });
-    return () => rings.forEach((r) => { cancelAnimation(r.scale); cancelAnimation(r.opacity); });
-  }, [color]);
+  const iconName =
+    dir === "left" ? "arrow-back" :
+    dir === "right" ? "arrow-forward" :
+    dir === "up" ? "arrow-up" : "arrow-down";
+
+  const label =
+    dir === "left" ? "Glissez à gauche" :
+    dir === "right" ? "Glissez à droite" :
+    dir === "up" ? "Glissez vers le haut" : "Glissez vers le bas";
 
   return (
-    <>
-      {rings.map((r, i) => {
-        const s = useAnimatedStyle(() => ({ opacity: r.opacity.value, transform: [{ scale: r.scale.value }] }));
-        return <Animated.View key={i} pointerEvents="none" style={[styles.ring, { borderColor: color }, s]} />;
-      })}
-    </>
+    <Animated.View style={[arrowStyles.row, s]}>
+      {(dir === "left" || dir === "up") && (
+        <Ionicons name={iconName as any} size={20} color={color} />
+      )}
+      <Text style={[arrowStyles.label, { color }]}>{label}</Text>
+      {(dir === "right" || dir === "down") && (
+        <Ionicons name={iconName as any} size={20} color={color} />
+      )}
+    </Animated.View>
   );
 }
 
-/* ─── Step icon ────────────────────────────────────────────── */
-function StepIcon({ step, small }: { step: (typeof STEPS)[0]; small?: boolean }) {
-  const v = useSharedValue(0);
+/* ─── Swipe card (interactive) ─────────────────────────────── */
+function SwipeCard({ step, onDone }: { step: typeof STEPS[0]; onDone: () => void }) {
+  const tx = useSharedValue(0);
+  const ty = useSharedValue(0);
+  const rot = useSharedValue(0);
+  const ovOp = useSharedValue(0);
+  const sc = useSharedValue(1);
+  const burstSc = useSharedValue(0.5);
+  const burstOp = useSharedValue(0);
+  const [done, setDone] = useState(false);
+
+  const THR = 72;
+  const VTHR = 480;
 
   useEffect(() => {
-    cancelAnimation(v);
-    v.value = 0;
-    if (step.anim === "shake") {
-      v.value = withRepeat(
-        withSequence(
-          withTiming(-18, { duration: 80 }), withTiming(18, { duration: 80 }),
-          withTiming(-12, { duration: 70 }), withTiming(12, { duration: 70 }),
-          withTiming(0, { duration: 60 }), withTiming(0, { duration: 900 })
-        ), -1, false
-      );
-    } else if (step.anim === "pulse") {
-      v.value = withRepeat(
-        withSequence(
-          withSpring(1.25, { damping: 6, stiffness: 200 }),
-          withSpring(1, { damping: 8, stiffness: 160 }),
-          withTiming(1, { duration: 800 })
-        ), -1, false
-      );
-    } else if (step.anim === "spin") {
-      v.value = withRepeat(withTiming(360, { duration: 3000 }), -1, false);
-    } else if (step.anim === "slide") {
-      v.value = withRepeat(
-        withSequence(withTiming(28, { duration: 350 }), withTiming(0, { duration: 200 }), withTiming(0, { duration: 900 })),
-        -1, false
-      );
-    } else if (step.anim === "bounce") {
-      v.value = withRepeat(
-        withSequence(
-          withSpring(-24, { damping: 3, stiffness: 380 }),
-          withSpring(0, { damping: 10, stiffness: 200 }),
-          withTiming(0, { duration: 900 })
-        ), -1, false
-      );
-    }
-    return () => cancelAnimation(v);
+    tx.value = 0; ty.value = 0; rot.value = 0;
+    ovOp.value = 0; sc.value = 1;
+    burstSc.value = 0.5; burstOp.value = 0;
+    setDone(false);
   }, [step.key]);
 
-  const iconStyle = useAnimatedStyle(() => {
-    if (step.anim === "shake") return { transform: [{ translateX: v.value }] };
-    if (step.anim === "pulse") return { transform: [{ scale: v.value === 0 ? 1 : v.value }] };
-    if (step.anim === "spin") return { transform: [{ rotate: `${v.value}deg` }] };
-    if (step.anim === "slide") return { transform: [{ translateX: v.value }] };
-    if (step.anim === "bounce") return { transform: [{ translateY: v.value }] };
-    return {};
-  });
-
-  return (
-    <View style={[styles.iconWrap, small && { width: 156, height: 156 }]}>
-      {!small && <Ripples color={step.color} />}
-      <View style={[styles.iconBg, { backgroundColor: step.color + "22" }, small && { width: 117, height: 117, borderRadius: 58 }]}>
-        <View style={[styles.iconInner, { backgroundColor: step.color + "18", borderColor: step.color + "40" }, small && { width: 91, height: 91, borderRadius: 45 }]}>
-          <Animated.View style={iconStyle}>
-            <Ionicons name={step.icon} size={small ? 56 : 86} color={step.color} />
-          </Animated.View>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-/* ─── Floating particles ───────────────────────────────────── */
-function Particles({ color }: { color: string }) {
-  const dots = [
-    { size: 6, x: 0.12, y: 0.22, dur: 4200 },
-    { size: 4, x: 0.85, y: 0.18, dur: 5100 },
-    { size: 8, x: 0.78, y: 0.72, dur: 3800 },
-    { size: 5, x: 0.14, y: 0.68, dur: 4700 },
-    { size: 3, x: 0.55, y: 0.12, dur: 5800 },
-    { size: 6, x: 0.92, y: 0.45, dur: 4300 },
-  ];
-
-  return (
-    <>
-      {dots.map((d, i) => {
-        const ty = useSharedValue(0);
-        const op = useSharedValue(0);
-        useEffect(() => {
-          ty.value = withDelay(i * 400, withRepeat(withSequence(withTiming(-18, { duration: d.dur }), withTiming(0, { duration: d.dur })), -1, true));
-          op.value = withDelay(i * 400, withRepeat(withSequence(withTiming(0.5, { duration: d.dur / 2 }), withTiming(0.1, { duration: d.dur / 2 })), -1, true));
-          return () => { cancelAnimation(ty); cancelAnimation(op); };
-        }, [color]);
-        const s = useAnimatedStyle(() => ({ transform: [{ translateY: ty.value }], opacity: op.value }));
-        return (
-          <Animated.View key={i} pointerEvents="none"
-            style={[styles.particle, s, { width: d.size, height: d.size, borderRadius: d.size / 2, backgroundColor: color, left: d.x * width, top: d.y * height }]}
-          />
-        );
-      })}
-    </>
-  );
-}
-
-/* ─── Interactive demo card ────────────────────────────────── */
-function InteractiveCard({ color }: { color: string }) {
-  const tx = useSharedValue(0);
-  const rot = useSharedValue(0);
-  const overlayOp = useSharedValue(0);
-  const [trashed, setTrashed] = useState(false);
-
-  const doHaptic = () => Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-  const doTrashed = () => {
-    setTrashed(true);
-    setTimeout(() => setTrashed(false), 2000);
+  const celebrate = () => {
+    "worklet";
+    burstSc.value = withTiming(2.2, { duration: 400 });
+    burstOp.value = withSequence(
+      withTiming(0.7, { duration: 80 }),
+      withDelay(100, withTiming(0, { duration: 300 }))
+    );
   };
 
-  const cardPan = Gesture.Pan()
-    .activeOffsetX([-8, 8])
+  const complete = useCallback(() => {
+    setDone(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setTimeout(onDone, 700);
+  }, [onDone]);
+
+  const snap = (dx: number, dy: number) => {
+    "worklet";
+    celebrate();
+    const tx2 = dx < 0 ? -width * 1.4 : dx > 0 ? width * 1.4 : 0;
+    const ty2 = dy < 0 ? -height * 0.9 : dy > 0 ? height * 0.9 : 0;
+    tx.value = withTiming(tx2, { duration: 290 });
+    ty.value = withTiming(ty2, { duration: 290 }, () => runOnJS(complete)());
+    sc.value = withTiming(0.82, { duration: 180 });
+  };
+
+  const pan = Gesture.Pan()
     .onUpdate((e) => {
-      if (e.translationX <= 0) {
-        tx.value = e.translationX;
-        rot.value = e.translationX * 0.04;
-        overlayOp.value = Math.min(1, Math.abs(e.translationX) / 70);
+      const x = e.translationX, y = e.translationY;
+      if (step.dir === "left" && x < 0) {
+        tx.value = x; rot.value = x * 0.035;
+        ovOp.value = Math.min(1, Math.abs(x) / THR);
+      } else if (step.dir === "right" && x > 0) {
+        tx.value = x; rot.value = x * 0.035;
+        ovOp.value = Math.min(1, Math.abs(x) / THR);
+      } else if (step.dir === "up" && y < 0) {
+        ty.value = y;
+        ovOp.value = Math.min(1, Math.abs(y) / THR);
+      } else if (step.dir === "down" && y > 0) {
+        ty.value = y;
+        ovOp.value = Math.min(1, Math.abs(y) / THR);
       }
     })
     .onEnd((e) => {
-      if (e.translationX < -55 || e.velocityX < -500) {
-        tx.value = withTiming(-width * 1.1, { duration: 260 }, () => {
-          runOnJS(doHaptic)();
-          runOnJS(doTrashed)();
-          tx.value = 0;
-          rot.value = 0;
-          overlayOp.value = withTiming(0, { duration: 100 });
-        });
+      const x = e.translationX, y = e.translationY;
+      const vx = e.velocityX, vy = e.velocityY;
+      const go =
+        (step.dir === "left"  && (x < -THR || vx < -VTHR)) ||
+        (step.dir === "right" && (x >  THR || vx >  VTHR)) ||
+        (step.dir === "up"    && (y < -THR || vy < -VTHR)) ||
+        (step.dir === "down"  && (y >  THR || vy >  VTHR));
+
+      if (go) {
+        const dx = step.dir === "left" ? -1 : step.dir === "right" ? 1 : 0;
+        const dy = step.dir === "up"   ? -1 : step.dir === "down"  ? 1 : 0;
+        snap(dx, dy);
       } else {
         tx.value = withSpring(0, { damping: 14, stiffness: 180 });
+        ty.value = withSpring(0, { damping: 14, stiffness: 180 });
         rot.value = withSpring(0);
-        overlayOp.value = withTiming(0, { duration: 200 });
+        ovOp.value = withTiming(0, { duration: 200 });
       }
     });
 
   const cardStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: tx.value }, { rotate: `${rot.value}deg` }],
+    transform: [
+      { translateX: tx.value },
+      { translateY: ty.value },
+      { rotate: `${rot.value}deg` },
+      { scale: sc.value },
+    ],
   }));
-  const overlayStyle = useAnimatedStyle(() => ({ opacity: overlayOp.value }));
+  const overlayStyle = useAnimatedStyle(() => ({ opacity: ovOp.value }));
+  const burstStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: burstSc.value }],
+    opacity: burstOp.value,
+  }));
 
   return (
-    <View style={demoStyles.container}>
-      <GestureDetector gesture={cardPan}>
-        <Animated.View style={[demoStyles.card, cardStyle]}>
-          <LinearGradient colors={["#1a1a2e", "#16213e", "#0f3460"]} style={demoStyles.photo}>
-            <Ionicons name="image-outline" size={38} color="rgba(255,255,255,0.18)" />
-          </LinearGradient>
-          <Animated.View style={[demoStyles.overlay, { backgroundColor: color + "EE" }, overlayStyle]}>
-            <Ionicons name="close-circle" size={48} color="#fff" />
-            <Text style={demoStyles.overlayLabel}>Corbeille</Text>
+    <View style={cardStyles.wrapper}>
+      {/* Success burst ring */}
+      <Animated.View
+        pointerEvents="none"
+        style={[cardStyles.burst, { borderColor: step.color }, burstStyle]}
+      />
+
+      <GestureDetector gesture={pan}>
+        <Animated.View style={[cardStyles.card, cardStyle]}>
+          <LinearGradient
+            colors={[step.cardTop, step.cardBot]}
+            style={StyleSheet.absoluteFill}
+          />
+          {/* Abstract landscape silhouette */}
+          <View style={cardStyles.scene}>
+            <View style={[cardStyles.sky, { backgroundColor: step.color + "06" }]} />
+            <View style={cardStyles.hills}>
+              <View style={[cardStyles.hillL, { backgroundColor: step.color + "1A" }]} />
+              <View style={[cardStyles.hillR, { backgroundColor: step.color + "12" }]} />
+            </View>
+            <View style={[cardStyles.ground, { backgroundColor: step.color + "0A" }]} />
+          </View>
+          {/* Direction icon */}
+          <View style={[cardStyles.iconBadge, { backgroundColor: step.color + "1E" }]}>
+            <Ionicons name={step.icon} size={28} color={step.color + "AA"} />
+          </View>
+          {/* Gesture overlay */}
+          <Animated.View style={[cardStyles.overlay, { backgroundColor: step.color + "E8" }, overlayStyle]}>
+            <Ionicons name={step.icon} size={52} color="#fff" />
+            <Text style={cardStyles.overlayText}>{step.title.replace("\n", " ")}</Text>
           </Animated.View>
         </Animated.View>
       </GestureDetector>
-      <View style={demoStyles.hint}>
-        {trashed ? (
+
+      <View style={cardStyles.hintRow}>
+        {done ? (
           <>
-            <Ionicons name="checkmark-circle" size={14} color={color} />
-            <Text style={[demoStyles.hintText, { color }]}>Envoyée à la corbeille !</Text>
+            <Ionicons name="checkmark-circle" size={16} color={step.color} />
+            <Text style={[cardStyles.hintText, { color: step.color }]}>Parfait !</Text>
           </>
         ) : (
-          <>
-            <Ionicons name="arrow-back-outline" size={14} color="rgba(255,255,255,0.35)" />
-            <Text style={demoStyles.hintText}>Glissez la carte à gauche</Text>
-          </>
+          <ArrowHint dir={step.dir} color={step.color} />
         )}
       </View>
     </View>
   );
 }
 
-/* ─── Trash flow diagram ───────────────────────────────────── */
-function TrashFlow({ color }: { color: string }) {
-  const op1 = useSharedValue(0);
-  const op2 = useSharedValue(0);
-  const op3 = useSharedValue(0);
+/* ─── Trash interactive demo ───────────────────────────────── */
+const MINI_GRADIENTS: [string, string][] = [
+  ["#1a0510", "#16213e"],
+  ["#001a0a", "#0a2818"],
+  ["#00061a", "#0a1628"],
+  ["#0d0014", "#1a0a28"],
+];
 
-  useEffect(() => {
-    op1.value = withTiming(1, { duration: 380 });
-    op2.value = withDelay(500, withTiming(1, { duration: 380 }));
-    op3.value = withDelay(1000, withTiming(1, { duration: 380 }));
-    return () => { cancelAnimation(op1); cancelAnimation(op2); cancelAnimation(op3); };
-  }, []);
+function TrashDemo({ color, onDone }: { color: string; onDone: () => void }) {
+  const [selected, setSelected] = useState<number[]>([]);
+  const [acted, setActed] = useState(false);
 
-  const s1 = useAnimatedStyle(() => ({ opacity: op1.value }));
-  const s2 = useAnimatedStyle(() => ({ opacity: op2.value }));
-  const s3 = useAnimatedStyle(() => ({ opacity: op3.value }));
+  const toggle = (i: number) => {
+    Haptics.selectionAsync();
+    setSelected((p) => (p.includes(i) ? p.filter((x) => x !== i) : [...p, i]));
+  };
+
+  const doRestore = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setActed(true);
+    setTimeout(onDone, 600);
+  };
+
+  const doDelete = () => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    setActed(true);
+    setTimeout(onDone, 600);
+  };
+
+  const GSIZE = (width * 0.84 - 16) / 3;
 
   return (
-    <View style={flowStyles.row}>
-      <Animated.View style={[flowStyles.node, s1]}>
-        <View style={[flowStyles.nodeBg, { backgroundColor: "#FF3B5C18", borderColor: "#FF3B5C40" }]}>
-          <Ionicons name="images-outline" size={20} color="#FF3B5C" />
+    <View style={trashStyles.shell}>
+      <View style={trashStyles.header}>
+        <Ionicons name="trash-outline" size={16} color="rgba(255,255,255,0.45)" />
+        <Text style={trashStyles.headerTxt}>Corbeille · 4 photos</Text>
+      </View>
+
+      <View style={trashStyles.grid}>
+        {[0, 1, 2, 3].map((i) => {
+          const sel = selected.includes(i);
+          return (
+            <TouchableOpacity key={i} onPress={() => !acted && toggle(i)} activeOpacity={0.8}>
+              <View style={[trashStyles.photo, { width: GSIZE, height: GSIZE }]}>
+                <LinearGradient
+                  colors={MINI_GRADIENTS[i]}
+                  style={StyleSheet.absoluteFill}
+                />
+                {sel && (
+                  <View style={[trashStyles.selOver, { borderColor: color }]}>
+                    <View style={[trashStyles.check, { backgroundColor: color }]}>
+                      <Ionicons name="checkmark" size={11} color="#fff" />
+                    </View>
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <Text style={trashStyles.hint}>
+        {selected.length === 0
+          ? "Touchez des photos pour les sélectionner"
+          : `${selected.length} sélectionnée${selected.length > 1 ? "s" : ""}`}
+      </Text>
+
+      {selected.length > 0 && !acted && (
+        <View style={trashStyles.actions}>
+          <TouchableOpacity
+            style={[trashStyles.btn, { backgroundColor: "#22C55E" }]}
+            onPress={doRestore}
+          >
+            <Ionicons name="refresh" size={18} color="#fff" />
+            <Text style={trashStyles.btnTxt}>Restaurer</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[trashStyles.btn, { backgroundColor: "#FF3B5C" }]}
+            onPress={doDelete}
+          >
+            <Ionicons name="trash" size={18} color="#fff" />
+            <Text style={trashStyles.btnTxt}>Supprimer</Text>
+          </TouchableOpacity>
         </View>
-        <Text style={flowStyles.nodeLabel}>Swipe ←</Text>
-      </Animated.View>
+      )}
 
-      <Animated.View style={[flowStyles.arrowWrap, s2]}>
-        <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.2)" />
-      </Animated.View>
-
-      <Animated.View style={[flowStyles.node, s2]}>
-        <View style={[flowStyles.nodeBg, { backgroundColor: color + "18", borderColor: color + "40" }]}>
-          <Ionicons name="trash-outline" size={20} color={color} />
+      {acted && (
+        <View style={trashStyles.doneRow}>
+          <Ionicons name="checkmark-circle" size={16} color={color} />
+          <Text style={[trashStyles.hint, { color, marginTop: 0 }]}>Bien joué !</Text>
         </View>
-        <Text style={flowStyles.nodeLabel}>Corbeille</Text>
-      </Animated.View>
-
-      <Animated.View style={[flowStyles.arrowWrap, s3]}>
-        <Ionicons name="arrow-forward" size={14} color="rgba(255,255,255,0.2)" />
-      </Animated.View>
-
-      <Animated.View style={[flowStyles.node, s3]}>
-        <View style={[flowStyles.nodeBg, { backgroundColor: "#FF3B5C18", borderColor: "#FF3B5C40" }]}>
-          <Ionicons name="flame-outline" size={20} color="#FF3B5C" />
-        </View>
-        <Text style={flowStyles.nodeLabel}>Vider tout</Text>
-      </Animated.View>
+      )}
     </View>
   );
 }
 
-/* ─── Screen ───────────────────────────────────────────────── */
+/* ─── Single particle (hook at component level) ─────────────── */
+const PCFG = [
+  { sz: 5, x: 0.12, y: 0.24, dur: 4200, delay: 0 },
+  { sz: 3, x: 0.85, y: 0.18, dur: 5100, delay: 400 },
+  { sz: 7, x: 0.78, y: 0.72, dur: 3800, delay: 200 },
+  { sz: 4, x: 0.14, y: 0.68, dur: 4700, delay: 600 },
+  { sz: 5, x: 0.92, y: 0.42, dur: 4300, delay: 100 },
+  { sz: 3, x: 0.55, y: 0.88, dur: 5800, delay: 800 },
+];
+
+function Particle({ color, cfg }: { color: string; cfg: typeof PCFG[0] }) {
+  const ty = useSharedValue(0);
+  const op = useSharedValue(0);
+  useEffect(() => {
+    ty.value = withDelay(
+      cfg.delay,
+      withRepeat(withSequence(withTiming(-15, { duration: cfg.dur }), withTiming(0, { duration: cfg.dur })), -1, true)
+    );
+    op.value = withDelay(
+      cfg.delay,
+      withRepeat(withSequence(withTiming(0.4, { duration: cfg.dur / 2 }), withTiming(0.07, { duration: cfg.dur / 2 })), -1, true)
+    );
+    return () => { cancelAnimation(ty); cancelAnimation(op); };
+  }, [color]);
+  const s = useAnimatedStyle(() => ({ transform: [{ translateY: ty.value }], opacity: op.value }));
+  return (
+    <Animated.View
+      pointerEvents="none"
+      style={[
+        styles.particle, s,
+        {
+          width: cfg.sz, height: cfg.sz, borderRadius: cfg.sz / 2,
+          backgroundColor: color,
+          left: cfg.x * width, top: cfg.y * height,
+        },
+      ]}
+    />
+  );
+}
+
+/* ─── Main screen ────────────────────────────────────────────── */
 export default function OnboardingScreen() {
-  const [stepIdx, setStepIdx] = React.useState(0);
-  const contentOpacity = useSharedValue(1);
-  const textY = useSharedValue(0);
+  const [stepIdx, setStepIdx] = useState(0);
+  const [canSkip, setCanSkip] = useState(false);
+  const contOp = useSharedValue(1);
+  const titleY = useSharedValue(0);
 
   const step = STEPS[stepIdx];
 
-  const animateTo = (next: number) => {
-    if (next < 0 || next >= STEPS.length) return;
+  useEffect(() => {
+    setCanSkip(false);
+    const t = setTimeout(() => setCanSkip(true), 6000);
+    return () => clearTimeout(t);
+  }, [stepIdx]);
+
+  const goTo = useCallback((next: number) => {
+    if (next >= STEPS.length) { doFinish(); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    contentOpacity.value = withTiming(0, { duration: 140 }, () => {
+    contOp.value = withTiming(0, { duration: 150 }, () => {
       runOnJS(setStepIdx)(next);
-      textY.value = 24;
-      textY.value = withSpring(0, { damping: 18, stiffness: 220 });
-      contentOpacity.value = withTiming(1, { duration: 220 });
+      titleY.value = 30;
+      titleY.value = withSpring(0, { damping: 18, stiffness: 200 });
+      contOp.value = withTiming(1, { duration: 230 });
     });
-  };
+  }, []);
 
-  const panGesture = Gesture.Pan()
-    .enabled(step.type !== "interactive")
-    .activeOffsetX([-12, 12])
-    .onEnd((e) => {
-      if (e.translationX < -40) runOnJS(animateTo)(stepIdx + 1);
-      else if (e.translationX > 40) runOnJS(animateTo)(stepIdx - 1);
-    });
-
-  const finish = async () => {
+  const doFinish = async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await AsyncStorage.setItem(ONBOARDED_KEY, "true");
     router.replace("/");
   };
 
-  const contentStyle = useAnimatedStyle(() => ({
-    opacity: contentOpacity.value,
-    transform: [{ translateY: textY.value }],
+  const headerStyle = useAnimatedStyle(() => ({
+    opacity: contOp.value,
+    transform: [{ translateY: titleY.value }],
   }));
 
-  const isLight = step.color === "#EBEBF5";
-
   return (
-    <GestureDetector gesture={panGesture}>
-      <View style={styles.screen}>
-        <StatusBar barStyle="light-content" />
-        <LinearGradient colors={[step.dark, "#000000"]} locations={[0, 0.6]} style={StyleSheet.absoluteFill} />
-        <Particles color={step.color} />
+    <View style={styles.screen}>
+      <StatusBar barStyle="light-content" />
+      <LinearGradient
+        colors={[step.dark, "#050505"]}
+        locations={[0, 0.6]}
+        style={StyleSheet.absoluteFill}
+      />
 
-        <SafeAreaView style={styles.safe}>
-          {/* Top bar */}
-          <View style={styles.topBar}>
-            <View style={[styles.labelPill, { borderColor: step.color + "50", backgroundColor: step.color + "12" }]}>
-              <View style={[styles.labelDot, { backgroundColor: step.color }]} />
-              <Text style={[styles.labelText, { color: step.color }]}>{step.label}</Text>
-            </View>
-            <TouchableOpacity onPress={finish} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-              <Text style={styles.skipText}>Passer</Text>
+      {PCFG.map((cfg, i) => (
+        <Particle key={i} color={step.color} cfg={cfg} />
+      ))}
+
+      <SafeAreaView style={styles.safe}>
+        {/* Top bar */}
+        <View style={styles.topBar}>
+          <View style={styles.dots}>
+            {STEPS.map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.dot,
+                  i === stepIdx && [styles.dotActive, { backgroundColor: step.color, width: 22 }],
+                  i < stepIdx && [styles.dotDone, { backgroundColor: step.color + "55", width: 8 }],
+                ]}
+              />
+            ))}
+          </View>
+          <TouchableOpacity
+            onPress={doFinish}
+            hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+          >
+            <Text style={styles.skipTxt}>Passer</Text>
+          </TouchableOpacity>
+        </View>
+
+        {/* Header text */}
+        <Animated.View style={[styles.header, headerStyle]}>
+          <View style={[styles.pill, { borderColor: step.color + "50", backgroundColor: step.color + "14" }]}>
+            <View style={[styles.pillDot, { backgroundColor: step.color }]} />
+            <Text style={[styles.pillTxt, { color: step.color }]}>{step.label}</Text>
+          </View>
+          <Text style={styles.title}>{step.title}</Text>
+        </Animated.View>
+
+        {/* Interactive zone */}
+        <View style={styles.zone}>
+          {step.dir !== "trash" ? (
+            <SwipeCard key={step.key} step={step} onDone={() => goTo(stepIdx + 1)} />
+          ) : (
+            <TrashDemo key={step.key} color={step.color} onDone={() => goTo(stepIdx + 1)} />
+          )}
+        </View>
+
+        {/* Bottom */}
+        <View style={styles.bottom}>
+          <Text style={styles.desc}>{step.desc}</Text>
+
+          {canSkip && (
+            <TouchableOpacity
+              style={[styles.skipStep, { borderColor: step.color + "45" }]}
+              onPress={() => goTo(stepIdx + 1)}
+            >
+              <Text style={[styles.skipStepTxt, { color: step.color }]}>
+                {stepIdx === STEPS.length - 1 ? "Commencer →" : "Étape suivante →"}
+              </Text>
             </TouchableOpacity>
-          </View>
-
-          {/* Visual area */}
-          <View style={styles.iconArea}>
-            {step.type === "interactive" ? (
-              <InteractiveCard key={step.key} color={step.color} />
-            ) : step.type === "flow" ? (
-              <View style={{ alignItems: "center", gap: 20 }}>
-                <StepIcon step={step} small />
-                <TrashFlow key={step.key} color={step.color} />
-              </View>
-            ) : (
-              <StepIcon step={step} />
-            )}
-          </View>
-
-          {/* Text content */}
-          <Animated.View style={[styles.textBlock, contentStyle]}>
-            <Text style={styles.bigTitle}>{step.title}</Text>
-            <Text style={styles.desc}>{step.desc}</Text>
-          </Animated.View>
-
-          {/* Bottom */}
-          <View style={styles.bottom}>
-            <View style={styles.dotsRow}>
-              {STEPS.map((_, i) => {
-                const isActive = i === stepIdx;
-                return (
-                  <TouchableOpacity key={i} onPress={() => animateTo(i)}>
-                    <View style={[styles.dot, isActive ? [styles.dotOn, { backgroundColor: step.color, width: 28 }] : styles.dotOff]} />
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            <View style={styles.navRow}>
-              {stepIdx > 0 ? (
-                <TouchableOpacity style={styles.prevBtn} onPress={() => animateTo(stepIdx - 1)}>
-                  <Ionicons name="chevron-back" size={22} color="rgba(255,255,255,0.45)" />
-                </TouchableOpacity>
-              ) : (
-                <View style={{ width: 50 }} />
-              )}
-
-              <TouchableOpacity
-                style={[styles.nextBtn, { backgroundColor: step.color }]}
-                onPress={stepIdx < STEPS.length - 1 ? () => animateTo(stepIdx + 1) : finish}
-                activeOpacity={0.8}
-              >
-                <Text style={[styles.nextText, isLight && { color: "#000" }]}>
-                  {stepIdx === STEPS.length - 1 ? "Commencer" : "Suivant"}
-                </Text>
-                <Ionicons
-                  name={stepIdx === STEPS.length - 1 ? "checkmark" : "arrow-forward"}
-                  size={18}
-                  color={isLight ? "#000" : "#fff"}
-                />
-              </TouchableOpacity>
-            </View>
-
-            {step.type !== "interactive" && (
-              <Text style={styles.swipeHint}>Glissez pour naviguer</Text>
-            )}
-          </View>
-        </SafeAreaView>
-      </View>
-    </GestureDetector>
+          )}
+        </View>
+      </SafeAreaView>
+    </View>
   );
 }
 
-/* ─── Styles ───────────────────────────────────────────────── */
+/* ─── Styles ─────────────────────────────────────────────────── */
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: "#000" },
   safe: { flex: 1 },
+  particle: { position: "absolute" },
 
   topBar: {
-    flexDirection: "row", alignItems: "center", justifyContent: "space-between",
-    paddingHorizontal: 22, paddingTop: Platform.OS === "android" ? 8 : 4, paddingBottom: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 22,
+    paddingTop: Platform.OS === "android" ? 10 : 4,
+    paddingBottom: 6,
   },
-  labelPill: { flexDirection: "row", alignItems: "center", gap: 7, borderWidth: 1, borderRadius: 100, paddingHorizontal: 12, paddingVertical: 6 },
-  labelDot: { width: 6, height: 6, borderRadius: 3 },
-  labelText: { fontSize: 11, fontWeight: "800", letterSpacing: 0.8 },
-  skipText: { fontSize: 14, color: "rgba(255,255,255,0.3)", fontWeight: "500" },
+  dots: { flexDirection: "row", gap: 5, alignItems: "center" },
+  dot: { height: 5, width: 5, borderRadius: 3, backgroundColor: "rgba(255,255,255,0.12)" },
+  dotActive: { height: 5, borderRadius: 3 },
+  dotDone: { height: 5, borderRadius: 3 },
+  skipTxt: { fontSize: 13, color: "rgba(255,255,255,0.28)", fontWeight: "500" },
 
-  iconArea: { flex: 1, alignItems: "center", justifyContent: "center" },
-  iconWrap: { alignItems: "center", justifyContent: "center", width: 240, height: 240 },
-  ring: { position: "absolute", width: 200, height: 200, borderRadius: 100, borderWidth: 1.5 },
-  iconBg: { width: 180, height: 180, borderRadius: 90, alignItems: "center", justifyContent: "center" },
-  iconInner: { width: 140, height: 140, borderRadius: 70, alignItems: "center", justifyContent: "center", borderWidth: 1.5 },
+  header: { paddingHorizontal: 24, paddingTop: 12, gap: 10 },
+  pill: {
+    flexDirection: "row", alignItems: "center", gap: 7,
+    borderWidth: 1, borderRadius: 100,
+    paddingHorizontal: 11, paddingVertical: 5,
+    alignSelf: "flex-start",
+  },
+  pillDot: { width: 5, height: 5, borderRadius: 3 },
+  pillTxt: { fontSize: 10, fontWeight: "800", letterSpacing: 0.9 },
+  title: {
+    fontSize: 38,
+    fontWeight: "800",
+    color: "#FFFFFF",
+    letterSpacing: -1,
+    lineHeight: 44,
+  },
 
-  textBlock: { paddingHorizontal: 28, marginBottom: 28, gap: 12 },
-  bigTitle: { fontSize: 40, fontWeight: "800", color: "#FFFFFF", letterSpacing: -1.2, lineHeight: 46 },
-  desc: { fontSize: 15.5, color: "rgba(255,255,255,0.48)", lineHeight: 24, maxWidth: 320 },
+  zone: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 10,
+  },
 
-  bottom: { paddingHorizontal: 24, paddingBottom: Platform.OS === "android" ? 16 : 8, gap: 16 },
-  dotsRow: { flexDirection: "row", gap: 6, alignItems: "center" },
-  dot: { height: 6, borderRadius: 3 },
-  dotOn: {},
-  dotOff: { width: 6, backgroundColor: "rgba(255,255,255,0.15)" },
-
-  navRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  prevBtn: { width: 50, height: 50, borderRadius: 25, backgroundColor: "rgba(255,255,255,0.07)", borderWidth: 1, borderColor: "rgba(255,255,255,0.08)", alignItems: "center", justifyContent: "center" },
-  nextBtn: { flex: 1, marginLeft: 14, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, height: 56, borderRadius: 18, shadowColor: "#000", shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.35, shadowRadius: 14, elevation: 10 },
-  nextText: { fontSize: 17, fontWeight: "700", color: "#fff", letterSpacing: 0.1 },
-  swipeHint: { textAlign: "center", fontSize: 11, color: "rgba(255,255,255,0.18)", fontWeight: "500", letterSpacing: 0.3 },
-  particle: { position: "absolute" },
+  bottom: {
+    paddingHorizontal: 24,
+    paddingBottom: Platform.OS === "android" ? 18 : 8,
+    gap: 14,
+  },
+  desc: {
+    fontSize: 14.5,
+    color: "rgba(255,255,255,0.42)",
+    lineHeight: 22,
+    maxWidth: 320,
+  },
+  skipStep: {
+    alignSelf: "flex-start",
+    borderWidth: 1,
+    borderRadius: 100,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  skipStepTxt: { fontSize: 13, fontWeight: "600" },
 });
 
-const demoStyles = StyleSheet.create({
-  container: { alignItems: "center", gap: 16 },
-  card: { width: width * 0.68, height: 160, borderRadius: 20, overflow: "hidden", shadowColor: "#000", shadowOffset: { width: 0, height: 12 }, shadowOpacity: 0.5, shadowRadius: 20, elevation: 14 },
-  photo: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center" },
-  overlay: { ...StyleSheet.absoluteFillObject, alignItems: "center", justifyContent: "center", gap: 6, borderRadius: 20 },
-  overlayLabel: { color: "#fff", fontSize: 15, fontWeight: "700", letterSpacing: 0.3 },
-  hint: { flexDirection: "row", alignItems: "center", gap: 6 },
-  hintText: { fontSize: 12, color: "rgba(255,255,255,0.35)", fontWeight: "500" },
+const cardStyles = StyleSheet.create({
+  wrapper: { alignItems: "center", gap: 18 },
+
+  burst: {
+    position: "absolute",
+    width: CARD_W * 0.85,
+    height: CARD_W * 0.85,
+    borderRadius: CARD_W * 0.5,
+    borderWidth: 2,
+  },
+
+  card: {
+    width: CARD_W,
+    height: CARD_H,
+    borderRadius: 24,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 16 },
+    shadowOpacity: 0.55,
+    shadowRadius: 24,
+    elevation: 16,
+  },
+
+  scene: { ...StyleSheet.absoluteFillObject },
+  sky: { position: "absolute", top: 0, left: 0, right: 0, height: "55%" },
+  hills: {
+    position: "absolute",
+    bottom: "28%",
+    left: 0,
+    right: 0,
+    height: "35%",
+    flexDirection: "row",
+    alignItems: "flex-end",
+  },
+  hillL: { flex: 1, height: "80%", borderTopLeftRadius: 80, borderTopRightRadius: 40 },
+  hillR: { flex: 1, height: "100%", borderTopLeftRadius: 50, borderTopRightRadius: 90 },
+  ground: { position: "absolute", bottom: 0, left: 0, right: 0, height: "30%" },
+
+  iconBadge: {
+    position: "absolute",
+    bottom: 18,
+    left: 18,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+  },
+  overlayText: { color: "#fff", fontSize: 18, fontWeight: "700", letterSpacing: 0.2 },
+
+  hintRow: { flexDirection: "row", alignItems: "center", gap: 6 },
+  hintText: { fontSize: 13, fontWeight: "600" },
 });
 
-const flowStyles = StyleSheet.create({
-  row: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 16 },
-  node: { alignItems: "center", gap: 6 },
-  nodeBg: { width: 48, height: 48, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center" },
-  nodeLabel: { fontSize: 10, color: "rgba(255,255,255,0.4)", fontWeight: "600", textAlign: "center" },
-  arrowWrap: { paddingBottom: 16 },
+const arrowStyles = StyleSheet.create({
+  row: { flexDirection: "row", alignItems: "center", gap: 8 },
+  label: { fontSize: 13, fontWeight: "600" },
+});
+
+const trashStyles = StyleSheet.create({
+  shell: {
+    width: width * 0.86,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.06)",
+    borderRadius: 22,
+    padding: 16,
+    gap: 14,
+  },
+  header: { flexDirection: "row", alignItems: "center", gap: 8 },
+  headerTxt: { fontSize: 13, color: "rgba(255,255,255,0.45)", fontWeight: "600" },
+
+  grid: { flexDirection: "row", flexWrap: "wrap", gap: 8, justifyContent: "flex-start" },
+  photo: { borderRadius: 12, overflow: "hidden" },
+
+  selOver: {
+    ...StyleSheet.absoluteFillObject,
+    borderWidth: 2.5,
+    borderRadius: 12,
+    backgroundColor: "rgba(0,184,230,0.15)",
+  },
+  check: {
+    position: "absolute",
+    top: 7,
+    right: 7,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  hint: { fontSize: 12, color: "rgba(255,255,255,0.35)", textAlign: "center", marginTop: 2 },
+
+  actions: { flexDirection: "row", gap: 10 },
+  btn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 7,
+    height: 46,
+    borderRadius: 14,
+  },
+  btnTxt: { color: "#fff", fontSize: 14, fontWeight: "700" },
+
+  doneRow: { flexDirection: "row", alignItems: "center", gap: 6, justifyContent: "center" },
 });

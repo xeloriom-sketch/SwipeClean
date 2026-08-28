@@ -44,6 +44,7 @@ export default function StatsScreen() {
   const [freedSize, setFreedSize] = useState(0);
   const [deletedCount, setDeletedCount] = useState(0);
   const [sizeLoading, setSizeLoading] = useState(true);
+  const [libraryCount, setLibraryCount] = useState(0);
   const cachedTrashSize = useRef<{ count: number; size: number } | null>(null);
 
   const loadData = useCallback(async () => {
@@ -65,6 +66,12 @@ export default function StatsScreen() {
     setFreedSize(freedRaw ? Number(freedRaw) : 0);
     setDeletedCount(deletedRaw ? Number(deletedRaw) : 0);
 
+    // Nombre total de photos dans la bibliothèque
+    try {
+      const res = await MediaLibrary.getAssetsAsync({ mediaType: "photo", first: 1 });
+      setLibraryCount(res.totalCount ?? 0);
+    } catch {}
+
     // Cache par count pour éviter 200 appels getAssetInfoAsync à chaque navigation
     if (cachedTrashSize.current && cachedTrashSize.current.count === trash.length) {
       setTrashSize(cachedTrashSize.current.size);
@@ -79,16 +86,13 @@ export default function StatsScreen() {
     if (missing.length > 0) {
       const results = await Promise.allSettled(
         missing.map(async (item): Promise<number> => {
-          // 1er essai : MediaLibrary
           try {
             const info = await MediaLibrary.getAssetInfoAsync(item.id);
-            const mlSize = (info as any).fileSize as number | undefined;
-            if (mlSize && mlSize > 0) return mlSize;
-          } catch {}
-          // 2e essai : FileSystem (fiable sur Android content:// et file://)
-          try {
-            const fsInfo = await FileSystem.getInfoAsync(item.uri ?? item.id, { size: true });
-            if (fsInfo.exists && (fsInfo as any).size > 0) return (fsInfo as any).size as number;
+            const localUri = info.localUri;
+            if (localUri && !localUri.startsWith("ph://")) {
+              const sz = new FileSystem.File(localUri).size;
+              if (sz > 0) return sz;
+            }
           } catch {}
           return 0;
         })
@@ -112,10 +116,12 @@ export default function StatsScreen() {
   const kept = Math.max(0, totalSwiped - trashCount - favCount);
 
   const stats = [
-    { icon: "layers-outline",          label: "Triées",    value: totalSwiped, color: "#8B8BFF", sub: "au total" },
-    { icon: "trash-outline",           label: "Corbeille", value: trashCount,  color: "#FF4458", sub: sizeLoading ? "…" : trashSize > 0 ? `≈ ${formatSize(trashSize)}` : "à supprimer" },
-    { icon: "star-outline",            label: "Favoris",   value: favCount,    color: "#FFD60A", sub: "étoilées ⭐" },
-    { icon: "heart-outline",           label: "Gardées",   value: kept,        color: "#4CFF5E", sub: "conservées ❤️" },
+    { icon: "layers-outline",          label: "Triées",      value: totalSwiped,   color: "#8B8BFF", sub: "au total" },
+    { icon: "images-outline",          label: "Bibliothèque",value: libraryCount,  color: "#5AC8FA", sub: "photos sur l'appareil" },
+    { icon: "trash-outline",           label: "Corbeille",   value: trashCount,    color: "#FF4458", sub: sizeLoading ? "…" : trashSize > 0 ? `≈ ${formatSize(trashSize)}` : "à supprimer" },
+    { icon: "star-outline",            label: "Favoris",     value: favCount,      color: "#FFD60A", sub: "étoilées ⭐" },
+    { icon: "heart-outline",           label: "Gardées",     value: kept,          color: "#4CFF5E", sub: "conservées ❤️" },
+    { icon: "checkmark-circle-outline",label: "Supprimées",  value: deletedCount,  color: "#FF9500", sub: freedSize > 0 ? formatSize(freedSize) + " libérés" : "définitivement" },
   ];
 
   // Texte principal de la carte "espace libéré"

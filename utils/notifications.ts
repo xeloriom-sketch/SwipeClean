@@ -14,15 +14,6 @@ export async function setNotifHour(hour: number): Promise<void> {
   await AsyncStorage.setItem(NOTIF_HOUR_KEY, String(hour));
 }
 
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: false,
-    shouldSetBadge: false,
-  }),
-});
 
 export async function requestNotifPermission(): Promise<boolean> {
   const { status } = await Notifications.requestPermissionsAsync();

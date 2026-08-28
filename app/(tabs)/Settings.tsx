@@ -1,5 +1,5 @@
 // app/Settings.tsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
   Platform,
   Dimensions,
   Alert,
+  Clipboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -21,6 +22,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { isNotificationsEnabled, setNotificationsEnabled, getNotifHour, setNotifHour, scheduleDailyReminder } from "../../utils/notifications";
 import * as Updates from "expo-updates";
+import { getLogs, clearLogs, subscribeLogs, logsAsText, type LogEntry } from "../../utils/devLogger";
 
 const DARK_MODE_KEY = "@app_dark_mode";
 const VIBRATE_KEY = "@app_vibrate_swipe";
@@ -52,6 +54,13 @@ export default function SettingsScreen() {
   const [showAbout, setShowAbout] = useState(false);
   const [notifHour, setNotifHourState] = useState(10);
   const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "downloading" | "ready" | "uptodate">("idle");
+
+  // Dev mode
+  const [devMode, setDevMode] = useState(false);
+  const [devLogs, setDevLogs] = useState<readonly LogEntry[]>([]);
+  const versionTaps = useRef(0);
+  const versionTapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const logScrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
     (async () => {
@@ -147,6 +156,44 @@ export default function SettingsScreen() {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setShowAbout((prev) => !prev);
   };
+
+  // Dev mode unlock: tap version 7×
+  const handleVersionTap = useCallback(() => {
+    versionTaps.current += 1;
+    if (versionTapTimer.current) clearTimeout(versionTapTimer.current);
+    if (versionTaps.current >= 7) {
+      versionTaps.current = 0;
+      setDevMode((v) => {
+        if (!v) setDevLogs(getLogs());
+        Alert.alert(v ? "Mode dev désactivé" : "Mode développeur activé 🛠️", v ? "" : "Les logs s'affichent ci-dessous.");
+        return !v;
+      });
+    } else {
+      versionTapTimer.current = setTimeout(() => { versionTaps.current = 0; }, 2000);
+    }
+  }, []);
+
+  // Live-update logs when dev mode is open
+  useEffect(() => {
+    if (!devMode) return;
+    setDevLogs(getLogs());
+    const unsub = subscribeLogs(() => {
+      setDevLogs([...getLogs()]);
+      requestAnimationFrame(() => logScrollRef.current?.scrollToEnd({ animated: false }));
+    });
+    return unsub;
+  }, [devMode]);
+
+  const copyLogs = useCallback(() => {
+    const txt = logsAsText();
+    Clipboard.setString(txt);
+    Alert.alert("Copié !", `${getLogs().length} lignes copiées dans le presse-papier.`);
+  }, []);
+
+  const handleClearLogs = useCallback(() => {
+    clearLogs();
+    setDevLogs([]);
+  }, []);
 
   const sub = (txt: string) => (
     <Text style={[styles.optionSub, darkMode && { color: "rgba(255,255,255,0.4)" }]}>{txt}</Text>
@@ -367,11 +414,76 @@ export default function SettingsScreen() {
           </TouchableOpacity>
           {showAbout && (
             <View style={[styles.aboutBox, { backgroundColor: darkMode ? "#111" : "#f5f5f5" }]}>
-              <Text style={[styles.aboutLine, { color: darkMode ? "#888" : "#aaa" }]}>© 2025 SwipeClean · Tous droits réservés</Text>
+              <TouchableOpacity onPress={handleVersionTap} activeOpacity={0.7}>
+                <Text style={[styles.aboutLine, { color: darkMode ? "#888" : "#aaa" }]}>
+                  © 2025 SwipeClean · Tous droits réservés
+                </Text>
+                <Text style={[styles.aboutLine, { color: darkMode ? "#555" : "#bbb", fontSize: 11, marginTop: 2 }]}>
+                  v{Constants.expoConfig?.version ?? "—"} · {Platform.OS} · {Updates.channel ?? "dev"}
+                </Text>
+              </TouchableOpacity>
             </View>
           )}
         </View>
       </View>
+
+      {/* Section: Mode développeur (caché, unlock 7× tap sur version) */}
+      {devMode && (
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: "#FF9500" }]}>
+            🛠 DÉVELOPPEUR
+          </Text>
+          <View style={[styles.card, { backgroundColor: darkMode ? "#1a1a1a" : "#fff" }]}>
+            {/* Infos système */}
+            <View style={[styles.devInfoRow, { borderBottomColor: darkMode ? "rgba(255,255,255,0.07)" : "#f0f0f0" }]}>
+              <Text style={[styles.devInfoTxt, { color: darkMode ? "#aaa" : "#555" }]}>
+                {Platform.OS} {Platform.Version} · channel={Updates.channel ?? "N/A"} · runtime={Updates.runtimeVersion ?? "N/A"}
+              </Text>
+            </View>
+
+            {/* Barre d'action */}
+            <View style={styles.devBtnRow}>
+              <TouchableOpacity style={[styles.devBtn, { backgroundColor: "#0A84FF22", borderColor: "#0A84FF55" }]} onPress={copyLogs}>
+                <Ionicons name="copy-outline" size={14} color="#0A84FF" />
+                <Text style={[styles.devBtnTxt, { color: "#0A84FF" }]}>Copier</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.devBtn, { backgroundColor: "#FF4458" + "22", borderColor: "#FF445555" }]} onPress={handleClearLogs}>
+                <Ionicons name="trash-outline" size={14} color="#FF4458" />
+                <Text style={[styles.devBtnTxt, { color: "#FF4458" }]}>Effacer</Text>
+              </TouchableOpacity>
+              <Text style={[styles.devInfoTxt, { color: darkMode ? "#555" : "#bbb" }]}>
+                {devLogs.length} lignes
+              </Text>
+            </View>
+
+            {/* Terminal */}
+            <ScrollView
+              ref={logScrollRef}
+              style={styles.terminal}
+              showsVerticalScrollIndicator
+              onContentSizeChange={() => logScrollRef.current?.scrollToEnd({ animated: false })}
+            >
+              {devLogs.length === 0 ? (
+                <Text style={styles.termEmpty}>Aucun log — swipe des photos pour voir les événements.</Text>
+              ) : (
+                devLogs.map((e, i) => {
+                  const d = new Date(e.ts);
+                  const hh = d.getHours().toString().padStart(2, "0");
+                  const mm = d.getMinutes().toString().padStart(2, "0");
+                  const ss = d.getSeconds().toString().padStart(2, "0");
+                  const color = e.level === "error" ? "#FF4458" : e.level === "warn" ? "#FF9500" : "#4CFF5E";
+                  const tag = e.level === "error" ? "ERR" : e.level === "warn" ? "WRN" : "INF";
+                  return (
+                    <Text key={i} style={[styles.termLine, { color }]}>
+                      {`${hh}:${mm}:${ss} [${tag}][${e.tag}] ${e.msg}`}
+                    </Text>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      )}
 
       </ScrollView>
     </SafeAreaView>
@@ -486,4 +598,48 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   aboutLine: { fontSize: 13 },
+
+  // Dev mode
+  devInfoRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  devInfoTxt: { fontSize: 11, fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace" },
+  devBtnRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.07)",
+  },
+  devBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  devBtnTxt: { fontSize: 12, fontWeight: "600" },
+  terminal: {
+    height: 280,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  termLine: {
+    fontSize: 10,
+    fontFamily: Platform.OS === "ios" ? "Menlo" : "monospace",
+    lineHeight: 16,
+  },
+  termEmpty: {
+    fontSize: 12,
+    color: "rgba(128,128,128,0.5)",
+    fontStyle: "italic",
+    textAlign: "center",
+    marginTop: 16,
+  },
 });
