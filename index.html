@@ -125,7 +125,7 @@
         <div class="flex flex-row items-center justify-between space-x-5 font-light mt-20 overflow-hidden">
             <div class="bg-black/3 w-[40vw] h-[27vw] rounded-xl px-5 pt-5 pb-5 flex flex-col overflow-hidden">
                 <p class="text-3xl font-light mb-3">Catégories de photos</p>
-                <div id="hashtagGrid" class="bg-white flex-1 flex flex-wrap content-end gap-2 font-normal p-5 rounded-xl overflow-hidden" style="cursor:default;">
+                <div id="hashtagGrid" class="bg-white flex-1 flex flex-wrap content-end gap-2 font-normal p-5 rounded-xl overflow-hidden">
                     <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Nature</button>
                     <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Voyage</button>
                     <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Famille</button>
@@ -140,24 +140,12 @@
                     <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Nuit</button>
                     <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Mer</button>
                     <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Montagne</button>
-                    <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Été</button>
-                    <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Hiver</button>
                     <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Paysage</button>
-                    <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Mode</button>
                     <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Amis</button>
-                    <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Concert</button>
-                    <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Camping</button>
                     <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Soirée</button>
-                    <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Bébé</button>
-                    <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Rétro</button>
-                    <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Fête</button>
-                    <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Mariage</button>
                     <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Vacances</button>
-                    <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Randonnée</button>
-                    <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Chien</button>
-                    <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Chat</button>
+                    <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Mariage</button>
                     <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Fleurs</button>
-                    <button class="hashtag-hidden border border-black py-2 px-7 rounded-full">#Coucher de soleil</button>
                 </div>
             </div>
             <div class="bg-black/3 w-[40vw] h-[27vw] rounded-xl px-5 pt-5 pb-5 flex flex-col">
@@ -771,20 +759,24 @@
                     if (started) return; started = true;
                     var W = grid.clientWidth, H = grid.clientHeight;
                     if (W === 0 || H === 0) return;
-                    grid.style.overflow = 'visible'; grid.style.height = H + 'px'; grid.style.position = 'relative';
+                    grid.style.height = H + 'px'; grid.style.position = 'relative';
                     buttons.forEach(function(btn) { btn.classList.remove('hashtag-hidden'); btn.style.opacity = '0'; });
                     var data = buttons.map(function (btn) { var r = btn.getBoundingClientRect(); return { el: btn, w: Math.max(r.width, 40), h: Math.max(r.height, 20) }; });
                     buttons.forEach(function (btn, i) { btn.style.position = 'absolute'; btn.style.margin = '0'; btn.style.left = (Math.random() * Math.max(1, W - data[i].w)) + 'px'; btn.style.top = (-data[i].h * 2 - i * 18) + 'px'; btn.style.opacity = '1'; btn.style.transform = ''; });
-                    var Engine = Matter.Engine, Bodies = Matter.Bodies, Body = Matter.Body, Composite = Matter.Composite, Mouse = Matter.Mouse, MouseConstraint = Matter.MouseConstraint;
+                    var Engine = Matter.Engine, Bodies = Matter.Bodies, Body = Matter.Body, Composite = Matter.Composite;
                     var engine = Engine.create({ gravity: { y: 1, scale: 0.002 } }), th = 60;
                     var walls = [Bodies.rectangle(W/2, H+th/2, W+th*2, th, { isStatic:true, friction:0.8, restitution:0.2 }), Bodies.rectangle(-th/2, H/2, th, H*4, { isStatic:true }), Bodies.rectangle(W+th/2, H/2, th, H*4, { isStatic:true })];
-                    var bodies = data.map(function (d) { var x = parseFloat(d.el.style.left)+d.w/2, y = parseFloat(d.el.style.top)+d.h/2, rx = Math.max(0, Math.min(d.h/2-2, 18)); var b = Bodies.rectangle(x, y, d.w, d.h, { restitution:0.3, friction:0.6, frictionAir:0.008, chamfer: rx>0?{radius:[rx,rx,rx,rx]}:undefined }); Body.setAngularVelocity(b, (Math.random()-0.5)*0.15); return b; });
-                    var mouse = Mouse.create(grid);
-                    var mc = MouseConstraint.create(engine, { mouse: mouse, constraint: { stiffness: 0.25, angularStiffness: 0.1, render: { visible: false } } });
-                    Composite.add(engine.world, walls.concat(bodies).concat([mc]));
-                    grid.addEventListener('mousedown', function() { grid.style.cursor = 'grabbing'; });
-                    grid.addEventListener('mouseup', function() { grid.style.cursor = 'grab'; });
-                    grid.addEventListener('mouseover', function() { grid.style.cursor = 'grab'; });
+                    var bodies = data.map(function (d) { var x = parseFloat(d.el.style.left)+d.w/2, y = parseFloat(d.el.style.top)+d.h/2, rx = Math.max(0, Math.min(d.h/2-2, 18)); var b = Bodies.rectangle(x, y, d.w, d.h, { restitution:0.35, friction:0.5, frictionAir:0.01, chamfer: rx>0?{radius:[rx,rx,rx,rx]}:undefined }); Body.setAngularVelocity(b, (Math.random()-0.5)*0.15); return b; });
+                    Composite.add(engine.world, walls.concat(bodies));
+                    grid.addEventListener('mousemove', function(e) {
+                        var rect = grid.getBoundingClientRect();
+                        var mx = e.clientX - rect.left, my = e.clientY - rect.top;
+                        bodies.forEach(function(b) {
+                            var dx = b.position.x - mx, dy = b.position.y - my;
+                            var dist = Math.sqrt(dx*dx + dy*dy), r = 90;
+                            if (dist < r && dist > 0.5) { var f = (r - dist) / r * 0.005; Body.applyForce(b, b.position, { x: dx/dist*f, y: dy/dist*f }); }
+                        });
+                    });
                     var last = performance.now();
                     function loop(now) { var dt = Math.min(now-last, 30); last = now; Engine.update(engine, dt); bodies.forEach(function (b, i) { var d = data[i]; d.el.style.left = (b.position.x-d.w/2).toFixed(1)+'px'; d.el.style.top = (b.position.y-d.h/2).toFixed(1)+'px'; d.el.style.transform = 'rotate('+b.angle.toFixed(4)+'rad)'; }); requestAnimationFrame(loop); }
                     requestAnimationFrame(loop);
