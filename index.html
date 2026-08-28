@@ -69,6 +69,121 @@
         .dl-btn-ios:hover { background-color: #4c1d95 !important; box-shadow: 0 8px 28px rgba(109,40,217,0.4); transform: scale(1.025); }
         .dl-btn-apk { transition: background-color 0.28s, color 0.28s, border-color 0.28s, transform 0.25s; }
         .dl-btn-apk:hover { background-color: #000 !important; color: #fff !important; border-color: transparent !important; transform: scale(1.025); }
+
+    /* ═══════════════════════════════════════════════════
+       RESPONSIVE — TABLET (≤1024px)
+    ═══════════════════════════════════════════════════ */
+    @media (max-width: 1024px) {
+        nav { padding: 16px 24px !important; }
+        .nav-links { display: none !important; }
+        nav > div:last-child { display: none !important; }
+        #mob-hamburger { display: flex !important; }
+
+        #Hero h1 { font-size: clamp(2rem, 5vw, 4rem) !important; padding-top: 60px !important; }
+        #Hero .flex.items-center.justify-center.space-x-5 { flex-direction: column; gap: 12px; }
+        #3, #2, #CardImage { height: 52vw !important; width: 80vw !important; border-radius: 36px !important; }
+
+        #NextSection { padding: 48px 32px !important; border-radius: 28px 28px 0 0 !important; }
+        #NextSection h2 { font-size: clamp(2rem, 4.5vw, 3.5rem) !important; }
+        #NextSection .flex.flex-row.items-center { flex-direction: column !important; }
+        #NextSection .flex.flex-row.items-center > div { width: 100% !important; height: auto !important; min-height: 300px; }
+        #NextSection .flex.flex-row.items-center > div:last-child { min-height: 260px; }
+
+        #integSection .text-9xl { font-size: clamp(3rem, 8vw, 6rem) !important; }
+        .integ-img { width: 6rem !important; height: 6rem !important; }
+        #wolloBanner { width: 10vw !important; }
+
+        #social .flex.items-center.gap-10 { flex-direction: column !important; gap: 24px; overflow: visible !important; height: auto !important; padding: 140px 32px 60px; }
+        .social-card { width: 78vw !important; height: auto !important; transform: none !important; margin-top: 0 !important; }
+        .social-card > div:last-child { height: 44vw !important; }
+
+        #Text h2 { font-size: clamp(2rem, 4.5vw, 4rem) !important; }
+
+        #nombercolone { padding: 40px 24px !important; }
+        #nombercolone .nb-row { grid-template-columns: 1fr !important; gap: 20px !important; }
+        #nombercolone .nb-row img { width: 100% !important; height: 50vw !important; }
+        #nombercolone .nb-row > div { display: flex !important; flex-direction: column !important; gap: 12px; }
+        #nombercolone .nb-row h3 { font-size: clamp(4rem, 15vw, 8rem) !important; }
+        #nombercolone .nb-row > div > div[style] { grid-template-columns: auto 1fr !important; }
+
+        #avis { padding: 20px 24px !important; }
+        #avis h3 { font-size: clamp(2.2rem, 6vw, 4rem) !important; padding-top: 60px !important; }
+        #avis .grid { grid-template-columns: repeat(2, 1fr) !important; }
+        .avis-card { width: 100% !important; height: auto !important; min-height: 280px; }
+
+        #changelog h3 { font-size: clamp(2.5rem, 7vw, 4.5rem) !important; padding-top: 80px !important; }
+        #changelog > div { padding: 0 24px !important; }
+        .cl-entry { padding: 48px 0 !important; }
+
+        #faq { padding: 40px 24px !important; }
+        #faq h3 { font-size: clamp(2.2rem, 6vw, 4rem) !important; padding-top: 60px !important; padding-bottom: 40px !important; }
+        #faq .max-w-\[65vw\] { max-width: 100% !important; }
+
+        footer { padding: 20px 24px !important; }
+        #footerCard { flex-direction: column !important; height: auto !important; }
+        #footerCard > div:first-child h2 { font-size: clamp(2rem, 5vw, 3.5rem) !important; }
+        #footerCard > div:last-child { width: 100% !important; height: 60vw; }
+        footer .grid { grid-template-columns: 1fr 1fr !important; }
+    }
+
+    /* ═══════════════════════════════════════════════════
+       RESPONSIVE — MOBILE (≤640px)
+    ═══════════════════════════════════════════════════ */
+    @media (max-width: 640px) {
+        nav > div:first-child { padding: 0 !important; }
+        nav > div:first-child span { font-size: 1rem !important; }
+
+        #Hero h1 { font-size: clamp(1.6rem, 7.5vw, 2.8rem) !important; padding-top: 24px !important; }
+        #3, #2, #CardImage { height: 62vw !important; width: 90vw !important; border-radius: 24px !important; }
+        .dl-btn-ios, .dl-btn-apk { padding: 14px 22px !important; font-size: 0.9rem; }
+
+        #NextSection { padding: 36px 16px !important; border-radius: 20px 20px 0 0 !important; margin-top: -20vh !important; }
+        #NextSection h2 { font-size: clamp(1.6rem, 7vw, 2.5rem) !important; }
+
+        #integSection .text-9xl { font-size: clamp(2rem, 10vw, 4rem) !important; }
+        .integ-img { width: 4rem !important; height: 4rem !important; }
+        #wolloBanner { display: none !important; }
+
+        #social { height: auto !important; }
+        #social .flex.items-center.gap-10 { padding: 120px 16px 40px; }
+        .social-card { width: 88vw !important; }
+        .social-card > div:last-child { height: 52vw !important; }
+        .social-card p.text-9xl { font-size: 4rem !important; }
+        .social-card .text-2xl { font-size: 1.1rem !important; }
+
+        #Text { padding: 0 20px !important; }
+        #Text h2 { font-size: clamp(1.5rem, 7vw, 2.5rem) !important; }
+
+        #nombercolone { padding: 20px 16px !important; }
+        #nombercolone .nb-row h3 { font-size: clamp(3.5rem, 18vw, 6rem) !important; }
+        #nombercolone .nb-row p.text-xl { font-size: 0.95rem !important; }
+
+        #avis { padding: 16px !important; }
+        #avis h3 { font-size: clamp(1.8rem, 8vw, 2.8rem) !important; padding-top: 48px !important; }
+        #avis .grid { grid-template-columns: 1fr !important; }
+        .avis-card { min-height: 260px; }
+
+        #changelog { padding-bottom: 48px !important; }
+        #changelog h3 { font-size: clamp(2rem, 10vw, 3.5rem) !important; padding: 60px 0 48px !important; }
+        #changelog > div { padding: 0 16px !important; border: none !important; }
+        .cl-entry { flex-direction: column !important; padding: 36px 0 !important; gap: 12px; }
+        .cl-date-col { width: auto !important; }
+        .cl-date-col time { position: static !important; }
+        .cl-body { padding: 0 !important; }
+        .cl-body h3 { padding-top: 0 !important; font-size: 2rem !important; }
+        .cl-img-wrap > div { height: 160px !important; }
+
+        #faq { padding: 20px 16px !important; }
+        #faq h3 { font-size: clamp(1.8rem, 8vw, 2.8rem) !important; padding: 48px 0 24px !important; }
+        .faq-btn { font-size: 1rem !important; padding: 20px 0 !important; }
+
+        footer { padding: 16px !important; }
+        #footerCard > div:first-child { padding: 36px 20px !important; }
+        #footerCard > div:first-child h2 { font-size: clamp(1.5rem, 6.5vw, 2.2rem) !important; }
+        #footerCard > div:last-child { height: 64vw; }
+        footer .grid { grid-template-columns: 1fr !important; text-align: center; }
+        footer .flex.gap-4 { justify-content: center !important; }
+    }
     </style>
     <style>
       /* ── Navbar center ── */
@@ -127,6 +242,22 @@
             <a href="https://apps.apple.com/fr/app/swipeclean-trier-vos-photos/id6802313349" target="_blank" id="nav-btn" class="bg-black font-light text-white px-5 py-3 items-center rounded-xl cursor-pointer">Télécharger</a>
         </div>
     </nav>
+    <!-- Mobile menu overlay -->
+    <div id="mob-menu" style="display:none;position:fixed;inset:0;background:#fff;z-index:200;flex-direction:column;align-items:center;justify-content:center;gap:36px;">
+        <button onclick="closeMobMenu()" style="position:absolute;top:24px;right:24px;background:none;border:none;cursor:pointer;font-size:28px;color:#000;">&#x2715;</button>
+        <a class="text-3xl font-light cursor-pointer" onclick="navTo('integSection');closeMobMenu()">Fonctionnalités</a>
+        <a class="text-3xl font-light cursor-pointer" onclick="navTo('social');closeMobMenu()">Comment ça marche</a>
+        <a class="text-3xl font-light cursor-pointer" onclick="navTo('avis');closeMobMenu()">Avis</a>
+        <a class="text-3xl font-light cursor-pointer" onclick="navTo('changelog');closeMobMenu()">Changelog</a>
+        <a class="text-3xl font-light cursor-pointer" onclick="navTo('faq');closeMobMenu()">FAQ</a>
+        <a href="https://apps.apple.com/fr/app/swipeclean-trier-vos-photos/id6802313349" target="_blank" class="bg-black text-white font-light px-10 py-4 rounded-xl text-xl">Télécharger</a>
+    </div>
+    <!-- Hamburger button (mobile only) -->
+    <button id="mob-hamburger" onclick="openMobMenu()" style="display:none;background:none;border:none;cursor:pointer;padding:8px;flex-direction:column;gap:5px;position:fixed;top:20px;right:20px;z-index:60;">
+        <span style="display:block;width:24px;height:2px;background:#000;border-radius:2px;"></span>
+        <span style="display:block;width:24px;height:2px;background:#000;border-radius:2px;"></span>
+        <span style="display:block;width:18px;height:2px;background:#000;border-radius:2px;"></span>
+    </button>
 
     <section id="Hero" class="flex flex-col items-center justify-center space-y-5 mt-20">
         <div class="overflow-hidden">
@@ -1073,6 +1204,35 @@
         setInterval(tick, 100);
         tick();
     })();
+    </script>
+
+    <script>
+    function openMobMenu() {
+        var m = document.getElementById('mob-menu');
+        m.style.display = 'flex';
+        document.body.style.overflow = 'hidden';
+    }
+    function closeMobMenu() {
+        var m = document.getElementById('mob-menu');
+        m.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+    /* Disable matter.js physics on mobile to save CPU */
+    if (window.innerWidth <= 1024) {
+        window._noPhysics = true;
+        var btns = document.querySelectorAll('.hashtag-hidden');
+        btns.forEach(function(b) {
+            b.classList.remove('hashtag-hidden');
+            b.style.opacity = '1';
+            b.style.transform = 'none';
+        });
+    }
+    /* Fix social cards mobile: remove JS scale transform */
+    if (window.innerWidth <= 1024) {
+        document.querySelectorAll('.social-card').forEach(function(c) {
+            c.style.transform = 'scale(1)';
+        });
+    }
     </script>
 </body>
 </html>
