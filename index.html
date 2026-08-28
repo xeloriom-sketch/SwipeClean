@@ -70,9 +70,7 @@
         .dl-btn-apk { transition: background-color 0.28s, color 0.28s, border-color 0.28s, transform 0.25s; }
         .dl-btn-apk:hover { background-color: #000 !important; color: #fff !important; border-color: transparent !important; transform: scale(1.025); }
 
-    /* ═══════════════════════════════════════════════════
-       RESPONSIVE — TABLET (≤1024px)
-    ═══════════════════════════════════════════════════ */
+    
     @media (max-width: 1024px) {
         nav { padding: 16px 24px !important; }
         .nav-links { display: none !important; }
@@ -126,9 +124,7 @@
         footer .grid { grid-template-columns: 1fr 1fr !important; }
     }
 
-    /* ═══════════════════════════════════════════════════
-       RESPONSIVE — MOBILE (≤640px)
-    ═══════════════════════════════════════════════════ */
+    
     @media (max-width: 640px) {
         nav > div:first-child { padding: 0 !important; }
         nav > div:first-child span { font-size: 1rem !important; }
@@ -184,6 +180,156 @@
         footer .grid { grid-template-columns: 1fr !important; text-align: center; }
         footer .flex.gap-4 { justify-content: center !important; }
     }
+
+    /* ═══════════════════════════════════════════════
+       RESPONSIVE MOBILE / TABLET
+    ═══════════════════════════════════════════════ */
+
+    /* ── Tablet ≤1100px ── */
+    @media (max-width: 1100px) {
+        /* Navbar */
+        .nav-links { display: none !important; }
+        nav > div:last-child { display: none !important; }
+        #mob-hamburger { display: flex !important; }
+        nav > div:first-child { padding: 0 0 0 4px !important; }
+
+        /* Hero */
+        #Hero { padding-top: 0; }
+        #Hero .overflow-hidden { padding: 0 24px; }
+        #Hero h1 { font-size: clamp(2.2rem, 5.5vw, 4.5rem) !important; padding-top: 96px !important; text-align: center; }
+        #Hero .flex.items-center.justify-center.space-x-5 { gap: 12px; flex-wrap: wrap; justify-content: center; }
+        #Hero .mx-auto.pt-40 { padding-top: 40px !important; }
+        span#\33, span#\32, span#CardImage { height: 52vw !important; width: 82vw !important; border-radius: 36px !important; }
+
+        /* NextSection */
+        #NextSection { padding: 56px 32px 48px !important; border-radius: 32px 32px 0 0 !important; margin-top: -10vh !important; }
+        #NextSection h2 { font-size: clamp(2rem, 5vw, 3.5rem) !important; margin-bottom: 0; }
+        #NextSection > div.flex.flex-row { flex-direction: column !important; gap: 20px !important; }
+        #NextSection > div.flex.flex-row > div { width: 100% !important; height: auto !important; min-height: 320px; }
+        #NextSection > div.flex.flex-row > div:last-child { min-height: 260px; }
+
+        /* Fonctionnalités */
+        #integSection .text-9xl { font-size: clamp(3rem, 8vw, 7rem) !important; }
+        .integ-img { width: 5.5rem !important; height: 5.5rem !important; }
+        #wolloBanner { display: none !important; }
+
+        /* Social cards */
+        #social { height: auto !important; min-height: auto !important; overflow: visible !important; }
+        #social > div { flex-direction: column !important; height: auto !important; overflow: visible !important; margin-top: 0 !important; padding: 100px 32px 64px !important; gap: 20px !important; }
+        .social-card { width: 100% !important; max-width: 600px; height: auto !important; transform: none !important; margin: 0 !important; }
+        .social-card > div:last-child { height: 200px !important; }
+        .social-card h1 { font-size: 1.3rem !important; }
+
+        /* Text */
+        #Text { padding: 0 32px !important; height: auto !important; min-height: 70vh; }
+        #Text h2 { font-size: clamp(2rem, 5vw, 4rem) !important; }
+
+        /* Stats */
+        #nombercolone { padding: 48px 32px !important; }
+        #nombercolone .nb-row { grid-template-columns: 1fr !important; gap: 24px !important; padding: 48px 0 !important; }
+        #nombercolone .nb-row img { width: 100% !important; height: 52vw !important; border-radius: 24px !important; }
+        #nombercolone .nb-row > div { display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
+        #nombercolone .nb-row h3 { font-size: clamp(4.5rem, 16vw, 8rem) !important; }
+        #nombercolone .nb-row p.text-xl { font-size: 1rem !important; padding: 0 !important; }
+
+        /* Avis */
+        #avis { padding: 20px 32px !important; }
+        #avis h3 { font-size: clamp(2.2rem, 6vw, 4.5rem) !important; padding-top: 64px !important; }
+        #avis .grid { grid-template-columns: repeat(2, 1fr) !important; gap: 16px !important; }
+        .avis-card { width: 100% !important; height: auto !important; min-height: 280px; }
+
+        /* Changelog */
+        #changelog h3.font-light { font-size: clamp(2.5rem, 7vw, 5rem) !important; padding-top: 80px !important; padding-bottom: 48px !important; }
+        #changelog > div { padding: 0 32px !important; }
+        .cl-entry { padding: 48px 0 !important; }
+
+        /* FAQ */
+        #faq { padding: 40px 32px !important; }
+        #faq h3 { font-size: clamp(2.2rem, 6vw, 4.5rem) !important; padding-top: 60px !important; padding-bottom: 40px !important; }
+        #faq .max-w-\[65vw\] { max-width: 100% !important; }
+        .faq-btn { font-size: 1.05rem !important; }
+
+        /* Footer */
+        footer { padding: 20px 24px !important; }
+        #footerCard { flex-direction: column !important; height: auto !important; border-radius: 24px !important; }
+        #footerCard > div:first-child { padding: 56px 32px !important; }
+        #footerCard > div:first-child h2 { font-size: clamp(2rem, 5.5vw, 3.5rem) !important; }
+        #footerCard > div:last-child { width: 100% !important; height: 56vw; }
+        footer > div:last-child { gap: 32px !important; }
+        footer .grid { grid-template-columns: 1fr 1fr !important; }
+    }
+
+    /* ── Mobile ≤640px ── */
+    @media (max-width: 640px) {
+        /* Navbar */
+        nav { padding: 14px 20px !important; }
+        nav > div:first-child img { width: 30px !important; height: 30px !important; }
+        nav > div:first-child span { font-size: 0.95rem !important; }
+
+        /* Hero */
+        #Hero h1 { font-size: clamp(1.9rem, 8.5vw, 2.6rem) !important; padding-top: 88px !important; line-height: 1.15 !important; }
+        #Hero .dl-btn-ios { font-size: 0.85rem !important; padding: 12px 18px !important; }
+        #Hero .dl-btn-apk { font-size: 0.85rem !important; padding: 12px 14px !important; }
+        #Hero .mx-auto.pt-40 { padding-top: 36px !important; }
+        span#\33, span#\32, span#CardImage { height: 58vw !important; width: 90vw !important; border-radius: 24px !important; }
+
+        /* NextSection */
+        #NextSection { padding: 40px 16px 48px !important; border-radius: 24px 24px 0 0 !important; margin-top: -8vh !important; }
+        #NextSection h2 { font-size: clamp(1.7rem, 7.5vw, 2.5rem) !important; margin-top: 0 !important; }
+        #NextSection > div.flex.flex-row > div { min-height: 260px; }
+
+        /* Fonctionnalités */
+        #integSection .text-9xl { font-size: clamp(2rem, 11vw, 3.5rem) !important; }
+        .integ-img { width: 3.5rem !important; height: 3.5rem !important; }
+
+        /* Social */
+        #social > div { padding: 100px 16px 48px !important; }
+        .social-card { max-width: 100%; }
+        .social-card > div:last-child { height: 220px !important; }
+
+        /* Text */
+        #Text { padding: 0 20px !important; min-height: 50vh; }
+        #Text h2 { font-size: clamp(1.6rem, 7.5vw, 2.2rem) !important; }
+
+        /* Stats */
+        #nombercolone { padding: 32px 16px !important; }
+        #nombercolone .nb-row { padding: 36px 0 !important; }
+        #nombercolone .nb-row img { height: 56vw !important; }
+        #nombercolone .nb-row h3 { font-size: clamp(3.5rem, 19vw, 5.5rem) !important; }
+
+        /* Avis */
+        #avis { padding: 16px !important; }
+        #avis h3 { font-size: clamp(1.8rem, 8.5vw, 2.8rem) !important; padding-top: 48px !important; }
+        #avis .grid { grid-template-columns: 1fr !important; }
+        #avis .pt-64 { padding-top: 40px !important; }
+
+        /* Changelog */
+        #changelog h3.font-light { font-size: clamp(2rem, 10vw, 3rem) !important; padding-top: 56px !important; padding-bottom: 32px !important; }
+        #changelog > div { padding: 0 16px !important; border-left: none !important; border-right: none !important; }
+        .cl-entry { flex-direction: column !important; padding: 36px 0 !important; gap: 10px; }
+        .cl-date-col { width: auto !important; }
+        .cl-date-col time { position: static !important; }
+        .cl-body { padding: 0 !important; }
+        .cl-body h3[style] { padding-top: 0 !important; font-size: 2rem !important; }
+        .cl-img-wrap > div:first-child { height: 160px !important; }
+
+        /* FAQ */
+        #faq { padding: 20px 16px !important; }
+        #faq h3 { font-size: clamp(1.8rem, 8.5vw, 2.8rem) !important; padding: 48px 0 24px !important; }
+        .faq-btn { font-size: 0.95rem !important; padding: 18px 0 !important; }
+        .faq-answer p { font-size: 0.88rem !important; }
+
+        /* Footer */
+        footer { padding: 12px !important; }
+        #footerCard { border-radius: 20px !important; }
+        #footerCard > div:first-child { padding: 40px 20px !important; }
+        #footerCard > div:first-child h2 { font-size: clamp(1.5rem, 7vw, 2rem) !important; }
+        #footerCard > div:last-child { height: 64vw; }
+        footer > div:last-child { flex-direction: column !important; gap: 24px !important; text-align: center; }
+        footer .grid { grid-template-columns: 1fr !important; }
+        footer .flex.gap-4 { justify-content: center !important; }
+    }
+
     </style>
     <style>
       /* ── Navbar center ── */
@@ -242,9 +388,29 @@
             <a href="https://apps.apple.com/fr/app/swipeclean-trier-vos-photos/id6802313349" target="_blank" id="nav-btn" class="bg-black font-light text-white px-5 py-3 items-center rounded-xl cursor-pointer">Télécharger</a>
         </div>
     </nav>
-    <!-- Mobile menu overlay -->
-    <div id="mob-menu" style="display:none;position:fixed;inset:0;background:#fff;z-index:200;flex-direction:column;align-items:center;justify-content:center;gap:36px;">
-        <button onclick="closeMobMenu()" style="position:absolute;top:24px;right:24px;background:none;border:none;cursor:pointer;font-size:28px;color:#000;">&#x2715;</button>
+    <!-- MOBILE NAV -->
+    <div id="mob-overlay" style="position:fixed;inset:0;z-index:300;pointer-events:none;">
+        <!-- Backdrop -->
+        <div id="mob-backdrop" onclick="closeMobMenu()" style="position:absolute;inset:0;background:rgba(0,0,0,0.3);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);opacity:0;transition:opacity 0.4s;"></div>
+        <!-- Panel from right -->
+        <div id="mob-panel" style="position:absolute;top:0;right:0;bottom:0;width:min(320px,85vw);background:#fff;transform:translateX(100%);transition:transform 0.42s cubic-bezier(0.22,1,0.36,1);display:flex;flex-direction:column;padding:80px 40px 48px;gap:0;">
+            <button onclick="closeMobMenu()" style="position:absolute;top:24px;right:24px;width:40px;height:40px;border-radius:50%;background:#f5f5f5;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:18px;color:#555;">&#x2715;</button>
+            <nav style="display:flex;flex-direction:column;gap:4px;flex:1;">
+                <a class="mob-link" onclick="navTo('integSection');closeMobMenu()" style="font-size:1.6rem;font-weight:300;padding:14px 0;border-bottom:1px solid #f0f0f0;color:#111;cursor:pointer;display:block;letter-spacing:-0.02em;opacity:0;transform:translateX(20px);transition:opacity 0.35s,transform 0.35s;">Fonctionnalités</a>
+                <a class="mob-link" onclick="navTo('social');closeMobMenu()" style="font-size:1.6rem;font-weight:300;padding:14px 0;border-bottom:1px solid #f0f0f0;color:#111;cursor:pointer;display:block;letter-spacing:-0.02em;opacity:0;transform:translateX(20px);transition:opacity 0.35s 0.04s,transform 0.35s 0.04s;">Comment ça marche</a>
+                <a class="mob-link" onclick="navTo('avis');closeMobMenu()" style="font-size:1.6rem;font-weight:300;padding:14px 0;border-bottom:1px solid #f0f0f0;color:#111;cursor:pointer;display:block;letter-spacing:-0.02em;opacity:0;transform:translateX(20px);transition:opacity 0.35s 0.08s,transform 0.35s 0.08s;">Avis</a>
+                <a class="mob-link" onclick="navTo('changelog');closeMobMenu()" style="font-size:1.6rem;font-weight:300;padding:14px 0;border-bottom:1px solid #f0f0f0;color:#111;cursor:pointer;display:block;letter-spacing:-0.02em;opacity:0;transform:translateX(20px);transition:opacity 0.35s 0.12s,transform 0.35s 0.12s;">Changelog</a>
+                <a class="mob-link" onclick="navTo('faq');closeMobMenu()" style="font-size:1.6rem;font-weight:300;padding:14px 0;color:#111;cursor:pointer;display:block;letter-spacing:-0.02em;opacity:0;transform:translateX(20px);transition:opacity 0.35s 0.16s,transform 0.35s 0.16s;">FAQ</a>
+            </nav>
+            <a href="https://apps.apple.com/fr/app/swipeclean-trier-vos-photos/id6802313349" target="_blank" class="mob-link" style="display:block;text-align:center;background:#000;color:#fff;font-weight:300;padding:18px 0;border-radius:16px;font-size:1rem;letter-spacing:0.02em;opacity:0;transform:translateY(10px);transition:opacity 0.35s 0.22s,transform 0.35s 0.22s;text-decoration:none;">Télécharger — App Store</a>
+        </div>
+    </div>
+    <!-- Hamburger button -->
+    <button id="mob-hamburger" onclick="openMobMenu()" aria-label="Menu" style="display:none;position:fixed;top:18px;right:20px;z-index:200;width:44px;height:44px;border-radius:12px;background:rgba(255,255,255,0.9);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border:1px solid rgba(0,0,0,0.08);cursor:pointer;flex-direction:column;align-items:center;justify-content:center;gap:5px;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+        <span style="display:block;width:18px;height:1.5px;background:#111;border-radius:2px;transition:all 0.3s;"></span>
+        <span style="display:block;width:18px;height:1.5px;background:#111;border-radius:2px;transition:all 0.3s;"></span>
+        <span style="display:block;width:12px;height:1.5px;background:#111;border-radius:2px;transition:all 0.3s;align-self:flex-end;margin-right:3px;"></span>
+    </button>
         <a class="text-3xl font-light cursor-pointer" onclick="navTo('integSection');closeMobMenu()">Fonctionnalités</a>
         <a class="text-3xl font-light cursor-pointer" onclick="navTo('social');closeMobMenu()">Comment ça marche</a>
         <a class="text-3xl font-light cursor-pointer" onclick="navTo('avis');closeMobMenu()">Avis</a>
@@ -1207,32 +1373,56 @@
     </script>
 
     <script>
+    /* ── Mobile menu ─────────────────────────────── */
     function openMobMenu() {
-        var m = document.getElementById('mob-menu');
-        m.style.display = 'flex';
-        document.body.style.overflow = 'hidden';
+        var overlay = document.getElementById('mob-overlay');
+        var backdrop = document.getElementById('mob-backdrop');
+        var panel = document.getElementById('mob-panel');
+        overlay.style.pointerEvents = 'auto';
+        backdrop.style.opacity = '1';
+        panel.style.transform = 'translateX(0)';
+        /* Stagger links in */
+        document.querySelectorAll('.mob-link').forEach(function(l) {
+            l.style.opacity = '1';
+            l.style.transform = 'translateX(0) translateY(0)';
+        });
     }
     function closeMobMenu() {
-        var m = document.getElementById('mob-menu');
-        m.style.display = 'none';
-        document.body.style.overflow = '';
+        var overlay = document.getElementById('mob-overlay');
+        var backdrop = document.getElementById('mob-backdrop');
+        var panel = document.getElementById('mob-panel');
+        backdrop.style.opacity = '0';
+        panel.style.transform = 'translateX(100%)';
+        overlay.style.pointerEvents = 'none';
+        document.querySelectorAll('.mob-link').forEach(function(l) {
+            l.style.opacity = '0';
+            l.style.transform = 'translateX(20px)';
+        });
     }
-    /* Disable matter.js physics on mobile to save CPU */
-    if (window.innerWidth <= 1024) {
+
+    /* ── Mobile: fix social cards (remove JS scale) ── */
+    if (window.innerWidth <= 1100) {
+        document.querySelectorAll('.social-card').forEach(function(c) {
+            c.style.transform = 'scale(1)';
+        });
+        /* Show hashtags statically without physics */
         window._noPhysics = true;
-        var btns = document.querySelectorAll('.hashtag-hidden');
-        btns.forEach(function(b) {
+        document.querySelectorAll('.hashtag-hidden').forEach(function(b) {
             b.classList.remove('hashtag-hidden');
             b.style.opacity = '1';
             b.style.transform = 'none';
         });
     }
-    /* Fix social cards mobile: remove JS scale transform */
-    if (window.innerWidth <= 1024) {
-        document.querySelectorAll('.social-card').forEach(function(c) {
-            c.style.transform = 'scale(1)';
+
+    /* ── Fix nombercolone inner grid on mobile ── */
+    if (window.innerWidth <= 1100) {
+        document.querySelectorAll('#nombercolone .nb-row > div > div[style*="grid-template-columns:20vw"]').forEach(function(d) {
+            d.style.gridTemplateColumns = 'auto 1fr';
+            d.style.gap = '16px';
+            d.style.alignItems = 'end';
         });
     }
     </script>
+
 </body>
 </html>
