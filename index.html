@@ -71,295 +71,164 @@
         .dl-btn-apk:hover { background-color: #000 !important; color: #fff !important; border-color: transparent !important; transform: scale(1.025); }
 
     
-    @media (max-width: 1024px) {
-        nav { padding: 16px 24px !important; }
-        .nav-links { display: none !important; }
-        nav > div:last-child { display: none !important; }
-        #mob-hamburger { display: flex !important; }
-
-        #Hero h1 { font-size: clamp(2rem, 5vw, 4rem) !important; padding-top: 60px !important; }
-        #Hero .flex.items-center.justify-center.space-x-5 { flex-direction: column; gap: 12px; }
-        #3, #2, #CardImage { height: 52vw !important; width: 80vw !important; border-radius: 36px !important; }
-
-        #NextSection { padding: 48px 32px !important; border-radius: 28px 28px 0 0 !important; }
-        #NextSection h2 { font-size: clamp(2rem, 4.5vw, 3.5rem) !important; }
-        #NextSection .flex.flex-row.items-center { flex-direction: column !important; }
-        #NextSection .flex.flex-row.items-center > div { width: 100% !important; height: auto !important; min-height: 300px; }
-        #NextSection .flex.flex-row.items-center > div:last-child { min-height: 260px; }
-
-        #integSection .text-9xl { font-size: clamp(3rem, 8vw, 6rem) !important; }
-        .integ-img { width: 6rem !important; height: 6rem !important; }
-        #wolloBanner { width: 10vw !important; }
-
-        #social .flex.items-center.gap-10 { flex-direction: column !important; gap: 24px; overflow: visible !important; height: auto !important; padding: 140px 32px 60px; }
-        .social-card { width: 78vw !important; height: auto !important; transform: none !important; margin-top: 0 !important; }
-        .social-card > div:last-child { height: 44vw !important; }
-
-        #Text h2 { font-size: clamp(2rem, 4.5vw, 4rem) !important; }
-
-        #nombercolone { padding: 40px 24px !important; }
-        #nombercolone .nb-row { grid-template-columns: 1fr !important; gap: 20px !important; }
-        #nombercolone .nb-row img { width: 100% !important; height: 50vw !important; }
-        #nombercolone .nb-row > div { display: flex !important; flex-direction: column !important; gap: 12px; }
-        #nombercolone .nb-row h3 { font-size: clamp(4rem, 15vw, 8rem) !important; }
-        #nombercolone .nb-row > div > div[style] { grid-template-columns: auto 1fr !important; }
-
-        #avis { padding: 20px 24px !important; }
-        #avis h3 { font-size: clamp(2.2rem, 6vw, 4rem) !important; padding-top: 60px !important; }
-        #avis .grid { grid-template-columns: repeat(2, 1fr) !important; }
-        .avis-card { width: 100% !important; height: auto !important; min-height: 280px; }
-
-        #changelog h3 { font-size: clamp(2.5rem, 7vw, 4.5rem) !important; padding-top: 80px !important; }
-        #changelog > div { padding: 0 24px !important; }
-        .cl-entry { padding: 48px 0 !important; }
-
-        #faq { padding: 40px 24px !important; }
-        #faq h3 { font-size: clamp(2.2rem, 6vw, 4rem) !important; padding-top: 60px !important; padding-bottom: 40px !important; }
-        #faq .max-w-\[65vw\] { max-width: 100% !important; }
-
-        footer { padding: 20px 24px !important; }
-        #footerCard { flex-direction: column !important; height: auto !important; }
-        #footerCard > div:first-child h2 { font-size: clamp(2rem, 5vw, 3.5rem) !important; }
-        #footerCard > div:last-child { width: 100% !important; height: 60vw; }
-        footer .grid { grid-template-columns: 1fr 1fr !important; }
-    }
+    
 
     
-    @media (max-width: 640px) {
-        nav > div:first-child { padding: 0 !important; }
-        nav > div:first-child span { font-size: 1rem !important; }
-
-        #Hero h1 { font-size: clamp(1.6rem, 7.5vw, 2.8rem) !important; padding-top: 24px !important; }
-        #3, #2, #CardImage { height: 62vw !important; width: 90vw !important; border-radius: 24px !important; }
-        .dl-btn-ios, .dl-btn-apk { padding: 14px 22px !important; font-size: 0.9rem; }
-
-        #NextSection { padding: 36px 16px !important; border-radius: 20px 20px 0 0 !important; margin-top: -20vh !important; }
-        #NextSection h2 { font-size: clamp(1.6rem, 7vw, 2.5rem) !important; }
-
-        #integSection .text-9xl { font-size: clamp(2rem, 10vw, 4rem) !important; }
-        .integ-img { width: 4rem !important; height: 4rem !important; }
-        #wolloBanner { display: none !important; }
-
-        #social { height: auto !important; }
-        #social .flex.items-center.gap-10 { padding: 120px 16px 40px; }
-        .social-card { width: 88vw !important; }
-        .social-card > div:last-child { height: 52vw !important; }
-        .social-card p.text-9xl { font-size: 4rem !important; }
-        .social-card .text-2xl { font-size: 1.1rem !important; }
-
-        #Text { padding: 0 20px !important; }
-        #Text h2 { font-size: clamp(1.5rem, 7vw, 2.5rem) !important; }
-
-        #nombercolone { padding: 20px 16px !important; }
-        #nombercolone .nb-row h3 { font-size: clamp(3.5rem, 18vw, 6rem) !important; }
-        #nombercolone .nb-row p.text-xl { font-size: 0.95rem !important; }
-
-        #avis { padding: 16px !important; }
-        #avis h3 { font-size: clamp(1.8rem, 8vw, 2.8rem) !important; padding-top: 48px !important; }
-        #avis .grid { grid-template-columns: 1fr !important; }
-        .avis-card { min-height: 260px; }
-
-        #changelog { padding-bottom: 48px !important; }
-        #changelog h3 { font-size: clamp(2rem, 10vw, 3.5rem) !important; padding: 60px 0 48px !important; }
-        #changelog > div { padding: 0 16px !important; border: none !important; }
-        .cl-entry { flex-direction: column !important; padding: 36px 0 !important; gap: 12px; }
-        .cl-date-col { width: auto !important; }
-        .cl-date-col time { position: static !important; }
-        .cl-body { padding: 0 !important; }
-        .cl-body h3 { padding-top: 0 !important; font-size: 2rem !important; }
-        .cl-img-wrap > div { height: 160px !important; }
-
-        #faq { padding: 20px 16px !important; }
-        #faq h3 { font-size: clamp(1.8rem, 8vw, 2.8rem) !important; padding: 48px 0 24px !important; }
-        .faq-btn { font-size: 1rem !important; padding: 20px 0 !important; }
-
-        footer { padding: 16px !important; }
-        #footerCard > div:first-child { padding: 36px 20px !important; }
-        #footerCard > div:first-child h2 { font-size: clamp(1.5rem, 6.5vw, 2.2rem) !important; }
-        #footerCard > div:last-child { height: 64vw; }
-        footer .grid { grid-template-columns: 1fr !important; text-align: center; }
-        footer .flex.gap-4 { justify-content: center !important; }
-    }
+    
 
     /* ═══════════════════════════════════════════════
        RESPONSIVE MOBILE / TABLET
     ═══════════════════════════════════════════════ */
 
     /* ── Tablet ≤1100px ── */
-    @media (max-width: 1100px) {
-        /* Navbar */
-        .nav-links { display: none !important; }
-        nav > div:last-child { display: none !important; }
-        #mob-hamburger { display: flex !important; }
-        nav > div:first-child { padding: 0 0 0 4px !important; }
-
-        /* Hero */
-        #Hero { padding-top: 0; }
-        #Hero .overflow-hidden { padding: 0 24px; }
-        #Hero h1 { font-size: clamp(2.2rem, 5.5vw, 4.5rem) !important; padding-top: 96px !important; text-align: center; }
-        #Hero .flex.items-center.justify-center.space-x-5 { gap: 12px; flex-wrap: wrap; justify-content: center; }
-        #Hero .mx-auto.pt-40 { padding-top: 40px !important; }
-        span#\33, span#\32, span#CardImage { height: 52vw !important; width: 82vw !important; border-radius: 36px !important; }
-
-        /* NextSection */
-        #NextSection { padding: 56px 32px 48px !important; border-radius: 32px 32px 0 0 !important; margin-top: -10vh !important; }
-        #NextSection h2 { font-size: clamp(2rem, 5vw, 3.5rem) !important; margin-bottom: 0; }
-        #NextSection > div.flex.flex-row { flex-direction: column !important; gap: 20px !important; }
-        #NextSection > div.flex.flex-row > div { width: 100% !important; height: auto !important; min-height: 320px; }
-        #NextSection > div.flex.flex-row > div:last-child { min-height: 260px; }
-
-        /* Fonctionnalités */
-        #integSection .text-9xl { font-size: clamp(3rem, 8vw, 7rem) !important; }
-        .integ-img { width: 5.5rem !important; height: 5.5rem !important; }
-        #wolloBanner { display: none !important; }
-
-        /* Social cards */
-        #social { height: auto !important; min-height: auto !important; overflow: visible !important; }
-        #social > div { flex-direction: column !important; height: auto !important; overflow: visible !important; margin-top: 0 !important; padding: 100px 32px 64px !important; gap: 20px !important; }
-        .social-card { width: 100% !important; max-width: 600px; height: auto !important; transform: none !important; margin: 0 !important; }
-        .social-card > div:last-child { height: 200px !important; }
-        .social-card h1 { font-size: 1.3rem !important; }
-
-        /* Text */
-        #Text { padding: 0 32px !important; height: auto !important; min-height: 70vh; }
-        #Text h2 { font-size: clamp(2rem, 5vw, 4rem) !important; }
-
-        /* Stats */
-        #nombercolone { padding: 48px 32px !important; }
-        #nombercolone .nb-row { grid-template-columns: 1fr !important; gap: 24px !important; padding: 48px 0 !important; }
-        #nombercolone .nb-row img { width: 100% !important; height: 52vw !important; border-radius: 24px !important; }
-        #nombercolone .nb-row > div { display: flex !important; flex-direction: column !important; align-items: flex-start !important; gap: 8px !important; }
-        #nombercolone .nb-row h3 { font-size: clamp(4.5rem, 16vw, 8rem) !important; }
-        #nombercolone .nb-row p.text-xl { font-size: 1rem !important; padding: 0 !important; }
-
-        /* Avis */
-        #avis { padding: 20px 32px !important; }
-        #avis h3 { font-size: clamp(2.2rem, 6vw, 4.5rem) !important; padding-top: 64px !important; }
-        #avis .grid { grid-template-columns: repeat(2, 1fr) !important; gap: 16px !important; }
-        .avis-card { width: 100% !important; height: auto !important; min-height: 280px; }
-
-        /* Changelog */
-        #changelog h3.font-light { font-size: clamp(2.5rem, 7vw, 5rem) !important; padding-top: 80px !important; padding-bottom: 48px !important; }
-        #changelog > div { padding: 0 32px !important; }
-        .cl-entry { padding: 48px 0 !important; }
-
-        /* FAQ */
-        #faq { padding: 40px 32px !important; }
-        #faq h3 { font-size: clamp(2.2rem, 6vw, 4.5rem) !important; padding-top: 60px !important; padding-bottom: 40px !important; }
-        #faq .max-w-\[65vw\] { max-width: 100% !important; }
-        .faq-btn { font-size: 1.05rem !important; }
-
-        /* Footer */
-        footer { padding: 20px 24px !important; }
-        #footerCard { flex-direction: column !important; height: auto !important; border-radius: 24px !important; }
-        #footerCard > div:first-child { padding: 56px 32px !important; }
-        #footerCard > div:first-child h2 { font-size: clamp(2rem, 5.5vw, 3.5rem) !important; }
-        #footerCard > div:last-child { width: 100% !important; height: 56vw; }
-        footer > div:last-child { gap: 32px !important; }
-        footer .grid { grid-template-columns: 1fr 1fr !important; }
-    }
+    
 
     /* ── Mobile ≤640px ── */
-    @media (max-width: 640px) {
-        /* Navbar */
+
+    /* ──────────────────────────────────────────
+       RESPONSIVE  ≤ 1100px (tablet + mobile)
+    ────────────────────────────────────────── */
+    @media (max-width: 1100px) {
+
+        /* NAV */
         nav { padding: 14px 20px !important; }
-        nav > div:first-child img { width: 30px !important; height: 30px !important; }
-        nav > div:first-child span { font-size: 0.95rem !important; }
+        .nav-links { display: none !important; }
+        nav > div:last-child { display: none !important; }
+        nav > div:first-child { padding: 0 !important; }
+        #mob-hamburger { display: flex !important; }
 
-        /* Hero */
-        #Hero h1 { font-size: clamp(1.9rem, 8.5vw, 2.6rem) !important; padding-top: 88px !important; line-height: 1.15 !important; }
-        #Hero .dl-btn-ios { font-size: 0.85rem !important; padding: 12px 18px !important; }
-        #Hero .dl-btn-apk { font-size: 0.85rem !important; padding: 12px 14px !important; }
-        #Hero .mx-auto.pt-40 { padding-top: 36px !important; }
-        span#\33, span#\32, span#CardImage { height: 58vw !important; width: 90vw !important; border-radius: 24px !important; }
+        /* HERO */
+        #Hero .overflow-hidden { padding: 0 28px; overflow: visible !important; }
+        #Hero h1 { font-size: clamp(2rem, 5.5vw, 4rem) !important; padding-top: 88px !important; }
+        #Hero .flex.items-center.justify-center.space-x-5 { gap: 12px; flex-wrap: wrap; justify-content: center; }
+        #Hero .mx-auto { padding-top: 40px !important; }
+        span#\33, span#\32, span#CardImage { height: 54vw !important; width: 84vw !important; border-radius: 32px !important; }
 
-        /* NextSection */
-        #NextSection { padding: 40px 16px 48px !important; border-radius: 24px 24px 0 0 !important; margin-top: -8vh !important; }
-        #NextSection h2 { font-size: clamp(1.7rem, 7.5vw, 2.5rem) !important; margin-top: 0 !important; }
-        #NextSection > div.flex.flex-row > div { min-height: 260px; }
+        /* NEXT SECTION */
+        #NextSection { padding: 48px 28px 56px !important; border-radius: 28px 28px 0 0 !important; margin-top: -12vh !important; }
+        #NextSection h2 { font-size: clamp(1.9rem, 5vw, 3.5rem) !important; text-align: center; }
+        #NextSection > div.flex.flex-row { flex-direction: column !important; gap: 20px !important; overflow: visible !important; }
+        #NextSection > div.flex.flex-row > div { width: 100% !important; height: auto !important; min-height: 300px; }
+        #NextSection > div.flex.flex-row > div:last-child { min-height: 240px; }
 
-        /* Fonctionnalités */
-        #integSection .text-9xl { font-size: clamp(2rem, 11vw, 3.5rem) !important; }
-        .integ-img { width: 3.5rem !important; height: 3.5rem !important; }
+        /* FONCTIONNALITÉS */
+        #integSection { height: auto !important; min-height: 60vh; }
+        #integSection > div { flex-wrap: wrap; justify-content: center; gap: 20px; padding: 40px; }
+        #integSection .text-9xl { font-size: clamp(3rem, 8vw, 6rem) !important; white-space: nowrap; }
+        .integ-img { width: 5rem !important; height: 5rem !important; }
+        #wolloBanner { display: none !important; }
 
-        /* Social */
-        #social > div { padding: 100px 16px 48px !important; }
-        .social-card { max-width: 100%; }
-        .social-card > div:last-child { height: 220px !important; }
+        /* SOCIAL */
+        #social { height: auto !important; min-height: auto !important; overflow: visible !important; }
+        #social > div { flex-direction: column !important; align-items: center !important; height: auto !important; overflow: visible !important; margin-top: 0 !important; padding: 100px 24px 60px !important; gap: 20px !important; }
+        .social-card { width: 88vw !important; max-width: 520px; height: auto !important; margin-top: 0 !important; }
+        .social-card > div:last-child { height: 42vw !important; min-height: 180px; max-height: 260px; }
+        .social-card h1 { font-size: 1.2rem !important; padding: 16px !important; }
+        .social-card p.text-9xl { font-size: 4rem !important; }
 
-        /* Text */
-        #Text { padding: 0 20px !important; min-height: 50vh; }
-        #Text h2 { font-size: clamp(1.6rem, 7.5vw, 2.2rem) !important; }
+        /* TEXT */
+        #Text { height: auto !important; min-height: 60vh; padding: 60px 28px !important; }
+        #Text h2 { font-size: clamp(2rem, 5vw, 4rem) !important; }
 
-        /* Stats */
-        #nombercolone { padding: 32px 16px !important; }
-        #nombercolone .nb-row { padding: 36px 0 !important; }
-        #nombercolone .nb-row img { height: 56vw !important; }
-        #nombercolone .nb-row h3 { font-size: clamp(3.5rem, 19vw, 5.5rem) !important; }
+        /* STATS */
+        #nombercolone { padding: 40px 28px !important; }
+        #nombercolone .nb-row { grid-template-columns: 1fr !important; gap: 24px !important; padding: 48px 0 !important; }
+        #nombercolone .nb-row img { width: 100% !important; height: 52vw !important; border-radius: 20px !important; }
+        #nombercolone .nb-row > div { display: flex !important; flex-direction: column !important; gap: 12px !important; }
+        #nombercolone .nb-row > div > div[style] { display: grid !important; grid-template-columns: auto 1fr !important; gap: 24px !important; align-items: end !important; }
+        #nombercolone .nb-row h3 { font-size: clamp(4rem, 16vw, 7rem) !important; }
 
-        /* Avis */
-        #avis { padding: 16px !important; }
-        #avis h3 { font-size: clamp(1.8rem, 8.5vw, 2.8rem) !important; padding-top: 48px !important; }
-        #avis .grid { grid-template-columns: 1fr !important; }
+        /* AVIS */
+        #avis { padding: 20px 28px !important; }
+        #avis h3 { font-size: clamp(2rem, 6vw, 4rem) !important; padding-top: 60px !important; }
         #avis .pt-64 { padding-top: 40px !important; }
+        #avis .grid { grid-template-columns: repeat(2, 1fr) !important; gap: 14px !important; }
+        .avis-card { width: 100% !important; height: auto !important; min-height: 260px; }
 
-        /* Changelog */
-        #changelog h3.font-light { font-size: clamp(2rem, 10vw, 3rem) !important; padding-top: 56px !important; padding-bottom: 32px !important; }
-        #changelog > div { padding: 0 16px !important; border-left: none !important; border-right: none !important; }
-        .cl-entry { flex-direction: column !important; padding: 36px 0 !important; gap: 10px; }
-        .cl-date-col { width: auto !important; }
-        .cl-date-col time { position: static !important; }
-        .cl-body { padding: 0 !important; }
-        .cl-body h3[style] { padding-top: 0 !important; font-size: 2rem !important; }
-        .cl-img-wrap > div:first-child { height: 160px !important; }
+        /* CHANGELOG */
+        #changelog h3.font-light { font-size: clamp(2.5rem, 7vw, 5rem) !important; padding-top: 80px !important; padding-bottom: 40px !important; }
+        #changelog > div:not([id]) { padding: 0 28px !important; border: none !important; }
+        .cl-entry { padding: 44px 0 !important; }
 
         /* FAQ */
-        #faq { padding: 20px 16px !important; }
-        #faq h3 { font-size: clamp(1.8rem, 8.5vw, 2.8rem) !important; padding: 48px 0 24px !important; }
-        .faq-btn { font-size: 0.95rem !important; padding: 18px 0 !important; }
-        .faq-answer p { font-size: 0.88rem !important; }
+        #faq { padding: 40px 28px !important; }
+        #faq h3 { font-size: clamp(2rem, 6vw, 4rem) !important; padding: 60px 0 36px !important; }
+        #faq .max-w-\[65vw\] { max-width: 100% !important; }
 
-        /* Footer */
-        footer { padding: 12px !important; }
-        #footerCard { border-radius: 20px !important; }
-        #footerCard > div:first-child { padding: 40px 20px !important; }
-        #footerCard > div:first-child h2 { font-size: clamp(1.5rem, 7vw, 2rem) !important; }
-        #footerCard > div:last-child { height: 64vw; }
-        footer > div:last-child { flex-direction: column !important; gap: 24px !important; text-align: center; }
-        footer .grid { grid-template-columns: 1fr !important; }
-        footer .flex.gap-4 { justify-content: center !important; }
+        /* FOOTER */
+        footer { padding: 20px 20px !important; }
+        #footerCard { flex-direction: column !important; height: auto !important; border-radius: 24px !important; }
+        #footerCard > div:first-child { padding: 52px 28px !important; }
+        #footerCard > div:first-child h2 { font-size: clamp(2rem, 5.5vw, 3.5rem) !important; }
+        #footerCard > div:last-child { width: 100% !important; height: 58vw; }
+        footer .grid { grid-template-columns: 1fr 1fr !important; }
+        footer > div:last-child { gap: 24px !important; }
     }
 
-    </style>
-    <style>
-      /* ── Navbar center ── */
-      .nav-links {
-        position: absolute;
-        left: 50%;
-        transform: translateX(-50%);
-      }
-      /* ── Responsive ── */
-      @media (max-width: 900px) {
-        .nav-links { display: none !important; }
-        nav { padding: 1rem 1.5rem !important; }
-        #Hero h1 { font-size: 10vw !important; padding-top: 80px !important; }
-        #Hero .mx-auto { padding-top: 10vw !important; }
-        #Hero span { width: 88vw !important; height: 55vw !important; }
-        #NextSection { padding: 4rem 1.5rem !important; }
-        .nb-row { grid-template-columns: 1fr !important; }
-        .nb-row img { width: 60vw !important; height: 60vw !important; }
+    /* ──────────────────────────────────────────
+       RESPONSIVE  ≤ 640px (mobile seul)
+    ────────────────────────────────────────── */
+    @media (max-width: 640px) {
+
+        /* HERO */
+        #Hero h1 { font-size: clamp(1.85rem, 8vw, 2.6rem) !important; line-height: 1.18 !important; padding-top: 80px !important; }
+        .dl-btn-ios, .dl-btn-apk { padding: 13px 18px !important; font-size: 0.88rem !important; }
+        span#\33, span#\32, span#CardImage { height: 60vw !important; width: 91vw !important; border-radius: 22px !important; }
+
+        /* NEXT SECTION */
+        #NextSection { padding: 36px 16px 48px !important; border-radius: 20px 20px 0 0 !important; margin-top: -8vh !important; }
+        #NextSection h2 { font-size: clamp(1.65rem, 7vw, 2.4rem) !important; }
+
+        /* FONCTIONNALITÉS */
+        #integSection .text-9xl { font-size: clamp(1.8rem, 10.5vw, 3.2rem) !important; }
+        .integ-img { width: 3.5rem !important; height: 3.5rem !important; }
+
+        /* SOCIAL */
+        #social > div { padding: 100px 16px 48px !important; }
+        .social-card { width: 92vw !important; }
+        .social-card > div:last-child { height: 48vw !important; }
+
+        /* TEXT */
+        #Text { padding: 48px 20px !important; }
+        #Text h2 { font-size: clamp(1.55rem, 7.5vw, 2.2rem) !important; }
+
+        /* STATS */
+        #nombercolone { padding: 28px 16px !important; }
+        #nombercolone .nb-row h3 { font-size: clamp(3.5rem, 18vw, 5.5rem) !important; }
+        #nombercolone .nb-row p.text-xl { font-size: 0.93rem !important; line-height: 1.6 !important; }
+
+        /* AVIS */
+        #avis { padding: 16px !important; }
+        #avis h3 { font-size: clamp(1.8rem, 8vw, 2.8rem) !important; padding-top: 48px !important; }
         #avis .grid { grid-template-columns: 1fr !important; }
-        .avis-card { height: auto !important; min-height: 160px !important; }
-        .social-card { width: 80vw !important; height: auto !important; min-height: 200px !important; margin-top: 0 !important; }
-        #nombercolone h3 { font-size: 20vw !important; }
-        #Text h2 { font-size: 7vw !important; }
-        #faq { padding: 2rem 1.5rem !important; }
-      }
-      @media (max-width: 600px) {
-        #Hero h1 { font-size: 12vw !important; }
-        #Hero span { width: 92vw !important; height: 62vw !important; }
-        #Text h2 { font-size: 9vw !important; }
-      }
+
+        /* CHANGELOG */
+        #changelog h3.font-light { font-size: clamp(2rem, 10vw, 3.2rem) !important; padding-top: 56px !important; padding-bottom: 28px !important; }
+        #changelog > div:not([id]) { padding: 0 16px !important; }
+        .cl-entry { flex-direction: column !important; padding: 32px 0 !important; gap: 8px; }
+        .cl-date-col { width: auto !important; }
+        .cl-date-col time { position: static !important; display: inline-block; }
+        .cl-body h3[style] { padding-top: 4px !important; font-size: 2rem !important; }
+        .cl-body { padding: 0 !important; }
+        .cl-img-wrap > div { height: 52vw !important; }
+
+        /* FAQ */
+        #faq { padding: 16px !important; }
+        #faq h3 { font-size: clamp(1.8rem, 8vw, 2.8rem) !important; padding: 48px 0 24px !important; }
+        .faq-btn { font-size: 0.95rem !important; padding: 18px 0 !important; }
+
+        /* FOOTER */
+        footer { padding: 12px !important; }
+        #footerCard > div:first-child { padding: 40px 20px !important; }
+        #footerCard > div:first-child h2 { font-size: clamp(1.5rem, 7vw, 2.2rem) !important; }
+        #footerCard > div:last-child { height: 66vw; }
+        footer .grid { grid-template-columns: 1fr !important; }
+        footer > div:last-child { flex-direction: column !important; text-align: center; gap: 20px !important; }
+        footer .flex.gap-4 { justify-content: center !important; }
+    }
+</style>
+    <style>
+      .nav-links { position: absolute; left: 50%; transform: translateX(-50%); }
     </style>
     <script>
       function navTo(id) {
@@ -1424,5 +1293,52 @@
     }
     </script>
 
+    <script>
+    /* Mobile menu */
+    function openMobMenu() {
+        var overlay = document.getElementById('mob-overlay');
+        var backdrop = document.getElementById('mob-backdrop');
+        var panel = document.getElementById('mob-panel');
+        if (!overlay) return;
+        overlay.style.pointerEvents = 'auto';
+        backdrop.style.opacity = '1';
+        panel.style.transform = 'translateX(0)';
+        document.querySelectorAll('.mob-link').forEach(function(l) {
+            l.style.opacity = '1';
+            l.style.transform = 'translateX(0) translateY(0)';
+        });
+    }
+    function closeMobMenu() {
+        var overlay = document.getElementById('mob-overlay');
+        var backdrop = document.getElementById('mob-backdrop');
+        var panel = document.getElementById('mob-panel');
+        if (!overlay) return;
+        backdrop.style.opacity = '0';
+        panel.style.transform = 'translateX(100%)';
+        overlay.style.pointerEvents = 'none';
+        document.querySelectorAll('.mob-link').forEach(function(l) {
+            l.style.opacity = '0';
+            l.style.transform = 'translateX(20px)';
+        });
+    }
+    if (window.innerWidth <= 1100) {
+        /* Fix social cards scale */
+        window.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.social-card').forEach(function(c) {
+                c.style.transform = 'scale(1)';
+                c.style.marginTop = '0';
+            });
+        });
+        /* Disable Matter.js physics */
+        window._noPhysics = true;
+        window.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.hashtag-hidden').forEach(function(b) {
+                b.classList.remove('hashtag-hidden');
+                b.style.opacity = '1';
+                b.style.transform = 'none';
+            });
+        });
+    }
+    </script>
 </body>
 </html>
