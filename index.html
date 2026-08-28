@@ -257,6 +257,14 @@
             <a href="https://apps.apple.com/fr/app/swipeclean-trier-vos-photos/id6802313349" target="_blank" id="nav-btn" class="bg-black font-light text-white px-5 py-3 items-center rounded-xl cursor-pointer">Télécharger</a>
         </div>
     </nav>
+<style id="mob-nav-hide">
+@media (max-width: 1100px) {
+    #nav-links-desk { display: none !important; visibility: hidden !important; }
+    #nav-right-desk { display: none !important; visibility: hidden !important; }
+    #mob-hamburger  { display: flex   !important; }
+    nav > div:first-child { padding: 0 !important; }
+}
+</style>
     <!-- MOBILE NAV -->
     <div id="mob-overlay" style="position:fixed;inset:0;z-index:300;pointer-events:none;">
         <!-- Backdrop -->
