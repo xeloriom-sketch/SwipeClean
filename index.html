@@ -263,10 +263,11 @@
     #nav-right-desk { display: none !important; visibility: hidden !important; }
     #mob-hamburger  { display: flex   !important; }
     nav > div:first-child { padding: 0 !important; }
-    /* Social cards — CSS !important beats JS inline transform from masterTick */
-    .social-card { transform: scale(1) !important; margin-top: 0 !important; }
+    /* Social cards — rectangles verticaux sur mobile */
+    .social-card { transform: scale(1) !important; margin-top: 0 !important; width: 88vw !important; max-width: 460px !important; height: auto !important; min-height: 420px !important; border-radius: 24px !important; display: flex !important; flex-direction: column !important; overflow: hidden !important; }
+    .social-card > div:last-child { flex: 1 !important; height: auto !important; min-height: 260px !important; max-height: none !important; }
     #social { height: auto !important; overflow: visible !important; }
-    #social > div { flex-direction: column !important; height: auto !important; overflow: visible !important; align-items: center !important; padding: 80px 16px 48px !important; gap: 20px !important; }
+    #social > div { flex-direction: column !important; height: auto !important; overflow: visible !important; align-items: center !important; padding: 80px 16px 48px !important; gap: 24px !important; }
 }
 </style>
     <!-- MOBILE NAV -->
@@ -1350,14 +1351,7 @@
             var heroBtns = document.querySelector('#Hero .flex.items-center.justify-center.space-x-5');
             if (heroBtns) { heroBtns.style.flexWrap = 'wrap'; heroBtns.style.justifyContent = 'center'; heroBtns.style.gap = '12px'; }
 
-            /* SOCIAL cards — remove JS scale */
-            document.querySelectorAll('.social-card').forEach(function(c) {
-                c.style.transform = 'scale(1)';
-                c.style.marginTop = '0';
-                c.style.width = isMobile ? '92vw' : '84vw';
-                c.style.maxWidth = '520px';
-                c.style.height = 'auto';
-            });
+            /* SOCIAL section layout */
             var socialSection = document.getElementById('social');
             if (socialSection) { socialSection.style.height = 'auto'; socialSection.style.overflow = 'visible'; }
             var socialFlex = socialSection ? socialSection.querySelector('.flex.items-center') : null;
@@ -1366,32 +1360,14 @@
                 socialFlex.style.height = 'auto';
                 socialFlex.style.overflow = 'visible';
                 socialFlex.style.marginTop = '0';
-                socialFlex.style.padding = (isMobile ? '100px 16px 48px' : '100px 24px 60px');
-                socialFlex.style.gap = '20px';
+                socialFlex.style.padding = (isMobile ? '80px 16px 48px' : '80px 24px 60px');
+                socialFlex.style.gap = '24px';
             }
-            document.querySelectorAll('.social-card > div:last-child').forEach(function(d){
-                d.style.height = isMobile ? '48vw' : '42vw';
-                d.style.minHeight = '180px';
-                d.style.maxHeight = '280px';
-            });
 
             /* Disable hashtag physics on mobile */
             window._noPhysics = true;
 
-            /* Social cards — full size, no scale */
-            document.querySelectorAll('.social-card').forEach(function(c) {
-                c.style.transform = 'scale(1)';
-                c.style.marginTop = '0';
-                c.style.width = isMobile ? '92vw' : '84vw';
-                c.style.maxWidth = '520px';
-                c.style.height = 'auto';
-                c.style.overflow = 'visible';
-            });
-            document.querySelectorAll('.social-card > div:last-child').forEach(function(d){
-                d.style.height = isMobile ? '48vw' : '42vw';
-                d.style.minHeight = '180px';
-                d.style.maxHeight = '280px';
-            });
+            /* Social card images */
             document.querySelectorAll('.social-card-img').forEach(function(img){
                 img.style.transform = 'scale(1)';
                 img.style.opacity = '1';
