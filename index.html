@@ -1036,7 +1036,7 @@
             })();
 
             var mods = [nextTitleMod, integMod, socialMod, textMod, numbersMod, statsMod, avisMod, faqMod, footerMod];
-            function masterTick() { mods.forEach(function (m) { if (m) m.tick(); }); requestAnimationFrame(masterTick); }
+            function masterTick() { if (!window._mobFix) { mods.forEach(function (m) { if (m) m.tick(); }); } requestAnimationFrame(masterTick); }
             requestAnimationFrame(masterTick);
 
             /* HASHTAG PHYSICS */
@@ -1371,15 +1371,57 @@
                 d.style.maxHeight = '280px';
             });
 
-            /* HASHTAGS — disable physics on mobile */
+            /* DISABLE masterTick scroll animations — set everything to final state */
+            window._mobFix = true;
             window._noPhysics = true;
-            document.querySelectorAll('.hashtag-hidden').forEach(function(b){
-                b.classList.remove('hashtag-hidden');
-                b.style.opacity = '1';
-                b.style.transform = 'none';
+
+            /* Social cards — full size, no scale */
+            document.querySelectorAll('.social-card').forEach(function(c) {
+                c.style.transform = 'scale(1)';
+                c.style.marginTop = '0';
+                c.style.width = isMobile ? '92vw' : '84vw';
+                c.style.maxWidth = '520px';
+                c.style.height = 'auto';
+                c.style.overflow = 'visible';
+            });
+            document.querySelectorAll('.social-card > div:last-child').forEach(function(d){
+                d.style.height = isMobile ? '48vw' : '42vw';
+                d.style.minHeight = '180px';
+                d.style.maxHeight = '280px';
+            });
+            document.querySelectorAll('.social-card-img').forEach(function(img){
+                img.style.transform = 'scale(1)';
+                img.style.opacity = '1';
             });
 
-            /* NextSection */
+            /* Text section — make visible */
+            var textSec = document.getElementById('Text');
+            if (textSec) {
+                textSec.style.height = 'auto';
+                textSec.style.minHeight = '0';
+                var h2 = textSec.querySelector('h2');
+                if (h2) { h2.style.visibility = 'visible'; h2.style.opacity = '1'; }
+                /* reveal all animated word spans */
+                textSec.querySelectorAll('span span').forEach(function(sp){ sp.style.transform = 'none'; sp.style.opacity = '1'; });
+            }
+
+            /* Numbers (nombercolone) — show final values + full opacity */
+            document.querySelectorAll('#nombercolone .nb-row').forEach(function(row){
+                row.style.gridTemplateColumns = '1fr';
+                row.style.gap = '20px';
+                row.style.padding = '40px 0';
+                var img = row.querySelector('img');
+                if (img) { img.style.width = '100%'; img.style.height = '52vw'; img.style.borderRadius = '20px'; img.style.clipPath = 'none'; img.style.transform = 'none'; }
+                /* number spans */
+                row.querySelectorAll('span[style*="opacity"]').forEach(function(sp){ sp.style.opacity = '1'; sp.style.transform = 'none'; });
+                /* badge + paragraph */
+                var badge = row.querySelector('[style*="scale"]');
+                if (badge) { badge.style.scale = '1'; badge.style.opacity = '1'; }
+                var para = row.querySelector('p[style*="opacity"]');
+                if (para) { para.style.opacity = '1'; para.style.transform = 'none'; }
+            });
+
+            /* statsMod cards (NextSection yellow+pink) */
             var ns = document.getElementById('NextSection');
             if (ns) {
                 ns.style.padding = isMobile ? '36px 16px 48px' : '48px 28px 56px';
@@ -1392,29 +1434,45 @@
                     nsRow.style.flexDirection = 'column';
                     nsRow.style.gap = '20px';
                     nsRow.style.overflow = 'visible';
-                    nsRow.querySelectorAll(':scope > div').forEach(function(d){ d.style.width = '100%'; d.style.height = 'auto'; d.style.minHeight = '260px'; });
+                    nsRow.querySelectorAll(':scope > div').forEach(function(d){ d.style.width = '100%'; d.style.height = 'auto'; d.style.minHeight = '200px'; });
                 }
+                ['.bg-yellow-300', '.bg-pink-300'].forEach(function(sel){
+                    var c = ns.querySelector(sel);
+                    if (c) { c.style.opacity = '1'; c.style.transform = 'none'; }
+                });
+                var stTitle = ns.querySelector('p[style*="opacity"]');
+                if (stTitle) { stTitle.style.opacity = '1'; stTitle.style.transform = 'none'; }
             }
 
-            /* STATS inner grid */
-            document.querySelectorAll('#nombercolone .nb-row').forEach(function(row){
-                row.style.gridTemplateColumns = '1fr';
-                row.style.gap = '20px';
-                row.style.padding = '40px 0';
-                var img = row.querySelector('img');
-                if (img) { img.style.width = '100%'; img.style.height = '52vw'; img.style.borderRadius = '20px'; }
-                var innerDiv = row.querySelector('div > div');
-                if (innerDiv && innerDiv.style && innerDiv.style.gridTemplateColumns) {
-                    innerDiv.style.gridTemplateColumns = 'auto 1fr';
-                    innerDiv.style.gap = '16px';
-                }
+            /* Avis cards — show them */
+            document.querySelectorAll('.avis-card').forEach(function(c){
+                c.style.opacity = '1';
+                c.style.transform = 'none';
+                c.style.transition = 'none';
             });
-
-            /* AVIS grid */
             var avisGrid = document.querySelector('#avis .grid');
             if (avisGrid) { avisGrid.style.gridTemplateColumns = isMobile ? '1fr' : 'repeat(2, 1fr)'; avisGrid.style.gap = '14px'; }
             var avisPt = document.querySelector('#avis .pt-64');
             if (avisPt) { avisPt.style.paddingTop = '40px'; }
+
+            /* FAQ items */
+            document.querySelectorAll('.faq-item').forEach(function(item){
+                item.style.opacity = '1';
+                item.style.transform = 'none';
+                item.style.transition = 'none';
+            });
+
+            /* Footer card */
+            var footerCard = document.getElementById('footerCard');
+            if (footerCard) { footerCard.style.transform = 'none'; footerCard.style.opacity = '1'; }
+
+            /* Hashtag buttons */
+            document.querySelectorAll('.hashtag-hidden').forEach(function(b){
+                b.classList.remove('hashtag-hidden');
+                b.style.opacity = '1';
+                b.style.transform = 'none';
+                b.style.position = 'static';
+            });
         }
 
         /* Run immediately and after DOM is ready */
