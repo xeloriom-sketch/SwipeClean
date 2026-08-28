@@ -834,10 +834,6 @@
         [c3, c2, cImg].forEach(function (el) { el.style.rotate = 'none'; el.style.translate = 'none'; el.style.scale = 'none'; el.style.margin = '0'; el.style.willChange = 'transform,opacity'; });
         cImg.style.position = 'relative'; cImg.style.zIndex = '10'; c3.style.zIndex = '1'; c2.style.zIndex = '2';
         var wrapOffset = (function () { var wr = wrap.getBoundingClientRect(); return window.innerHeight / 2 - (wr.top + wr.height / 2); })();
-        if (nextSection) {
-          nextSection.style.transform = 'translateY(40px)'; nextSection.style.opacity = '0'; nextSection.style.transition = 'transform 0.9s cubic-bezier(0.22,1,0.36,1), opacity 0.7s ease';
-          new IntersectionObserver(function(entries, obs) { if (!entries[0].isIntersecting) return; nextSection.style.transform = 'translateY(0)'; nextSection.style.opacity = '1'; obs.disconnect(); }, { threshold: 0.05 }).observe(nextSection);
-        }
         var cachedCenterY = null, cachedFillScale = null;
         var entryStart = performance.now(), ENTRY_MS = 1300;
         setTimeout(function () { lineSpans.forEach(function (s) { s.style.transition = ''; }); btns.forEach(function (b) { b.style.transition = ''; b.style.opacity = ''; }); }, ENTRY_MS + 100);
