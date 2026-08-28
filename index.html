@@ -400,8 +400,28 @@
         .integ-img { width: 3.5rem !important; height: 3.5rem !important; }
 
         /* ── SOCIAL ── */
-        #social > div { padding: 80px 16px 48px !important; gap: 20px !important; }
-        .social-card { width: 92vw !important; }
+        #social {
+            height: auto !important;
+            overflow: visible !important;
+            padding: 40px 0 !important;
+        }
+        #social > div {
+            flex-direction: column !important;
+            align-items: center !important;
+            margin-top: 0 !important;
+            padding: 16px 16px 40px !important;
+            gap: 16px !important;
+        }
+        .social-card {
+            width: 92vw !important;
+            height: auto !important;
+            margin-top: 0 !important;
+        }
+        /* Inner colored box: give enough height to show number + image */
+        .social-card > div[class*="space-y"] {
+            height: 180px !important;
+            margin-top: 12px !important;
+        }
 
         /* ── TEXT SECTION ── */
         #Text { padding: 60px 20px !important; }
@@ -411,7 +431,14 @@
         #nombercolone { padding: 28px 16px !important; }
         .nb-row { padding: 32px 0 !important; }
         .nb-row img { height: 62vw !important; }
-        .nb-row h3 { font-size: clamp(3.5rem, 20vw, 5.5rem) !important; }
+        .nb-row h3 {
+            font-size: clamp(3.5rem, 20vw, 5.5rem) !important;
+            padding-top: 0 !important;
+            margin-bottom: 4px !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: flex-start !important;
+        }
         .nb-row p.text-xl { font-size: 0.92rem !important; }
 
         /* ── AVIS ── */
@@ -421,7 +448,8 @@
             padding-top: 48px !important;
         }
         #avis .grid { grid-template-columns: 1fr !important; gap: 12px !important; }
-        .avis-card { min-height: 180px !important; }
+        #avis .grid > div[class*="-mt-"] { margin-top: 0 !important; }
+        .avis-card { height: auto !important; min-height: 160px !important; }
 
         /* ── CHANGELOG ── */
         #changelog h3.font-light {
@@ -463,10 +491,21 @@
             gap: 20px !important;
         }
         footer .flex.gap-4 { justify-content: center !important; }
+
+        /* ── HERO: remove mt-20 on mobile so no huge whitespace ── */
+        #Hero { margin-top: 0 !important; }
+        #Hero h1 { padding-top: 76px !important; }
     }
 </style>
     <style>
       .nav-links { position: absolute; left: 50%; transform: translateX(-50%); }
+      /* Desktop stats: widen number column so text doesn't overlap numbers */
+      @media (min-width: 1101px) {
+        .nb-row > div[style] {
+          grid-template-columns: 30vw 1fr !important;
+          gap: 3vw !important;
+        }
+      }
     </style>
     <script>
       function navTo(id) {
