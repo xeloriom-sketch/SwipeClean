@@ -154,6 +154,14 @@
             opacity: 1 !important;
             transform: none !important;
         }
+        /* NextSection stat numbers — override RAF textContent via ::after */
+        #NextSection .text-7xl[data-final] { color: transparent !important; position: relative !important; }
+        #NextSection .text-7xl[data-final]::after {
+            content: attr(data-final);
+            color: #000;
+            position: absolute;
+            left: 0; top: 0;
+        }
 
         /* ── FONCTIONNALITÉS ── */
         #integSection {
@@ -264,6 +272,15 @@
         /* Spans with scroll-animated opacity/transform — force visible */
         #nombercolone span[style*="opacity"] { opacity: 1 !important; transform: none !important; }
         #nombercolone [style*="scale"] { scale: 1 !important; opacity: 1 !important; }
+        /* Overlay final values: data-final attr set by fix(), ::after overrides RAF-driven textContent */
+        #nombercolone h3 span[data-final] { color: transparent !important; position: relative !important; }
+        #nombercolone h3 span[data-final]::after {
+            content: attr(data-final);
+            color: #000;
+            position: absolute;
+            left: 0; top: 0;
+            font-variant-numeric: tabular-nums;
+        }
 
         /* ── AVIS ── */
         #avis { padding: 20px 24px !important; }
@@ -1629,11 +1646,20 @@
                 row.style.padding = '40px 0';
                 var img = row.querySelector('img');
                 if (img) { img.style.width = '100%'; img.style.height = '52vw'; img.style.borderRadius = '20px'; img.style.clipPath = 'none'; img.style.transform = 'none'; }
-                /* number spans — show with opacity + reveal final value via data attribute */
+                /* number spans — show + set data-final for CSS ::after overlay */
                 row.querySelectorAll('span[style*="opacity"]').forEach(function(sp){
                     sp.style.opacity = '1';
                     sp.style.transform = 'none';
-                    /* Mark span so RAF still runs count-up animation — just ensure visible */
+                    /* Set data-final so CSS ::after shows correct value over RAF-driven text */
+                    if (!sp.getAttribute('data-final')) {
+                        var h3 = sp.parentElement;
+                        var allH3 = document.querySelectorAll('#nombercolone h3');
+                        var idx = [].indexOf.call(allH3, h3);
+                        var finals = ['+50K', '4Go', '3min'];
+                        if (idx >= 0 && idx < finals.length) {
+                            sp.setAttribute('data-final', finals[idx]);
+                        }
+                    }
                 });
                 /* badge + paragraph */
                 var badge = row.querySelector('[style*="scale"]');
@@ -1661,6 +1687,11 @@
                     var c = ns.querySelector(sel);
                     if (c) { c.style.opacity = '1'; c.style.transform = 'none'; }
                 });
+                /* Set data-final on NextSection stat numbers for CSS ::after overlay */
+                var yNum = ns.querySelector('.bg-yellow-300 .text-7xl');
+                var pNum = ns.querySelector('.bg-pink-300 .text-7xl');
+                if (yNum && !yNum.getAttribute('data-final')) yNum.setAttribute('data-final', '+68%');
+                if (pNum && !pNum.getAttribute('data-final')) pNum.setAttribute('data-final', '+42%');
                 var stTitle = ns.querySelector('p[style*="opacity"]');
                 if (stTitle) { stTitle.style.opacity = '1'; stTitle.style.transform = 'none'; }
             }
@@ -1707,26 +1738,5 @@
     })();
     </script>
 
-    <script>
-    /* Force stat animations to final values on mobile (runs after all other scripts) */
-    if (window.innerWidth <= 1100) {
-        setTimeout(function() {
-            /* Temporarily set scroll to max so RAF computes target=1 for all sections */
-            var savedScroll = window._smoothScrollY;
-            var maxSc = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
-            window._smoothScrollY = maxSc;
-            /* Let RAF run 3 frames to complete count-up animations */
-            var frames = 0;
-            function waitFrames() {
-                frames++;
-                if (frames < 8) { requestAnimationFrame(waitFrames); return; }
-                /* Restore original scroll position */
-                window._smoothScrollY = 0;
-                window.scrollTo(0, 0);
-            }
-            requestAnimationFrame(waitFrames);
-        }, 2000);
-    }
-    </script>
 </body>
 </html>
