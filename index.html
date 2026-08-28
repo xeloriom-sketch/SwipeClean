@@ -610,7 +610,9 @@
                     }
                     frag.appendChild(outer);
                 });
-                h2.innerHTML = ''; h2.appendChild(frag); h2.style.visibility = 'visible';
+                h2.innerHTML = ''; h2.appendChild(frag);
+                animItems.forEach(function(item) { item.inner.style.transform = item.k === 'words' ? 'translateY(105%)' : 'scale(0)'; });
+                h2.style.visibility = 'visible';
                 var n = animItems.length, disp = 0;
                 return { tick: function () {
                     var r = section.getBoundingClientRect();
