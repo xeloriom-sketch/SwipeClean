@@ -351,116 +351,157 @@
         </div>
     </section>
 
-    <section id="changelog" class="w-screen py-20" style="background:#fff;">
-        <h3 class="text-center text-7xl font-light pt-20 pb-4">Changelog</h3>
-        <div id="changelog-stage" style="position:relative;width:100%;height:580px;overflow:hidden;">
-            <div id="changelog-nav" style="position:absolute;bottom:24px;left:50%;transform:translateX(-50%);display:flex;gap:12px;z-index:20;">
-                <button id="changelog-prev" style="width:56px;height:56px;border:2px solid #000;background:#fff;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;" onmouseover="this.style.background='#000';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#000'">&#8592;</button>
-                <button id="changelog-next" style="width:56px;height:56px;border:2px solid #000;background:#fff;cursor:pointer;font-size:20px;display:flex;align-items:center;justify-content:center;transition:all 0.2s;" onmouseover="this.style.background='#000';this.style.color='#fff'" onmouseout="this.style.background='#fff';this.style.color='#000'">&#8594;</button>
+    <section id="changelog" style="background:#fff;width:100%;">
+
+    <!-- Gradient keyframe (injected once) -->
+    <style>
+    @keyframes cl-grad { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
+    .cl-header-grad { background:linear-gradient(135deg,#5b00ff,#7c3aed,#0d9488,#f59e0b,#ea00ff); background-size:400% 400%; animation:cl-grad 10s ease infinite; }
+    .cl-entry { position:relative; display:flex; padding:64px 0; border-bottom:1px solid #e5e7eb; }
+    .cl-date { width:160px; flex-shrink:0; padding:0 32px; }
+    .cl-date time { color:#9ca3af; font-size:0.78rem; font-weight:500; letter-spacing:0.06em; text-transform:uppercase; position:sticky; top:88px; display:block; }
+    .cl-body { flex:1; max-width:640px; display:flex; flex-direction:column; gap:16px; padding:0 40px 0 0; }
+    .cl-img-wrap { position:relative; cursor:pointer; border-radius:14px; overflow:hidden; border:1px solid #e5e7eb; }
+    .cl-img-wrap:hover .cl-overlay { opacity:1; }
+    .cl-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.18); opacity:0; transition:opacity 0.25s; display:flex; align-items:center; justify-content:center; }
+    .cl-overlay svg { color:#fff; }
+    .cl-actions button { width:36px; height:36px; border:none; background:transparent; cursor:pointer; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#6b7280; transition:background 0.2s,color 0.2s; }
+    .cl-actions button:hover { background:#f3f4f6; color:#111; }
+    /* Modal */
+    .cl-modal-bg { position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1000; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.25s; }
+    .cl-modal-bg.open { opacity:1; pointer-events:auto; }
+    .cl-modal { background:#fff; border-radius:18px; width:min(660px,92vw); max-height:88vh; overflow-y:auto; padding:40px; position:relative; transform:scale(0.96) translateY(12px); transition:transform 0.3s cubic-bezier(0.22,1,0.36,1); }
+    .cl-modal-bg.open .cl-modal { transform:scale(1) translateY(0); }
+    .cl-modal-close { position:absolute; top:16px; right:16px; width:36px; height:36px; border:none; background:#f3f4f6; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:18px; color:#555; }
+    .cl-modal-close:hover { background:#e5e7eb; }
+    </style>
+
+    <!-- Header gradient -->
+    <div class="cl-header-grad" style="position:relative;width:100%;overflow:hidden;min-height:260px;display:flex;align-items:flex-end;">
+        <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.35));"></div>
+        <div style="position:relative;padding:48px 80px;">
+            <div style="display:flex;align-items:center;gap:8px;color:rgba(255,255,255,0.8);font-size:0.82rem;font-weight:500;margin-bottom:14px;letter-spacing:0.04em;">
+                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                Changelog
+            </div>
+            <h1 style="font-size:2.6rem;font-weight:600;color:#fff;line-height:1.25;margin:0;">Dernières mises à jour<br>&amp; nouveautés</h1>
+        </div>
+    </div>
+
+    <!-- Entries list -->
+    <div style="max-width:900px;margin:0 auto;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">
+
+        <!-- v1.0.18 -->
+        <div class="cl-entry">
+            <div class="cl-date"><time>Août 2026</time></div>
+            <div class="cl-body">
+                <h3 style="font-size:1.9rem;font-weight:500;padding-top:40px;letter-spacing:-0.02em;">v1.0.18</h3>
+                <div class="cl-img-wrap" onclick="clModal(0)">
+                    <div style="height:220px;background:linear-gradient(135deg,#1e1b4b 0%,#3730a3 50%,#0f172a 100%);display:flex;align-items:center;justify-content:center;">
+                        <span style="font-size:5rem;font-weight:700;color:rgba(255,255,255,0.12);letter-spacing:-0.03em;">v1.0.18</span>
+                    </div>
+                    <div class="cl-overlay"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></div>
+                </div>
+                <p style="color:#6b7280;font-size:0.88rem;font-weight:400;line-height:1.7;">Correction de l'icône Android — fond blanc avec logo plein bord. Amélioration de la compatibilité edge-to-edge sur Android 12+.</p>
+                <div class="cl-actions" style="display:flex;align-items:center;justify-content:flex-end;gap:4px;">
+                    <button onclick="clModal(0)" title="Voir plus"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+                    <button onclick="clCopy('v1.0.18')" title="Copier"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+                </div>
             </div>
         </div>
-        <script>
-        (function() {
-            var SQRT5000 = Math.sqrt(5000);
-            var CARD = 340;
-            var entries = [
-                { version: 'v1.0.18', date: 'Août 2026', text: "Correction de l'icône Android — fond blanc avec logo plein bord. Amélioration de la compatibilité edge-to-edge sur Android 12+." },
-                { version: 'v1.0.17', date: 'Juillet 2026', text: "Correction du lien APK Android sur le site. Refonte du système de notifications et des succès." },
-                { version: 'v1.0.16', date: 'Juin 2026', text: "Ajout du téléchargement APK direct pour Android. Nouveaux sons de swipe et effets haptiques améliorés." },
-                { version: 'v1.0.15', date: 'Mai 2026', text: "Lancement initial v1 — tri par swipe, corbeille intelligente, favoris, statistiques et mode hors-ligne complet." },
-            ];
-            var list = entries.slice();
-            var stage = document.getElementById('changelog-stage');
-            var nav = document.getElementById('changelog-nav');
 
-            var cards = [];
+        <!-- v1.0.17 -->
+        <div class="cl-entry">
+            <div class="cl-date"><time>Juillet 2026</time></div>
+            <div class="cl-body">
+                <h3 style="font-size:1.9rem;font-weight:500;padding-top:40px;letter-spacing:-0.02em;">v1.0.17</h3>
+                <div class="cl-img-wrap" onclick="clModal(1)">
+                    <div style="height:220px;background:linear-gradient(135deg,#14532d 0%,#166534 50%,#052e16 100%);display:flex;align-items:center;justify-content:center;">
+                        <span style="font-size:5rem;font-weight:700;color:rgba(255,255,255,0.12);letter-spacing:-0.03em;">v1.0.17</span>
+                    </div>
+                    <div class="cl-overlay"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></div>
+                </div>
+                <p style="color:#6b7280;font-size:0.88rem;font-weight:400;line-height:1.7;">Correction du lien APK Android sur le site. Refonte du système de notifications et des succès.</p>
+                <div class="cl-actions" style="display:flex;align-items:center;justify-content:flex-end;gap:4px;">
+                    <button onclick="clModal(1)" title="Voir plus"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+                    <button onclick="clCopy('v1.0.17')" title="Copier"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+                </div>
+            </div>
+        </div>
 
-            function createCard(entry) {
-                var card = document.createElement('div');
-                card.className = 'cl-card';
-                card.style.cssText = [
-                    'position:absolute','left:50%','top:50%','cursor:pointer',
-                    'padding:32px','overflow:hidden','box-sizing:border-box',
-                    'transition:transform 0.55s cubic-bezier(0.22,1,0.36,1),background 0.45s,color 0.45s,border-color 0.45s,box-shadow 0.45s,opacity 0.45s,z-index 0s 0.275s',
-                    'width:'+CARD+'px','height:'+CARD+'px',
-                    'clip-path:polygon(50px 0%,calc(100% - 50px) 0%,100% 50px,100% 100%,calc(100% - 50px) 100%,50px 100%,0 100%,0 0)',
-                    'will-change:transform',
-                ].join(';');
-                // Cut-corner line
-                var line = document.createElement('span');
-                line.className = 'cl-line';
-                line.style.cssText = 'position:absolute;display:block;right:-2px;top:48px;width:'+SQRT5000+'px;height:2px;transform:rotate(45deg);transform-origin:top right;transition:background 0.45s;';
-                card.appendChild(line);
-                // Date
-                var date = document.createElement('p');
-                date.className = 'cl-date';
-                date.style.cssText = 'font-size:0.7rem;letter-spacing:0.08em;text-transform:uppercase;opacity:0.5;margin-bottom:10px;font-weight:400;';
-                date.textContent = entry.date;
-                card.appendChild(date);
-                // Version
-                var ver = document.createElement('h4');
-                ver.style.cssText = 'font-size:2.4rem;font-weight:300;margin-bottom:16px;letter-spacing:-0.02em;';
-                ver.textContent = entry.version;
-                card.appendChild(ver);
-                // Text
-                var txt = document.createElement('p');
-                txt.style.cssText = 'font-size:0.9rem;font-weight:300;line-height:1.65;';
-                txt.textContent = entry.text;
-                card.appendChild(txt);
-                return { el: card, line: line, txt: txt, entry: entry };
-            }
+        <!-- v1.0.16 -->
+        <div class="cl-entry">
+            <div class="cl-date"><time>Juin 2026</time></div>
+            <div class="cl-body">
+                <h3 style="font-size:1.9rem;font-weight:500;padding-top:40px;letter-spacing:-0.02em;">v1.0.16</h3>
+                <div class="cl-img-wrap" onclick="clModal(2)">
+                    <div style="height:220px;background:linear-gradient(135deg,#7c2d12 0%,#9a3412 50%,#431407 100%);display:flex;align-items:center;justify-content:center;">
+                        <span style="font-size:5rem;font-weight:700;color:rgba(255,255,255,0.12);letter-spacing:-0.03em;">v1.0.16</span>
+                    </div>
+                    <div class="cl-overlay"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></div>
+                    <div class="cl-overlay"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></div>
+                </div>
+                <p style="color:#6b7280;font-size:0.88rem;font-weight:400;line-height:1.7;">Ajout du téléchargement APK direct pour Android. Nouveaux sons de swipe et effets haptiques améliorés.</p>
+                <div class="cl-actions" style="display:flex;align-items:center;justify-content:flex-end;gap:4px;">
+                    <button onclick="clModal(2)" title="Voir plus"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+                    <button onclick="clCopy('v1.0.16')" title="Copier"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+                </div>
+            </div>
+        </div>
 
-            function applyPos(card, pos, isCenter) {
-                var el = card.el;
-                var tx = (CARD / 1.5) * pos;
-                var ty = isCenter ? -65 : (Math.abs(pos) % 2 ? 15 : -15);
-                var rot = isCenter ? 0 : (pos > 0 ? 2.5 : -2.5);
-                el.style.transform = 'translate(-50%,-50%) translateX('+tx+'px) translateY('+ty+'px) rotate('+rot+'deg)';
-                el.style.background = isCenter ? '#000' : '#fff';
-                el.style.color = isCenter ? '#fff' : '#111';
-                el.style.border = '2px solid ' + (isCenter ? '#000' : '#e5e7eb');
-                el.style.boxShadow = isCenter ? '0 8px 0 4px rgba(0,0,0,0.12)' : 'none';
-                el.style.zIndex = isCenter ? 10 : Math.max(1, 5 - Math.abs(pos));
-                el.style.opacity = Math.abs(pos) > 2 ? '0' : '1';
-                card.line.style.background = isCenter ? '#333' : '#e5e7eb';
-                card.txt.style.opacity = isCenter ? '0.85' : '0.7';
-                el.onclick = isCenter ? null : (function(p){ return function(){ move(p); }; })(pos);
-            }
+        <!-- v1.0.15 -->
+        <div class="cl-entry" style="border-bottom:none;">
+            <div class="cl-date"><time>Mai 2026</time></div>
+            <div class="cl-body">
+                <h3 style="font-size:1.9rem;font-weight:500;padding-top:40px;letter-spacing:-0.02em;">v1.0.15</h3>
+                <div class="cl-img-wrap" onclick="clModal(3)">
+                    <div style="height:220px;background:linear-gradient(135deg,#1e3a5f 0%,#1d4ed8 50%,#0c1a3a 100%);display:flex;align-items:center;justify-content:center;">
+                        <span style="font-size:5rem;font-weight:700;color:rgba(255,255,255,0.12);letter-spacing:-0.03em;">v1.0.15</span>
+                    </div>
+                    <div class="cl-overlay"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></div>
+                </div>
+                <p style="color:#6b7280;font-size:0.88rem;font-weight:400;line-height:1.7;">Lancement initial v1 — tri par swipe, corbeille intelligente, favoris, statistiques et mode hors-ligne complet.</p>
+                <div class="cl-actions" style="display:flex;align-items:center;justify-content:flex-end;gap:4px;">
+                    <button onclick="clModal(3)" title="Voir plus"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+                    <button onclick="clCopy('v1.0.15')" title="Copier"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+                </div>
+            </div>
+        </div>
 
-            function render() {
-                var n = list.length;
-                list.forEach(function(entry, idx) {
-                    var pos = idx - Math.floor(n / 2);
-                    applyPos(cards[idx], pos, pos === 0);
-                });
-            }
+    </div>
 
-            function move(steps) {
-                if (steps > 0) { for(var i=0;i<steps;i++){list.push(list.shift());} }
-                else { for(var i=0;i>steps;i--){list.unshift(list.pop());} }
-                render();
-            }
+    <!-- Modal backdrop -->
+    <div id="cl-modal-bg" class="cl-modal-bg" onclick="if(event.target===this)clModalClose()">
+        <div class="cl-modal" id="cl-modal-box">
+            <button class="cl-modal-close" onclick="clModalClose()">&#x2715;</button>
+            <div id="cl-modal-content"></div>
+        </div>
+    </div>
 
-            // Init: create cards once
-            list.forEach(function(entry, idx) {
-                var card = createCard(entry);
-                stage.insertBefore(card.el, nav);
-                cards.push(card);
-            });
-            // Initial render (no transition yet)
-            cards.forEach(function(c){ c.el.style.transition = 'none'; });
-            render();
-            requestAnimationFrame(function(){ requestAnimationFrame(function(){
-                cards.forEach(function(c){
-                    c.el.style.transition = 'transform 0.55s cubic-bezier(0.22,1,0.36,1),background 0.45s,color 0.45s,border-color 0.45s,box-shadow 0.45s,opacity 0.45s';
-                });
-            }); });
-
-            document.getElementById('changelog-prev').addEventListener('click', function(){ move(-1); });
-            document.getElementById('changelog-next').addEventListener('click', function(){ move(1); });
-        })();
-        </script>
-    </section>
+    <script>
+    var CL_DATA = [
+        { version:'v1.0.18', date:'Août 2026', excerpt:"Correction de l'icône Android — fond blanc avec logo plein bord. Amélioration de la compatibilité edge-to-edge sur Android 12+.", detail:"<h3 style='font-size:1.4rem;font-weight:600;margin:0 0 12px;'>Icône Android</h3><ul style='padding-left:20px;color:#444;line-height:2;font-size:0.9rem;'><li>Fond blanc avec logo plein bord</li><li>Compatibilité edge-to-edge Android 12+</li><li>Icône adaptative améliorée</li></ul>" },
+        { version:'v1.0.17', date:'Juillet 2026', excerpt:"Correction du lien APK Android sur le site. Refonte du système de notifications et des succès.", detail:"<h3 style='font-size:1.4rem;font-weight:600;margin:0 0 12px;'>Notifications &amp; Succès</h3><ul style='padding-left:20px;color:#444;line-height:2;font-size:0.9rem;'><li>Lien APK Android corrigé sur le site</li><li>Refonte du système de notifications</li><li>Nouveaux succès débloquables</li></ul>" },
+        { version:'v1.0.16', date:'Juin 2026', excerpt:"Ajout du téléchargement APK direct pour Android. Nouveaux sons de swipe et effets haptiques améliorés.", detail:"<h3 style='font-size:1.4rem;font-weight:600;margin:0 0 12px;'>Android &amp; Sons</h3><ul style='padding-left:20px;color:#444;line-height:2;font-size:0.9rem;'><li>Téléchargement APK direct disponible</li><li>Nouveaux sons de swipe</li><li>Effets haptiques améliorés</li></ul>" },
+        { version:'v1.0.15', date:'Mai 2026', excerpt:"Lancement initial v1 — tri par swipe, corbeille intelligente, favoris, statistiques et mode hors-ligne complet.", detail:"<h3 style='font-size:1.4rem;font-weight:600;margin:0 0 12px;'>Lancement SwipeClean</h3><ul style='padding-left:20px;color:#444;line-height:2;font-size:0.9rem;'><li>Tri par swipe gauche/droite/haut</li><li>Corbeille intelligente récupérable</li><li>Favoris &amp; statistiques</li><li>Mode hors-ligne complet</li></ul>" },
+    ];
+    function clModal(idx) {
+        var d = CL_DATA[idx];
+        document.getElementById('cl-modal-content').innerHTML =
+            '<p style="color:#9ca3af;font-size:0.75rem;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">' + d.date + '</p>' +
+            '<h2 style="font-size:1.8rem;font-weight:600;margin:0 0 10px;letter-spacing:-0.02em;">' + d.version + '</h2>' +
+            '<p style="color:#6b7280;font-size:0.88rem;margin-bottom:20px;line-height:1.65;">' + d.excerpt + '</p>' +
+            '<hr style="border:none;border-top:1px solid #e5e7eb;margin-bottom:20px;">' +
+            d.detail;
+        document.getElementById('cl-modal-bg').classList.add('open');
+    }
+    function clModalClose() { document.getElementById('cl-modal-bg').classList.remove('open'); }
+    function clCopy(v) {
+        navigator.clipboard && navigator.clipboard.writeText(window.location.href + '#changelog-' + v);
+    }
+    document.addEventListener('keydown', function(e){ if(e.key==='Escape') clModalClose(); });
+    </script>
+</section>
 
     <section id="faq" class="w-screen px-30 py-20">
         <h3 class="text-center text-7xl font-light pt-20 pb-20">Questions <br> Fréquentes</h3>
