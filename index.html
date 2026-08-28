@@ -113,6 +113,14 @@
             display: block !important;
         }
 
+        /* ── HERO SCROLL SCENE (300vh JS wrapper — collapse on mobile) ── */
+        #card-scroll-scene { height: auto !important; }
+        #Hero {
+            position: static !important;
+            min-height: auto !important;
+            overflow: visible !important;
+        }
+
         /* ── NEXT SECTION ── */
         #NextSection {
             min-height: auto !important;
@@ -138,6 +146,9 @@
             height: auto !important;
             min-height: 260px !important;
         }
+        /* NextSection h2 char spans (nextTitleMod applies translateY per char) */
+        #NextSection h2 span { transform: none !important; opacity: 1 !important; }
+
         #NextSection .bg-yellow-300,
         #NextSection .bg-pink-300 {
             opacity: 1 !important;
@@ -169,6 +180,8 @@
             height: 5rem !important;
             margin-bottom: 0 !important;
             align-self: auto !important;
+            opacity: 1 !important;
+            transform: scale(1) rotate(var(--r, 0deg)) !important;
         }
         #wolloBanner { display: none !important; }
 
@@ -1538,6 +1551,17 @@
             if (logoDiv) { logoDiv.style.setProperty('padding', '0', 'important'); }
             if (hamburger) { hamburger.style.setProperty('display', 'flex', 'important'); }
 
+            /* HERO SCROLL SCENE — collapse 300vh container to auto */
+            var scene = document.getElementById('card-scroll-scene');
+            if (scene) { scene.style.height = 'auto'; scene.style.overflow = 'visible'; }
+            var hero = document.getElementById('Hero');
+            if (hero) {
+                hero.style.position = 'static';
+                hero.style.minHeight = 'auto';
+                hero.style.overflow = 'visible';
+                hero.style.justifyContent = 'flex-start';
+            }
+
             /* HERO h1 — fix overflow + font size */
             var h1 = document.querySelector('#Hero h1');
             if (h1) {
@@ -1592,6 +1616,12 @@
                 textSec.querySelectorAll('span span').forEach(function(sp){ sp.style.transform = 'none'; sp.style.opacity = '1'; });
             }
 
+            /* integSection images — integMod sets opacity:0 initially */
+            document.querySelectorAll('.integ-img').forEach(function(img){
+                img.style.opacity = '1';
+                img.style.transform = 'scale(1) rotate(' + (img.style.getPropertyValue('--r') || '0deg') + ')';
+            });
+
             /* Numbers (nombercolone) — show final values + full opacity */
             document.querySelectorAll('#nombercolone .nb-row').forEach(function(row){
                 row.style.gridTemplateColumns = '1fr';
@@ -1599,8 +1629,21 @@
                 row.style.padding = '40px 0';
                 var img = row.querySelector('img');
                 if (img) { img.style.width = '100%'; img.style.height = '52vw'; img.style.borderRadius = '20px'; img.style.clipPath = 'none'; img.style.transform = 'none'; }
-                /* number spans */
-                row.querySelectorAll('span[style*="opacity"]').forEach(function(sp){ sp.style.opacity = '1'; sp.style.transform = 'none'; });
+                /* number spans — show + restore final text value */
+                row.querySelectorAll('span[style*="opacity"]').forEach(function(sp){
+                    sp.style.opacity = '1';
+                    sp.style.transform = 'none';
+                    /* restore final value if still showing "0" (numbersMod not yet triggered) */
+                    var txt = sp.textContent;
+                    if (txt && txt.match(/^[+\-]?0[^.]/) ) {
+                        /* look at next sibling paragraph for suffix clue, else use width ratio */
+                        var h3 = sp.parentElement;
+                        var allH3 = document.querySelectorAll('#nombercolone h3');
+                        var idx = [].indexOf.call(allH3, h3);
+                        var finals = ['+50K', '4Go', '3min'];
+                        if (idx >= 0 && idx < finals.length) { sp.textContent = finals[idx]; }
+                    }
+                });
                 /* badge + paragraph */
                 var badge = row.querySelector('[style*="scale"]');
                 if (badge) { badge.style.scale = '1'; badge.style.opacity = '1'; }
