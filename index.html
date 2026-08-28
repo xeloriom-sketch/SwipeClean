@@ -1293,52 +1293,140 @@
     }
     </script>
 
-    <script>
-    /* Mobile menu */
+        <script>
+    /* ───── Mobile menu ───── */
     function openMobMenu() {
-        var overlay = document.getElementById('mob-overlay');
-        var backdrop = document.getElementById('mob-backdrop');
-        var panel = document.getElementById('mob-panel');
-        if (!overlay) return;
-        overlay.style.pointerEvents = 'auto';
-        backdrop.style.opacity = '1';
-        panel.style.transform = 'translateX(0)';
-        document.querySelectorAll('.mob-link').forEach(function(l) {
-            l.style.opacity = '1';
-            l.style.transform = 'translateX(0) translateY(0)';
-        });
+        var o=document.getElementById('mob-overlay'),b=document.getElementById('mob-backdrop'),p=document.getElementById('mob-panel');
+        if(!o)return;
+        o.style.pointerEvents='auto'; b.style.opacity='1'; p.style.transform='translateX(0)';
+        document.querySelectorAll('.mob-link').forEach(function(l){l.style.opacity='1';l.style.transform='translateX(0) translateY(0)';});
     }
     function closeMobMenu() {
-        var overlay = document.getElementById('mob-overlay');
-        var backdrop = document.getElementById('mob-backdrop');
-        var panel = document.getElementById('mob-panel');
-        if (!overlay) return;
-        backdrop.style.opacity = '0';
-        panel.style.transform = 'translateX(100%)';
-        overlay.style.pointerEvents = 'none';
-        document.querySelectorAll('.mob-link').forEach(function(l) {
-            l.style.opacity = '0';
-            l.style.transform = 'translateX(20px)';
-        });
+        var o=document.getElementById('mob-overlay'),b=document.getElementById('mob-backdrop'),p=document.getElementById('mob-panel');
+        if(!o)return;
+        b.style.opacity='0'; p.style.transform='translateX(100%)'; o.style.pointerEvents='none';
+        document.querySelectorAll('.mob-link').forEach(function(l){l.style.opacity='0';l.style.transform='translateX(20px)';});
     }
-    if (window.innerWidth <= 1100) {
-        /* Fix social cards scale */
-        window.addEventListener('DOMContentLoaded', function() {
+
+    /* ───── Mobile layout (JS overrides — infaillible vs Tailwind) ───── */
+    (function(){
+        if (window.innerWidth > 1100) return;
+        var isMobile = window.innerWidth <= 640;
+
+        function fix() {
+            var nav = document.querySelector('nav');
+            var navLinks = document.querySelector('.nav-links');
+            var navRight = nav ? nav.querySelector('div:last-child') : null;
+            var hamburger = document.getElementById('mob-hamburger');
+
+            /* NAV */
+            if (nav) { nav.style.padding = '14px 20px'; }
+            if (navLinks) { navLinks.style.display = 'none'; navLinks.style.visibility = 'hidden'; }
+            if (navRight) { navRight.style.display = 'none'; navRight.style.visibility = 'hidden'; }
+            if (hamburger) { hamburger.style.display = 'flex'; }
+
+            /* HERO h1 — fix overflow + font size */
+            var h1 = document.querySelector('#Hero h1');
+            if (h1) {
+                h1.style.fontSize = isMobile ? 'clamp(1.85rem, 8vw, 2.6rem)' : 'clamp(2.2rem, 5.5vw, 4rem)';
+                h1.style.paddingTop = '88px';
+                h1.style.lineHeight = '1.18';
+                h1.style.wordBreak = 'break-word';
+                h1.style.overflowWrap = 'break-word';
+            }
+            /* Remove overflow:hidden that clips the h1 */
+            var heroInner = document.querySelector('#Hero .overflow-hidden');
+            if (heroInner) {
+                heroInner.style.overflow = 'visible';
+                heroInner.style.padding = '0 ' + (isMobile ? '20px' : '28px');
+                heroInner.style.width = '100%';
+                heroInner.style.boxSizing = 'border-box';
+            }
+            /* Hero buttons row */
+            var heroBtns = document.querySelector('#Hero .flex.items-center.justify-center.space-x-5');
+            if (heroBtns) { heroBtns.style.flexWrap = 'wrap'; heroBtns.style.justifyContent = 'center'; heroBtns.style.gap = '12px'; }
+
+            /* SOCIAL cards — remove JS scale */
             document.querySelectorAll('.social-card').forEach(function(c) {
                 c.style.transform = 'scale(1)';
                 c.style.marginTop = '0';
+                c.style.width = isMobile ? '92vw' : '84vw';
+                c.style.maxWidth = '520px';
+                c.style.height = 'auto';
             });
-        });
-        /* Disable Matter.js physics */
-        window._noPhysics = true;
-        window.addEventListener('DOMContentLoaded', function() {
-            document.querySelectorAll('.hashtag-hidden').forEach(function(b) {
+            var socialSection = document.getElementById('social');
+            if (socialSection) { socialSection.style.height = 'auto'; socialSection.style.overflow = 'visible'; }
+            var socialFlex = socialSection ? socialSection.querySelector('.flex.items-center') : null;
+            if (socialFlex) {
+                socialFlex.style.flexDirection = 'column';
+                socialFlex.style.height = 'auto';
+                socialFlex.style.overflow = 'visible';
+                socialFlex.style.marginTop = '0';
+                socialFlex.style.padding = (isMobile ? '100px 16px 48px' : '100px 24px 60px');
+                socialFlex.style.gap = '20px';
+            }
+            document.querySelectorAll('.social-card > div:last-child').forEach(function(d){
+                d.style.height = isMobile ? '48vw' : '42vw';
+                d.style.minHeight = '180px';
+                d.style.maxHeight = '280px';
+            });
+
+            /* HASHTAGS — disable physics on mobile */
+            window._noPhysics = true;
+            document.querySelectorAll('.hashtag-hidden').forEach(function(b){
                 b.classList.remove('hashtag-hidden');
                 b.style.opacity = '1';
                 b.style.transform = 'none';
             });
-        });
-    }
+
+            /* NextSection */
+            var ns = document.getElementById('NextSection');
+            if (ns) {
+                ns.style.padding = isMobile ? '36px 16px 48px' : '48px 28px 56px';
+                ns.style.borderRadius = isMobile ? '20px 20px 0 0' : '28px 28px 0 0';
+                ns.style.marginTop = '-10vh';
+                var nsH2 = ns.querySelector('h2');
+                if (nsH2) { nsH2.style.fontSize = isMobile ? 'clamp(1.65rem, 7vw, 2.4rem)' : 'clamp(1.9rem, 5vw, 3.5rem)'; nsH2.style.textAlign = 'center'; }
+                var nsRow = ns.querySelector('.flex.flex-row');
+                if (nsRow) {
+                    nsRow.style.flexDirection = 'column';
+                    nsRow.style.gap = '20px';
+                    nsRow.style.overflow = 'visible';
+                    nsRow.querySelectorAll(':scope > div').forEach(function(d){ d.style.width = '100%'; d.style.height = 'auto'; d.style.minHeight = '260px'; });
+                }
+            }
+
+            /* STATS inner grid */
+            document.querySelectorAll('#nombercolone .nb-row').forEach(function(row){
+                row.style.gridTemplateColumns = '1fr';
+                row.style.gap = '20px';
+                row.style.padding = '40px 0';
+                var img = row.querySelector('img');
+                if (img) { img.style.width = '100%'; img.style.height = '52vw'; img.style.borderRadius = '20px'; }
+                var innerDiv = row.querySelector('div > div');
+                if (innerDiv && innerDiv.style && innerDiv.style.gridTemplateColumns) {
+                    innerDiv.style.gridTemplateColumns = 'auto 1fr';
+                    innerDiv.style.gap = '16px';
+                }
+            });
+
+            /* AVIS grid */
+            var avisGrid = document.querySelector('#avis .grid');
+            if (avisGrid) { avisGrid.style.gridTemplateColumns = isMobile ? '1fr' : 'repeat(2, 1fr)'; avisGrid.style.gap = '14px'; }
+            var avisPt = document.querySelector('#avis .pt-64');
+            if (avisPt) { avisPt.style.paddingTop = '40px'; }
+        }
+
+        /* Run immediately and after DOM is ready */
+        fix();
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', fix);
+        }
+        /* Re-run after animations settle */
+        setTimeout(fix, 500);
+        setTimeout(fix, 1500);
+    })();
     </script>
+
 </body>
 </html>
