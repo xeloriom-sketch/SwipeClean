@@ -1629,20 +1629,11 @@
                 row.style.padding = '40px 0';
                 var img = row.querySelector('img');
                 if (img) { img.style.width = '100%'; img.style.height = '52vw'; img.style.borderRadius = '20px'; img.style.clipPath = 'none'; img.style.transform = 'none'; }
-                /* number spans — show + restore final text value */
+                /* number spans — show with opacity + reveal final value via data attribute */
                 row.querySelectorAll('span[style*="opacity"]').forEach(function(sp){
                     sp.style.opacity = '1';
                     sp.style.transform = 'none';
-                    /* restore final value if still showing "0" (numbersMod not yet triggered) */
-                    var txt = sp.textContent;
-                    if (txt && txt.match(/^[+\-]?0[^.]/) ) {
-                        /* look at next sibling paragraph for suffix clue, else use width ratio */
-                        var h3 = sp.parentElement;
-                        var allH3 = document.querySelectorAll('#nombercolone h3');
-                        var idx = [].indexOf.call(allH3, h3);
-                        var finals = ['+50K', '4Go', '3min'];
-                        if (idx >= 0 && idx < finals.length) { sp.textContent = finals[idx]; }
-                    }
+                    /* Mark span so RAF still runs count-up animation — just ensure visible */
                 });
                 /* badge + paragraph */
                 var badge = row.querySelector('[style*="scale"]');
@@ -1716,5 +1707,26 @@
     })();
     </script>
 
+    <script>
+    /* Force stat animations to final values on mobile (runs after all other scripts) */
+    if (window.innerWidth <= 1100) {
+        setTimeout(function() {
+            /* Temporarily set scroll to max so RAF computes target=1 for all sections */
+            var savedScroll = window._smoothScrollY;
+            var maxSc = Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
+            window._smoothScrollY = maxSc;
+            /* Let RAF run 3 frames to complete count-up animations */
+            var frames = 0;
+            function waitFrames() {
+                frames++;
+                if (frames < 8) { requestAnimationFrame(waitFrames); return; }
+                /* Restore original scroll position */
+                window._smoothScrollY = 0;
+                window.scrollTo(0, 0);
+            }
+            requestAnimationFrame(waitFrames);
+        }, 2000);
+    }
+    </script>
 </body>
 </html>
