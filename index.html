@@ -351,128 +351,117 @@
         </div>
     </section>
 
-    <section id="changelog" style="background:#fff;width:100%;">
+    <section id="changelog" style="background:#fff;width:100%;padding:0 0 80px;">
 
-    <!-- Gradient keyframe (injected once) -->
     <style>
-    @keyframes cl-grad { 0%{background-position:0% 50%} 50%{background-position:100% 50%} 100%{background-position:0% 50%} }
-    .cl-header-grad { background:linear-gradient(135deg,#5b00ff,#7c3aed,#0d9488,#f59e0b,#ea00ff); background-size:400% 400%; animation:cl-grad 10s ease infinite; }
-    .cl-entry { position:relative; display:flex; padding:64px 0; border-bottom:1px solid #e5e7eb; }
-    .cl-date { width:160px; flex-shrink:0; padding:0 32px; }
-    .cl-date time { color:#9ca3af; font-size:0.78rem; font-weight:500; letter-spacing:0.06em; text-transform:uppercase; position:sticky; top:88px; display:block; }
-    .cl-body { flex:1; max-width:640px; display:flex; flex-direction:column; gap:16px; padding:0 40px 0 0; }
-    .cl-img-wrap { position:relative; cursor:pointer; border-radius:14px; overflow:hidden; border:1px solid #e5e7eb; }
-    .cl-img-wrap:hover .cl-overlay { opacity:1; }
-    .cl-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.18); opacity:0; transition:opacity 0.25s; display:flex; align-items:center; justify-content:center; }
-    .cl-overlay svg { color:#fff; }
-    .cl-actions button { width:36px; height:36px; border:none; background:transparent; cursor:pointer; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#6b7280; transition:background 0.2s,color 0.2s; }
-    .cl-actions button:hover { background:#f3f4f6; color:#111; }
+    .cl-entry { display:flex; padding:80px 0; border-bottom:1px solid rgba(0,0,0,0.08); gap:0; }
+    .cl-date-col { width:200px; flex-shrink:0; }
+    .cl-date-col time { display:block; font-size:0.72rem; font-weight:400; letter-spacing:0.1em; text-transform:uppercase; color:#aaa; position:sticky; top:88px; padding-top:8px; }
+    .cl-body { flex:1; max-width:620px; display:flex; flex-direction:column; gap:18px; }
+    .cl-img-wrap { position:relative; cursor:pointer; border-radius:18px; overflow:hidden; }
+    .cl-img-wrap:hover .cl-img-overlay { opacity:1; }
+    .cl-img-overlay { position:absolute; inset:0; background:rgba(0,0,0,0.22); opacity:0; transition:opacity 0.22s; display:flex; align-items:center; justify-content:center; }
+    .cl-img-overlay svg { color:#fff; }
+    .cl-action-btn { width:34px; height:34px; border:none; background:transparent; cursor:pointer; border-radius:8px; display:flex; align-items:center; justify-content:center; color:#bbb; transition:color 0.18s, background 0.18s; }
+    .cl-action-btn:hover { background:#f5f5f5; color:#111; }
     /* Modal */
-    .cl-modal-bg { position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:1000; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.25s; }
+    .cl-modal-bg { position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000; display:flex; align-items:center; justify-content:center; opacity:0; pointer-events:none; transition:opacity 0.22s; }
     .cl-modal-bg.open { opacity:1; pointer-events:auto; }
-    .cl-modal { background:#fff; border-radius:18px; width:min(660px,92vw); max-height:88vh; overflow-y:auto; padding:40px; position:relative; transform:scale(0.96) translateY(12px); transition:transform 0.3s cubic-bezier(0.22,1,0.36,1); }
-    .cl-modal-bg.open .cl-modal { transform:scale(1) translateY(0); }
-    .cl-modal-close { position:absolute; top:16px; right:16px; width:36px; height:36px; border:none; background:#f3f4f6; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:18px; color:#555; }
-    .cl-modal-close:hover { background:#e5e7eb; }
+    .cl-modal { background:#fff; border-radius:20px; width:min(580px,90vw); max-height:85vh; overflow-y:auto; padding:44px 44px 40px; position:relative; transform:translateY(16px) scale(0.97); transition:transform 0.3s cubic-bezier(0.22,1,0.36,1); }
+    .cl-modal-bg.open .cl-modal { transform:translateY(0) scale(1); }
+    .cl-modal-close { position:absolute; top:18px; right:18px; width:32px; height:32px; border:none; background:#f0f0f0; border-radius:50%; cursor:pointer; display:flex; align-items:center; justify-content:center; color:#666; font-size:16px; }
+    .cl-modal-close:hover { background:#e5e5e5; color:#000; }
     </style>
 
-    <!-- Header gradient -->
-    <div class="cl-header-grad" style="position:relative;width:100%;overflow:hidden;min-height:260px;display:flex;align-items:flex-end;">
-        <div style="position:absolute;inset:0;background:linear-gradient(to bottom,transparent 40%,rgba(0,0,0,0.35));"></div>
-        <div style="position:relative;padding:48px 80px;">
-            <div style="display:flex;align-items:center;gap:8px;color:rgba(255,255,255,0.8);font-size:0.82rem;font-weight:500;margin-bottom:14px;letter-spacing:0.04em;">
-                <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                Changelog
-            </div>
-            <h1 style="font-size:2.6rem;font-weight:600;color:#fff;line-height:1.25;margin:0;">Dernières mises à jour<br>&amp; nouveautés</h1>
-        </div>
-    </div>
+    <!-- Titre section — même style que les autres -->
+    <h3 class="text-center font-light" style="font-size:clamp(3rem,7vw,5rem);padding-top:120px;padding-bottom:80px;letter-spacing:-0.02em;">Changelog</h3>
 
-    <!-- Entries list -->
-    <div style="max-width:900px;margin:0 auto;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">
+    <!-- Liste des entrées -->
+    <div style="max-width:860px;margin:0 auto;padding:0 40px;border-left:1px solid rgba(0,0,0,0.07);border-right:1px solid rgba(0,0,0,0.07);">
 
         <!-- v1.0.18 -->
         <div class="cl-entry">
-            <div class="cl-date"><time>Août 2026</time></div>
+            <div class="cl-date-col"><time>Août 2026</time></div>
             <div class="cl-body">
-                <h3 style="font-size:1.9rem;font-weight:500;padding-top:40px;letter-spacing:-0.02em;">v1.0.18</h3>
+                <p style="font-size:0.8rem;font-weight:400;color:#bbb;letter-spacing:0.06em;text-transform:uppercase;">Dernière version</p>
+                <h3 style="font-size:2.8rem;font-weight:300;letter-spacing:-0.03em;line-height:1;">v1.0.18</h3>
                 <div class="cl-img-wrap" onclick="clModal(0)">
-                    <div style="height:220px;background:linear-gradient(135deg,#1e1b4b 0%,#3730a3 50%,#0f172a 100%);display:flex;align-items:center;justify-content:center;">
-                        <span style="font-size:5rem;font-weight:700;color:rgba(255,255,255,0.12);letter-spacing:-0.03em;">v1.0.18</span>
+                    <div style="height:200px;background:#111;display:flex;align-items:center;justify-content:center;">
+                        <span style="font-size:6rem;font-weight:200;color:rgba(255,255,255,0.08);letter-spacing:-0.04em;">1.0.18</span>
                     </div>
-                    <div class="cl-overlay"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></div>
+                    <div class="cl-img-overlay"><svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></div>
                 </div>
-                <p style="color:#6b7280;font-size:0.88rem;font-weight:400;line-height:1.7;">Correction de l'icône Android — fond blanc avec logo plein bord. Amélioration de la compatibilité edge-to-edge sur Android 12+.</p>
-                <div class="cl-actions" style="display:flex;align-items:center;justify-content:flex-end;gap:4px;">
-                    <button onclick="clModal(0)" title="Voir plus"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
-                    <button onclick="clCopy('v1.0.18')" title="Copier"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+                <p style="color:#888;font-size:0.9rem;font-weight:300;line-height:1.75;">Correction de l'icône Android — fond blanc avec logo plein bord. Amélioration de la compatibilité edge-to-edge sur Android 12+.</p>
+                <div style="display:flex;align-items:center;justify-content:flex-end;gap:2px;">
+                    <button class="cl-action-btn" onclick="clModal(0)" title="Voir plus"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+                    <button class="cl-action-btn" onclick="clCopy('v1.0.18')" title="Copier lien"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
                 </div>
             </div>
         </div>
 
         <!-- v1.0.17 -->
         <div class="cl-entry">
-            <div class="cl-date"><time>Juillet 2026</time></div>
+            <div class="cl-date-col"><time>Juillet 2026</time></div>
             <div class="cl-body">
-                <h3 style="font-size:1.9rem;font-weight:500;padding-top:40px;letter-spacing:-0.02em;">v1.0.17</h3>
+                <h3 style="font-size:2.8rem;font-weight:300;letter-spacing:-0.03em;line-height:1;padding-top:4px;">v1.0.17</h3>
                 <div class="cl-img-wrap" onclick="clModal(1)">
-                    <div style="height:220px;background:linear-gradient(135deg,#14532d 0%,#166534 50%,#052e16 100%);display:flex;align-items:center;justify-content:center;">
-                        <span style="font-size:5rem;font-weight:700;color:rgba(255,255,255,0.12);letter-spacing:-0.03em;">v1.0.17</span>
+                    <div style="height:200px;background:#111;display:flex;align-items:center;justify-content:center;">
+                        <span style="font-size:6rem;font-weight:200;color:rgba(255,255,255,0.08);letter-spacing:-0.04em;">1.0.17</span>
                     </div>
-                    <div class="cl-overlay"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></div>
+                    <div class="cl-img-overlay"><svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></div>
                 </div>
-                <p style="color:#6b7280;font-size:0.88rem;font-weight:400;line-height:1.7;">Correction du lien APK Android sur le site. Refonte du système de notifications et des succès.</p>
-                <div class="cl-actions" style="display:flex;align-items:center;justify-content:flex-end;gap:4px;">
-                    <button onclick="clModal(1)" title="Voir plus"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
-                    <button onclick="clCopy('v1.0.17')" title="Copier"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+                <p style="color:#888;font-size:0.9rem;font-weight:300;line-height:1.75;">Correction du lien APK Android sur le site. Refonte du système de notifications et des succès.</p>
+                <div style="display:flex;align-items:center;justify-content:flex-end;gap:2px;">
+                    <button class="cl-action-btn" onclick="clModal(1)" title="Voir plus"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+                    <button class="cl-action-btn" onclick="clCopy('v1.0.17')" title="Copier lien"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
                 </div>
             </div>
         </div>
 
         <!-- v1.0.16 -->
         <div class="cl-entry">
-            <div class="cl-date"><time>Juin 2026</time></div>
+            <div class="cl-date-col"><time>Juin 2026</time></div>
             <div class="cl-body">
-                <h3 style="font-size:1.9rem;font-weight:500;padding-top:40px;letter-spacing:-0.02em;">v1.0.16</h3>
+                <h3 style="font-size:2.8rem;font-weight:300;letter-spacing:-0.03em;line-height:1;padding-top:4px;">v1.0.16</h3>
                 <div class="cl-img-wrap" onclick="clModal(2)">
-                    <div style="height:220px;background:linear-gradient(135deg,#7c2d12 0%,#9a3412 50%,#431407 100%);display:flex;align-items:center;justify-content:center;">
-                        <span style="font-size:5rem;font-weight:700;color:rgba(255,255,255,0.12);letter-spacing:-0.03em;">v1.0.16</span>
+                    <div style="height:200px;background:#111;display:flex;align-items:center;justify-content:center;">
+                        <span style="font-size:6rem;font-weight:200;color:rgba(255,255,255,0.08);letter-spacing:-0.04em;">1.0.16</span>
                     </div>
-                    <div class="cl-overlay"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></div>
-                    <div class="cl-overlay"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></div>
+                    <div class="cl-img-overlay"><svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></div>
                 </div>
-                <p style="color:#6b7280;font-size:0.88rem;font-weight:400;line-height:1.7;">Ajout du téléchargement APK direct pour Android. Nouveaux sons de swipe et effets haptiques améliorés.</p>
-                <div class="cl-actions" style="display:flex;align-items:center;justify-content:flex-end;gap:4px;">
-                    <button onclick="clModal(2)" title="Voir plus"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
-                    <button onclick="clCopy('v1.0.16')" title="Copier"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+                <p style="color:#888;font-size:0.9rem;font-weight:300;line-height:1.75;">Ajout du téléchargement APK direct pour Android. Nouveaux sons de swipe et effets haptiques améliorés.</p>
+                <div style="display:flex;align-items:center;justify-content:flex-end;gap:2px;">
+                    <button class="cl-action-btn" onclick="clModal(2)" title="Voir plus"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+                    <button class="cl-action-btn" onclick="clCopy('v1.0.16')" title="Copier lien"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
                 </div>
             </div>
         </div>
 
         <!-- v1.0.15 -->
         <div class="cl-entry" style="border-bottom:none;">
-            <div class="cl-date"><time>Mai 2026</time></div>
+            <div class="cl-date-col"><time>Mai 2026</time></div>
             <div class="cl-body">
-                <h3 style="font-size:1.9rem;font-weight:500;padding-top:40px;letter-spacing:-0.02em;">v1.0.15</h3>
+                <p style="font-size:0.8rem;font-weight:400;color:#bbb;letter-spacing:0.06em;text-transform:uppercase;">Lancement</p>
+                <h3 style="font-size:2.8rem;font-weight:300;letter-spacing:-0.03em;line-height:1;">v1.0.15</h3>
                 <div class="cl-img-wrap" onclick="clModal(3)">
-                    <div style="height:220px;background:linear-gradient(135deg,#1e3a5f 0%,#1d4ed8 50%,#0c1a3a 100%);display:flex;align-items:center;justify-content:center;">
-                        <span style="font-size:5rem;font-weight:700;color:rgba(255,255,255,0.12);letter-spacing:-0.03em;">v1.0.15</span>
+                    <div style="height:200px;background:#111;display:flex;align-items:center;justify-content:center;">
+                        <span style="font-size:6rem;font-weight:200;color:rgba(255,255,255,0.08);letter-spacing:-0.04em;">1.0.15</span>
                     </div>
-                    <div class="cl-overlay"><svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></div>
+                    <div class="cl-img-overlay"><svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></div>
                 </div>
-                <p style="color:#6b7280;font-size:0.88rem;font-weight:400;line-height:1.7;">Lancement initial v1 — tri par swipe, corbeille intelligente, favoris, statistiques et mode hors-ligne complet.</p>
-                <div class="cl-actions" style="display:flex;align-items:center;justify-content:flex-end;gap:4px;">
-                    <button onclick="clModal(3)" title="Voir plus"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
-                    <button onclick="clCopy('v1.0.15')" title="Copier"><svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
+                <p style="color:#888;font-size:0.9rem;font-weight:300;line-height:1.75;">Lancement initial v1 — tri par swipe, corbeille intelligente, favoris, statistiques et mode hors-ligne complet.</p>
+                <div style="display:flex;align-items:center;justify-content:flex-end;gap:2px;">
+                    <button class="cl-action-btn" onclick="clModal(3)" title="Voir plus"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg></button>
+                    <button class="cl-action-btn" onclick="clCopy('v1.0.15')" title="Copier lien"><svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg></button>
                 </div>
             </div>
         </div>
 
     </div>
 
-    <!-- Modal backdrop -->
+    <!-- Modal -->
     <div id="cl-modal-bg" class="cl-modal-bg" onclick="if(event.target===this)clModalClose()">
-        <div class="cl-modal" id="cl-modal-box">
+        <div class="cl-modal">
             <button class="cl-modal-close" onclick="clModalClose()">&#x2715;</button>
             <div id="cl-modal-content"></div>
         </div>
@@ -480,25 +469,25 @@
 
     <script>
     var CL_DATA = [
-        { version:'v1.0.18', date:'Août 2026', excerpt:"Correction de l'icône Android — fond blanc avec logo plein bord. Amélioration de la compatibilité edge-to-edge sur Android 12+.", detail:"<h3 style='font-size:1.4rem;font-weight:600;margin:0 0 12px;'>Icône Android</h3><ul style='padding-left:20px;color:#444;line-height:2;font-size:0.9rem;'><li>Fond blanc avec logo plein bord</li><li>Compatibilité edge-to-edge Android 12+</li><li>Icône adaptative améliorée</li></ul>" },
-        { version:'v1.0.17', date:'Juillet 2026', excerpt:"Correction du lien APK Android sur le site. Refonte du système de notifications et des succès.", detail:"<h3 style='font-size:1.4rem;font-weight:600;margin:0 0 12px;'>Notifications &amp; Succès</h3><ul style='padding-left:20px;color:#444;line-height:2;font-size:0.9rem;'><li>Lien APK Android corrigé sur le site</li><li>Refonte du système de notifications</li><li>Nouveaux succès débloquables</li></ul>" },
-        { version:'v1.0.16', date:'Juin 2026', excerpt:"Ajout du téléchargement APK direct pour Android. Nouveaux sons de swipe et effets haptiques améliorés.", detail:"<h3 style='font-size:1.4rem;font-weight:600;margin:0 0 12px;'>Android &amp; Sons</h3><ul style='padding-left:20px;color:#444;line-height:2;font-size:0.9rem;'><li>Téléchargement APK direct disponible</li><li>Nouveaux sons de swipe</li><li>Effets haptiques améliorés</li></ul>" },
-        { version:'v1.0.15', date:'Mai 2026', excerpt:"Lancement initial v1 — tri par swipe, corbeille intelligente, favoris, statistiques et mode hors-ligne complet.", detail:"<h3 style='font-size:1.4rem;font-weight:600;margin:0 0 12px;'>Lancement SwipeClean</h3><ul style='padding-left:20px;color:#444;line-height:2;font-size:0.9rem;'><li>Tri par swipe gauche/droite/haut</li><li>Corbeille intelligente récupérable</li><li>Favoris &amp; statistiques</li><li>Mode hors-ligne complet</li></ul>" },
+        { version:'v1.0.18', date:'Août 2026', tag:'Dernière version', excerpt:"Correction de l’icône Android — fond blanc avec logo plein bord. Amélioration de la compatibilité edge-to-edge sur Android 12+.", bullets:["Icône Android fond blanc avec logo plein bord","Compatibilité edge-to-edge Android 12+","Icône adaptative améliorée"] },
+        { version:'v1.0.17', date:'Juillet 2026', tag:'', excerpt:"Correction du lien APK Android sur le site. Refonte du système de notifications et des succès.", bullets:["Lien APK Android corrigé sur le site","Refonte du système de notifications","Nouveaux succès débloquables"] },
+        { version:'v1.0.16', date:'Juin 2026', tag:'', excerpt:"Ajout du téléchargement APK direct pour Android. Nouveaux sons de swipe et effets haptiques améliorés.", bullets:["Téléchargement APK direct disponible","Nouveaux sons de swipe","Effets haptiques améliorés"] },
+        { version:'v1.0.15', date:'Mai 2026', tag:'Lancement', excerpt:"Lancement initial v1 — tri par swipe, corbeille intelligente, favoris, statistiques et mode hors-ligne complet.", bullets:["Tri par swipe gauche → supprimer, droite → garder, haut → favori","Corbeille intelligente récupérable","Statistiques de galerie","Mode hors-ligne complet"] },
     ];
     function clModal(idx) {
         var d = CL_DATA[idx];
+        var tag = d.tag ? '<p style="font-size:0.72rem;font-weight:400;color:#bbb;letter-spacing:0.08em;text-transform:uppercase;margin-bottom:8px;">' + d.tag + '</p>' : '';
+        var bullets = d.bullets.map(function(b){ return '<li>' + b + '</li>'; }).join('');
         document.getElementById('cl-modal-content').innerHTML =
-            '<p style="color:#9ca3af;font-size:0.75rem;font-weight:500;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:8px;">' + d.date + '</p>' +
-            '<h2 style="font-size:1.8rem;font-weight:600;margin:0 0 10px;letter-spacing:-0.02em;">' + d.version + '</h2>' +
-            '<p style="color:#6b7280;font-size:0.88rem;margin-bottom:20px;line-height:1.65;">' + d.excerpt + '</p>' +
-            '<hr style="border:none;border-top:1px solid #e5e7eb;margin-bottom:20px;">' +
-            d.detail;
+            tag +
+            '<h2 style="font-size:2.2rem;font-weight:300;letter-spacing:-0.03em;margin:0 0 4px;">' + d.version + '</h2>' +
+            '<p style="color:#bbb;font-size:0.75rem;font-weight:400;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:20px;">' + d.date + '</p>' +
+            '<p style="color:#777;font-size:0.9rem;font-weight:300;line-height:1.75;margin-bottom:24px;">' + d.excerpt + '</p>' +
+            '<ul style="padding-left:18px;color:#555;font-size:0.88rem;font-weight:300;line-height:2.1;">' + bullets + '</ul>';
         document.getElementById('cl-modal-bg').classList.add('open');
     }
     function clModalClose() { document.getElementById('cl-modal-bg').classList.remove('open'); }
-    function clCopy(v) {
-        navigator.clipboard && navigator.clipboard.writeText(window.location.href + '#changelog-' + v);
-    }
+    function clCopy(v) { try { navigator.clipboard.writeText(window.location.href.split('#')[0] + '#changelog'); } catch(e){} }
     document.addEventListener('keydown', function(e){ if(e.key==='Escape') clModalClose(); });
     </script>
 </section>
