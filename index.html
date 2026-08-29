@@ -448,6 +448,21 @@
         /* ── HERO: remove mt-20 on mobile so no huge whitespace ── */
         #Hero { margin-top: 0 !important; }
         #Hero h1 { padding-top: 76px !important; }
+
+        /* ── STATS: hide floating badges (text-white invisible on white bg) ── */
+        .nb-row h3 > span.absolute { display: none !important; }
+
+        /* ── FOOTER nav links: wrap on small screen ── */
+        footer > div.flex.items-center.gap-12 {
+            flex-wrap: wrap !important;
+            gap: 16px 24px !important;
+            justify-content: center !important;
+        }
+        footer > div.flex.items-center.gap-8 {
+            flex-wrap: wrap !important;
+            gap: 16px !important;
+            justify-content: center !important;
+        }
     }
 </style>
     <style>
