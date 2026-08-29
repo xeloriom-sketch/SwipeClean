@@ -81,9 +81,29 @@
     ═══════════════════════════════════════════════════════════ */
 
     /* ──────────────────────────────────────────────────────────
+       ANIMATIONS MOBILES
+    ────────────────────────────────────────────────────────── */
+    @keyframes mobFadeUp {
+        from { opacity: 0; transform: translateY(28px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes mobFadeIn {
+        from { opacity: 0; }
+        to   { opacity: 1; }
+    }
+
+    /* ──────────────────────────────────────────────────────────
        TABLET + MOBILE  ≤ 1100px
     ────────────────────────────────────────────────────────── */
     @media (max-width: 1100px) {
+
+        /* ── PADDING GLOBAL — rien ne touche les bords ── */
+        body { overflow-x: hidden !important; }
+        #Hero, #NextSection, #integSection, #social, #Text,
+        #nombercolone, #avis, #changelog, #faq, footer {
+            padding-left: max(20px, env(safe-area-inset-left)) !important;
+            padding-right: max(20px, env(safe-area-inset-right)) !important;
+        }
 
         /* ── HERO ── */
         #Hero { padding-left: 0 !important; padding-right: 0 !important; }
@@ -447,7 +467,19 @@
 
         /* ── HERO: remove mt-20 on mobile so no huge whitespace ── */
         #Hero { margin-top: 0 !important; }
-        #Hero h1 { padding-top: 76px !important; }
+        #Hero h1 {
+            padding-top: 76px !important;
+            animation: mobFadeUp 0.85s cubic-bezier(0.22,1,0.36,1) 0.1s both;
+        }
+        #Hero .flex.items-center.justify-center.space-x-5 {
+            animation: mobFadeUp 0.85s cubic-bezier(0.22,1,0.36,1) 0.28s both;
+        }
+        span#\33, span#\32, span#CardImage {
+            animation: mobFadeUp 1s cubic-bezier(0.22,1,0.36,1) 0.2s both;
+        }
+        #NextSection h2 {
+            animation: mobFadeUp 0.7s cubic-bezier(0.22,1,0.36,1) 0.05s both;
+        }
 
         /* ── STATS: hide floating badges (text-white invisible on white bg) ── */
         .nb-row h3 > span.absolute { display: none !important; }
