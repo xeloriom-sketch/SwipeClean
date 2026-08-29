@@ -1329,6 +1329,7 @@
     /* smooth-scroll.js */
     (function () {
         'use strict';
+        if (window.innerWidth <= 1100) return; /* scroll natif sur mobile/tablette */
         var target = 0, current = 0;
         function maxScroll() { return Math.max(0, document.documentElement.scrollHeight - window.innerHeight); }
         function cap(v) { return Math.max(0, Math.min(maxScroll(), v)); }
