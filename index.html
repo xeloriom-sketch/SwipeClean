@@ -125,12 +125,23 @@
             justify-content: center !important;
             gap: 12px !important;
         }
-        #Hero .mx-auto { padding-top: 32px !important; }
+        #Hero .mx-auto {
+            padding-top: 0 !important;
+            position: relative !important;
+            width: 92vw !important;
+            height: 62vw !important;
+            margin: 24px auto 0 !important;
+            overflow: visible !important;
+        }
         span#\33, span#\32, span#CardImage {
-            height: 56vw !important;
-            width: 88vw !important;
+            height: 58vw !important;
+            width: 92vw !important;
             border-radius: 28px !important;
             display: block !important;
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            margin: 0 !important;
         }
         #card-scroll-scene { height: auto !important; }
         #Hero {
@@ -162,9 +173,33 @@
         #NextSection > div.flex.flex-row > div {
             width: 100% !important;
             height: auto !important;
-            min-height: 260px !important;
+            min-height: auto !important;
+            padding: 16px !important;
+            box-sizing: border-box !important;
         }
         #NextSection > div.flex.flex-row > div[class*="-mt-"] { margin-top: 0 !important; }
+        /* hashtag buttons smaller on mobile */
+        #hashtagGrid button {
+            padding: 5px 12px !important;
+            font-size: 0.78rem !important;
+        }
+        #hashtagGrid { min-height: 180px !important; }
+        /* Résultats de tri inner grid → column */
+        #NextSection .grid[style*="grid-template-columns: 2fr"] {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+        }
+        /* yellow/pink stat cards side by side on mobile */
+        #NextSection .flex.flex-col.gap-2 {
+            flex-direction: row !important;
+            gap: 10px !important;
+        }
+        #NextSection .flex.flex-col.gap-2 > div {
+            flex: 1 !important;
+        }
+        #NextSection .text-7xl {
+            font-size: 2.2rem !important;
+        }
 
         /* ── FONCTIONNALITÉS ── */
         #integSection {
@@ -192,7 +227,11 @@
             margin-bottom: 0 !important;
             align-self: auto !important;
         }
-        #wolloBanner { display: none !important; }
+        #wolloBanner {
+            width: 88vw !important;
+            max-width: 420px !important;
+            border-radius: 16px !important;
+        }
 
         /* ── SOCIAL ── */
         .social-card p.text-9xl {
@@ -203,6 +242,20 @@
             font-size: 1.15rem !important;
             padding: 16px 20px !important;
             line-height: 1.35 !important;
+        }
+        /* Fix inner colored div — flex layout, hide decorative img/arrow */
+        .social-card > div:last-child {
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: flex-start !important;
+            padding: 20px !important;
+            gap: 12px !important;
+        }
+        .social-card-img { display: none !important; }
+        .social-card > div:last-child > svg { display: none !important; }
+        .social-card > div:last-child > p.text-9xl {
+            margin-bottom: 0 !important;
+            margin-top: 4px !important;
         }
 
         /* ── TEXT SECTION ── */
@@ -445,25 +498,56 @@
         .cl-img-wrap > div { height: 52vw !important; }
 
         /* ── FAQ ── */
-        #faq { padding: 16px !important; }
+        #faq { padding: 20px 24px !important; }
         #faq h3 {
             font-size: clamp(1.8rem, 8vw, 2.5rem) !important;
             padding: 48px 0 24px !important;
         }
         .faq-btn { font-size: 0.95rem !important; padding: 18px 0 !important; }
+        #faq .faq-item { padding-left: 0 !important; padding-right: 0 !important; }
+        #faq .faq-answer p { padding-right: 0 !important; }
 
         /* ── FOOTER ── */
-        footer { padding: 12px !important; gap: 24px !important; }
-        #footerCard > div:first-child { padding: 40px 20px !important; }
-        #footerCard > div:first-child h2 { font-size: clamp(1.5rem, 7vw, 2rem) !important; }
-        #footerCard > div:last-child { height: 66vw !important; }
-        footer .grid { grid-template-columns: 1fr !important; }
-        footer > div:last-child {
-            flex-direction: column !important;
-            text-align: center !important;
-            gap: 20px !important;
+        footer { padding: 16px !important; gap: 28px !important; }
+        #footerCard {
+            border-radius: 20px !important;
         }
-        footer .flex.gap-4 { justify-content: center !important; }
+        #footerCard > div:first-child {
+            padding: 36px 24px 28px !important;
+            width: 100% !important;
+            box-sizing: border-box !important;
+            text-align: center !important;
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+        }
+        #footerCard > div:first-child h2 {
+            font-size: clamp(1.6rem, 7vw, 2.2rem) !important;
+            line-height: 1.25 !important;
+            text-align: center !important;
+        }
+        #footerCard > div:first-child a {
+            margin-top: 20px !important;
+            padding: 14px 28px !important;
+            display: inline-block !important;
+            font-size: 1rem !important;
+            text-align: center !important;
+        }
+        #footerCard > div:last-child {
+            height: 52vw !important;
+            width: 100% !important;
+        }
+        footer > div.flex.items-center.gap-12 {
+            flex-wrap: wrap !important;
+            gap: 14px 20px !important;
+            justify-content: center !important;
+            font-size: 0.88rem !important;
+        }
+        footer > div.flex.items-center.gap-8 {
+            flex-wrap: wrap !important;
+            gap: 16px !important;
+            justify-content: center !important;
+        }
 
         /* ── HERO: remove mt-20 on mobile so no huge whitespace ── */
         #Hero { margin-top: 0 !important; }
@@ -1675,10 +1759,54 @@
             document.querySelectorAll('#avis .grid > div[class*="-mt-"]').forEach(function(c) { c.style.marginTop = '0'; });
         }
 
+        /* Hero card wrapper — make it a positioned container */
+        function fixHeroWrap() {
+            var cardWrap = document.querySelector('#Hero .mx-auto');
+            if (cardWrap) {
+                cardWrap.style.position = 'relative';
+                cardWrap.style.width = '92vw';
+                cardWrap.style.height = '62vw';
+                cardWrap.style.margin = '24px auto 0';
+                cardWrap.style.paddingTop = '0';
+                cardWrap.style.overflow = 'visible';
+            }
+            /* Remove margins from card spans so they sit in the container */
+            ['3','2','CardImage'].forEach(function(id) {
+                var el = document.getElementById(id);
+                if (el) { el.style.margin = '0'; }
+            });
+        }
         fix();
-        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', fix); }
-        setTimeout(fix, 400);
-        setTimeout(fix, 1200);
+        fixHeroWrap();
+        if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', function(){ fix(); fixHeroWrap(); }); }
+        setTimeout(function(){ fix(); fixHeroWrap(); }, 400);
+        setTimeout(function(){ fix(); fixHeroWrap(); }, 1200);
+
+        /* ── Nav bar: slide logo/title up when scrolling down on mobile ── */
+        (function(){
+            var nav = document.querySelector('nav');
+            var navLogo = nav ? nav.querySelector('a, img, div:first-child') : null;
+            if (!nav) return;
+            var lastY = 0, ticking = false, hidden = false;
+            window.addEventListener('scroll', function(){
+                if (!ticking) {
+                    requestAnimationFrame(function(){
+                        var y = window.scrollY;
+                        if (y > 80 && !hidden) {
+                            nav.style.transform = 'translateY(-100%)';
+                            nav.style.transition = 'transform 0.35s cubic-bezier(0.4,0,0.2,1)';
+                            hidden = true;
+                        } else if (y <= 30 && hidden) {
+                            nav.style.transform = 'translateY(0)';
+                            hidden = false;
+                        }
+                        lastY = y;
+                        ticking = false;
+                    });
+                    ticking = true;
+                }
+            }, { passive: true });
+        })();
     })();
     </script>
 
