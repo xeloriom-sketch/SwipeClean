@@ -21,7 +21,7 @@ import * as FileSystem from "expo-file-system";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import Svg, { Path } from "react-native-svg";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
@@ -540,7 +540,7 @@ const SwipeableCard = React.forwardRef<SwipeableCardRef, {
 
   const tapGesture = Gesture.Tap()
     .enabled(isTop)
-    .maxDuration(200) // échec si le doigt reste > 200ms (= début d'un swipe)
+    .maxDuration(350) // 350ms = bon équilibre entre tap naturel et début de swipe
     .onEnd((_e, success) => {
       if (success) runOnJS(handleTap)();
     });
@@ -774,6 +774,7 @@ function fireAchievementNotif(a: Achievement) {
 
 /* ---- GalleryScreen ---- */
 export default function GalleryScreen() {
+  const insets = useSafeAreaInsets();
   const [assets, setAssets] = useState<MediaItem[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const cursorRef = useRef<string | undefined>(undefined);
@@ -1570,14 +1571,16 @@ export default function GalleryScreen() {
           activeOpacity={1}
           onPress={() => setFullscreenUri(null)}
         >
-          <Image
-            source={{ uri: fullscreenUri ?? "" }}
-            style={styles.fullscreenImage}
-            contentFit="contain"
-            transition={180}
-            cachePolicy="memory"
-          />
-          <View style={styles.fullscreenClose} pointerEvents="none">
+          {fullscreenUri ? (
+            <Image
+              source={{ uri: fullscreenUri }}
+              style={styles.fullscreenImage}
+              contentFit="contain"
+              transition={180}
+              cachePolicy="memory"
+            />
+          ) : null}
+          <View style={[styles.fullscreenClose, { top: insets.top + 8 }]} pointerEvents="none">
             <Ionicons name="close-circle" size={36} color="rgba(255,255,255,0.75)" />
           </View>
         </TouchableOpacity>
@@ -1878,7 +1881,6 @@ const styles = StyleSheet.create({
   },
   fullscreenClose: {
     position: "absolute",
-    top: 56,
     right: 20,
   },
 
