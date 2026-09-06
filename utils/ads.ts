@@ -20,7 +20,7 @@ let swipeCount = 0;
 function loadAd() {
   try {
     interstitial = InterstitialAd.createForAdRequest(AD_UNIT_ID, {
-      requestNonPersonalizedAdsOnly: false,
+      requestNonPersonalizedAdsOnly: true,
     } as RequestOptions);
 
     interstitial.addAdEventListener(AdEventType.LOADED, () => {

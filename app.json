@@ -90,8 +90,7 @@
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-3421517351913205~1367769553",
-          "iosAppId": "ca-app-pub-3421517351913205~1367769553",
-          "userTrackingUsageDescription": "SwipeClean utilise cet identifiant pour vous proposer des publicités pertinentes."
+          "iosAppId": "ca-app-pub-3421517351913205~1367769553"
         }
       ]
     ],
