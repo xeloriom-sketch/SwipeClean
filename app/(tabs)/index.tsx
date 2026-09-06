@@ -11,9 +11,10 @@ import {
   StatusBar,
   Pressable,
   useColorScheme,
-  Alert,
   Linking,
+  Modal,
 } from "react-native";
+import { usePopup } from "../../components/Popup";
 import { router, useFocusEffect } from "expo-router";
 import * as MediaLibrary from "expo-media-library";
 import * as FileSystem from "expo-file-system";
@@ -27,7 +28,9 @@ import { Image } from "expo-image";
 import { Audio } from "expo-av";
 import * as Notifications from "expo-notifications";
 import AppLoader from "../../components/AppLoader";
+import { WhatsNewModal, NewBadge, shouldShowWhatsNew, markWhatsNewSeen } from "../../components/WhatsNew";
 import { checkSwipeMilestones, checkAndUnlock, checkNightSwipe, checkFavMilestones, type Achievement } from "../../utils/achievements";
+import { recordSwipe as recordSwipeStat } from "../../utils/swipeStats";
 import { devLog } from "../../utils/devLogger";
 
 // react-native-video requires a native build — not available in Expo Go
@@ -300,7 +303,8 @@ const SwipeableCard = React.forwardRef<SwipeableCardRef, {
   onSwipe: (direction: Exclude<SwipeDirection, null>) => void;
   isTop: boolean;
   stackProgress: SharedValue<number>;
-}>(function SwipeableCard({ item, onSwipe, isTop, stackProgress }, ref) {
+  onDoubleTap?: () => void;
+}>(function SwipeableCard({ item, onSwipe, isTop, stackProgress, onDoubleTap }, ref) {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const swipeDir = useSharedValue<SwipeDirection>(null);
@@ -522,7 +526,17 @@ const SwipeableCard = React.forwardRef<SwipeableCardRef, {
       }
     });
 
-  const combinedGesture = Gesture.Simultaneous(panGesture, pinchGesture);
+  const doubleTapGesture = Gesture.Tap()
+    .numberOfTaps(2)
+    .enabled(isTop)
+    .onEnd(() => {
+      if (onDoubleTap) runOnJS(onDoubleTap)();
+    });
+
+  const combinedGesture = Gesture.Exclusive(
+    doubleTapGesture,
+    Gesture.Simultaneous(panGesture, pinchGesture)
+  );
 
   useImperativeHandle(ref, () => ({
     triggerSwipe: (direction) => {
@@ -762,6 +776,7 @@ export default function GalleryScreen() {
   const [currentIndex, setCurrentIndex] = useState(0);
   const trashCache = useRef<Set<string>>(new Set());
   const keptCache = useRef<Set<string>>(new Set());
+  const keptListRef = useRef<string[]>([]); // miroir en mémoire pour éviter les races AsyncStorage
   const fetchedIds = useRef<Set<string>>(new Set());
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const permGranted = useRef(false);
@@ -779,6 +794,10 @@ export default function GalleryScreen() {
   const [showConfetti, setShowConfetti] = useState(false);
   const [lastSwipe, setLastSwipe] = useState<{ item: MediaItem; direction: Exclude<SwipeDirection, null> } | null>(null);
   const topCardRef = useRef<SwipeableCardRef>(null);
+  const { popup, showPopup } = usePopup(darkMode);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [whatsNewBadge, setWhatsNewBadge] = useState(false);
+  const [fullscreenUri, setFullscreenUri] = useState<string | null>(null);
 
   // Load preferences
   useEffect(() => {
@@ -799,6 +818,29 @@ export default function GalleryScreen() {
       } catch {}
     })();
   }, []);
+
+  // Check for new version on mount → show badge + auto-show modal
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | null = null;
+    shouldShowWhatsNew().then((show) => {
+      if (show) {
+        setWhatsNewBadge(true);
+        t = setTimeout(() => setShowWhatsNew(true), 1200);
+      }
+    });
+    return () => { if (t !== null) clearTimeout(t); };
+  }, []);
+
+  const handleOpenWhatsNew = () => {
+    setShowWhatsNew(true);
+    setWhatsNewBadge(false);
+  };
+
+  const handleCloseWhatsNew = () => {
+    setShowWhatsNew(false);
+    setWhatsNewBadge(false);
+    markWhatsNewSeen();
+  };
 
   // Re-read sort order when returning from Settings and reset gallery instantly
   useFocusEffect(
@@ -856,7 +898,11 @@ export default function GalleryScreen() {
           AsyncStorage.getItem(KEPT_KEY),
         ]);
         if (favRaw) favoritesRef.current = JSON.parse(favRaw);
-        if (keptRaw) (JSON.parse(keptRaw) as string[]).forEach(id => keptCache.current.add(id));
+        if (keptRaw) {
+          const keptArr = JSON.parse(keptRaw) as string[];
+          keptListRef.current = keptArr;
+          keptArr.forEach(id => keptCache.current.add(id));
+        }
         const autoTrashDays = autoTrashRaw ? Number(autoTrashRaw) : 0;
 
         if (trashRaw) {
@@ -1014,21 +1060,17 @@ export default function GalleryScreen() {
   const addToKept = useCallback((id: string) => {
     if (keptCache.current.has(id)) return;
     keptCache.current.add(id);
-    AsyncStorage.getItem(KEPT_KEY).then(raw => {
-      const arr: string[] = raw ? JSON.parse(raw) : [];
-      if (!arr.includes(id)) {
-        arr.unshift(id);
-        AsyncStorage.setItem(KEPT_KEY, JSON.stringify(arr.slice(0, 10000))).catch(() => {});
-      }
-    }).catch(() => {});
+    // Écriture depuis le miroir mémoire — évite les races read-modify-write sur swipes rapides
+    if (!keptListRef.current.includes(id)) {
+      keptListRef.current = [id, ...keptListRef.current].slice(0, 10000);
+      AsyncStorage.setItem(KEPT_KEY, JSON.stringify(keptListRef.current)).catch(() => {});
+    }
   }, []);
 
   const removeFromKept = useCallback((id: string) => {
     keptCache.current.delete(id);
-    AsyncStorage.getItem(KEPT_KEY).then(raw => {
-      const arr: string[] = raw ? JSON.parse(raw) : [];
-      AsyncStorage.setItem(KEPT_KEY, JSON.stringify(arr.filter(i => i !== id))).catch(() => {});
-    }).catch(() => {});
+    keptListRef.current = keptListRef.current.filter(i => i !== id);
+    AsyncStorage.setItem(KEPT_KEY, JSON.stringify(keptListRef.current)).catch(() => {});
   }, []);
 
   const triggerHaptics = useCallback(
@@ -1055,6 +1097,7 @@ export default function GalleryScreen() {
 
       triggerHaptics(direction);
       devLog("Swipe", `dir=${direction} type=${item.type} id=${item.id} size=${item.fileSize ?? "?"}`, "info");
+      recordSwipeStat(item.fileSize, direction).catch(() => {});
       if (soundEnabled && direction !== "bottom") {
         playSwipeSound(direction === "left" ? "delete" : direction === "right" ? "keep" : "star");
       }
@@ -1097,19 +1140,19 @@ export default function GalleryScreen() {
             const already = await AsyncStorage.getItem(REVIEW_PROMPTED_KEY);
             if (already) return;
             await AsyncStorage.setItem(REVIEW_PROMPTED_KEY, "1");
-            Alert.alert(
-              "Tu aimes SwipeClean ? ⭐",
-              "Ça prend 30 secondes et ça aide vraiment l'app à grandir 🙏",
-              [
+            showPopup({
+              icon: "⭐",
+              title: "Tu aimes SwipeClean ?",
+              message: "Ça prend 30 secondes et ça aide vraiment l'app à grandir 🙏",
+              buttons: [
                 { text: "Plus tard", style: "cancel" },
                 {
                   text: "Noter l'app",
-                  onPress: () => {
-                    Linking.openURL("itms-apps://itunes.apple.com/app/id6802313349?action=write-review");
-                  },
+                  style: "default",
+                  onPress: () => Linking.openURL("itms-apps://itunes.apple.com/app/id6802313349?action=write-review"),
                 },
-              ]
-            );
+              ],
+            });
           } catch {}
         }, 1500);
       }
@@ -1146,6 +1189,7 @@ export default function GalleryScreen() {
     stackProgress.value = 0;
     trashCache.current.clear();
     keptCache.current.clear();
+    keptListRef.current = [];
     fetchedIds.current.clear();
     cursorRef.current = undefined;
     hasMoreRef.current = true;
@@ -1250,7 +1294,10 @@ export default function GalleryScreen() {
             onPress={() => setMenuOpen((v) => !v)}
             style={styles.headerBtn}
           >
-            <Ionicons name="menu" size={34} color={darkMode ? "#E0E0E0" : "#000"} />
+            <View>
+              <Ionicons name="menu" size={34} color={darkMode ? "#E0E0E0" : "#000"} />
+              <NewBadge visible={whatsNewBadge} />
+            </View>
           </TouchableOpacity>
           <TouchableOpacity style={styles.headerBtn} onPress={handleSortToggle}>
             <Ionicons
@@ -1318,6 +1365,24 @@ export default function GalleryScreen() {
             <TouchableOpacity
               style={styles.menuItem}
               onPress={() => {
+                setMenuOpen(false);
+                handleOpenWhatsNew();
+              }}
+            >
+              <View style={{ position: "relative" }}>
+                <Ionicons name="gift-outline" size={20} color={darkMode ? "#E0E0E0" : "#000"} />
+                {whatsNewBadge && (
+                  <View style={{ position: "absolute", top: -3, right: -3, width: 8, height: 8, borderRadius: 4, backgroundColor: "#FF3B30" }} />
+                )}
+              </View>
+              <Text style={[styles.menuText, { color: darkMode ? "#E0E0E0" : "#000" }]}>
+                Nouveautés
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
                 router.push("/Gallery");
                 setMenuOpen(false);
               }}
@@ -1368,6 +1433,19 @@ export default function GalleryScreen() {
               />
               <Text style={[styles.menuText, { color: darkMode ? "#E0E0E0" : "#000" }]}>
                 Succès
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.menuItem}
+              onPress={() => {
+                router.push("/(tabs)/Duplicates");
+                setMenuOpen(false);
+              }}
+            >
+              <Ionicons name="copy-outline" size={20} color={darkMode ? "#E0E0E0" : "#000"} />
+              <Text style={[styles.menuText, { color: darkMode ? "#E0E0E0" : "#000" }]}>
+                Doublons
               </Text>
             </TouchableOpacity>
 
@@ -1430,6 +1508,7 @@ export default function GalleryScreen() {
                 onSwipe={handleSwipe}
                 isTop
                 stackProgress={stackProgress}
+                onDoubleTap={() => setFullscreenUri(topCard.uri)}
               />
             )}
           </View>
@@ -1461,6 +1540,39 @@ export default function GalleryScreen() {
         </View>
       </Animated.View>
 
+      {popup}
+
+      <WhatsNewModal
+        visible={showWhatsNew}
+        dark={darkMode}
+        onClose={handleCloseWhatsNew}
+      />
+
+      {/* Fullscreen viewer — double-tap on swipe card */}
+      <Modal
+        visible={fullscreenUri !== null}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setFullscreenUri(null)}
+      >
+        <TouchableOpacity
+          style={styles.fullscreenOverlay}
+          activeOpacity={1}
+          onPress={() => setFullscreenUri(null)}
+        >
+          <Image
+            source={{ uri: fullscreenUri ?? "" }}
+            style={styles.fullscreenImage}
+            contentFit="contain"
+            transition={180}
+            cachePolicy="memory"
+          />
+          <View style={styles.fullscreenClose} pointerEvents="none">
+            <Ionicons name="close-circle" size={36} color="rgba(255,255,255,0.75)" />
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -1743,6 +1855,22 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 9,
     fontWeight: "800",
+  },
+
+  fullscreenOverlay: {
+    flex: 1,
+    backgroundColor: "#000",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  fullscreenImage: {
+    width: "100%",
+    height: "100%",
+  },
+  fullscreenClose: {
+    position: "absolute",
+    top: 56,
+    right: 20,
   },
 
 });

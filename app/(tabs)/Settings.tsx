@@ -12,9 +12,9 @@ import {
   UIManager,
   Platform,
   Dimensions,
-  Alert,
   Clipboard,
 } from "react-native";
+import { usePopup } from "../../components/Popup";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
@@ -54,6 +54,7 @@ export default function SettingsScreen() {
   const [showAbout, setShowAbout] = useState(false);
   const [notifHour, setNotifHourState] = useState(10);
   const [updateStatus, setUpdateStatus] = useState<"idle" | "checking" | "downloading" | "ready" | "uptodate">("idle");
+  const { popup, showPopup } = usePopup(darkMode);
 
   // Dev mode
   const [devMode, setDevMode] = useState(false);
@@ -114,7 +115,7 @@ export default function SettingsScreen() {
   };
 
   const checkForUpdate = async () => {
-    if (__DEV__) { Alert.alert("Info", "Mises à jour désactivées en développement."); return; }
+    if (__DEV__) { showPopup({ icon: "ℹ️", title: "Info", message: "Mises à jour désactivées en développement.", buttons: [{ text: "OK", style: "default" }] }); return; }
     setUpdateStatus("checking");
     try {
       const check = await Updates.checkForUpdateAsync();
@@ -122,17 +123,18 @@ export default function SettingsScreen() {
       setUpdateStatus("downloading");
       await Updates.fetchUpdateAsync();
       setUpdateStatus("ready");
-      Alert.alert(
-        "Mise à jour prête",
-        "Une nouvelle version est installée. Redémarrer maintenant ?",
-        [
+      showPopup({
+        icon: "🎉",
+        title: "Mise à jour prête",
+        message: "Une nouvelle version est installée. Redémarrer maintenant ?",
+        buttons: [
           { text: "Plus tard", style: "cancel", onPress: () => setUpdateStatus("idle") },
-          { text: "Redémarrer", onPress: () => Updates.reloadAsync() },
-        ]
-      );
+          { text: "Redémarrer", style: "default", onPress: () => Updates.reloadAsync() },
+        ],
+      });
     } catch {
       setUpdateStatus("idle");
-      Alert.alert("Erreur", "Impossible de vérifier les mises à jour. Vérifiez votre connexion.");
+      showPopup({ icon: "⚠️", title: "Erreur", message: "Impossible de vérifier les mises à jour. Vérifiez votre connexion.", buttons: [{ text: "OK", style: "default" }] });
     }
   };
 
@@ -148,7 +150,7 @@ export default function SettingsScreen() {
     setAutoTrashDays(next);
     await AsyncStorage.setItem(AUTO_TRASH_DAYS_KEY, String(next));
     if (next > 0) {
-      Alert.alert("Corbeille auto", `Les photos dans la corbeille depuis plus de ${next} jours seront supprimées automatiquement au prochain lancement.`);
+      showPopup({ icon: "🗑️", title: "Corbeille auto", message: `Les photos dans la corbeille depuis plus de ${next} jours seront supprimées automatiquement au prochain lancement.`, buttons: [{ text: "OK", style: "default" }] });
     }
   };
 
@@ -165,7 +167,7 @@ export default function SettingsScreen() {
       versionTaps.current = 0;
       setDevMode((v) => {
         if (!v) setDevLogs(getLogs());
-        Alert.alert(v ? "Mode dev désactivé" : "Mode développeur activé 🛠️", v ? "" : "Les logs s'affichent ci-dessous.");
+        showPopup({ icon: v ? "🔒" : "🛠️", title: v ? "Mode dev désactivé" : "Mode développeur activé", message: v ? undefined : "Les logs s'affichent ci-dessous.", buttons: [{ text: "OK", style: "default" }] });
         return !v;
       });
     } else {
@@ -187,7 +189,7 @@ export default function SettingsScreen() {
   const copyLogs = useCallback(() => {
     const txt = logsAsText();
     Clipboard.setString(txt);
-    Alert.alert("Copié !", `${getLogs().length} lignes copiées dans le presse-papier.`);
+    showPopup({ icon: "📋", title: "Copié !", message: `${getLogs().length} lignes copiées dans le presse-papier.`, buttons: [{ text: "OK", style: "default" }] });
   }, []);
 
   const handleClearLogs = useCallback(() => {
@@ -355,6 +357,29 @@ export default function SettingsScreen() {
         </View>
       </View>
 
+      {/* Section: Outils */}
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { color: darkMode ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.35)" }]}>
+          OUTILS
+        </Text>
+        <View style={[styles.card, { backgroundColor: darkMode ? "#1a1a1a" : "#fff" }]}>
+          <TouchableOpacity
+            style={styles.optionRow}
+            onPress={() => router.push("/(tabs)/Duplicates")}
+            activeOpacity={0.7}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+              <Ionicons name="copy-outline" size={wp(5.5)} color="#FF9500" />
+              <View>
+                <Text style={[styles.optionText, darkMode && styles.darkText]}>Doublons</Text>
+                {sub("Détecter et supprimer les photos en double")}
+              </View>
+            </View>
+            <Ionicons name="chevron-forward" size={wp(4)} color={darkMode ? "#555" : "#bbb"} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
       {/* Section: App */}
       <View style={styles.section}>
         <Text style={[styles.sectionTitle, { color: darkMode ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.35)" }]}>
@@ -486,6 +511,8 @@ export default function SettingsScreen() {
       )}
 
       </ScrollView>
+
+      {popup}
     </SafeAreaView>
   );
 }

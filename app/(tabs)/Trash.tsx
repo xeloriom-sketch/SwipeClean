@@ -8,8 +8,8 @@ import {
   StatusBar,
   Dimensions,
   Platform,
-  Alert,
 } from "react-native";
+import { usePopup } from "../../components/Popup";
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as MediaLibrary from "expo-media-library";
@@ -99,6 +99,7 @@ export default function TrashScreen() {
   const [items, setItems] = useState<Item[]>([]);
   const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
   const [darkMode, setDarkMode] = useState(false);
+  const { popup, showPopup } = usePopup(darkMode);
 
   const selectedCount = Object.values(selectedIds).filter(Boolean).length;
   const allSelected = items.length > 0 && items.every(i => selectedIds[i.id]);
@@ -152,10 +153,11 @@ export default function TrashScreen() {
     const ids = items.filter(i => selectedIds[i.id]).map(i => i.id);
     if (!ids.length) return;
 
-    Alert.alert(
-      "Supprimer définitivement ?",
-      `${ids.length} photo${ids.length > 1 ? "s" : ""} seront supprimée${ids.length > 1 ? "s" : ""} définitivement. Cette action est irréversible.`,
-      [
+    showPopup({
+      icon: "🗑️",
+      title: "Supprimer définitivement ?",
+      message: `${ids.length} photo${ids.length > 1 ? "s" : ""} seront supprimée${ids.length > 1 ? "s" : ""} définitivement. Cette action est irréversible.`,
+      buttons: [
         { text: "Annuler", style: "cancel" },
         {
           text: "Supprimer",
@@ -209,8 +211,8 @@ export default function TrashScreen() {
             } catch {}
           },
         },
-      ]
-    );
+      ],
+    });
   };
 
   return (
@@ -262,6 +264,8 @@ export default function TrashScreen() {
           showsVerticalScrollIndicator={false}
         />
       )}
+
+      {popup}
 
       {/* ACTION BAR */}
       {selectedCount > 0 && (

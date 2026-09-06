@@ -16,6 +16,14 @@ import * as MediaLibrary from "expo-media-library";
 import * as FileSystem from "expo-file-system";
 import { Ionicons } from "@expo/vector-icons";
 import { router, useFocusEffect } from "expo-router";
+import Svg, { Rect, Text as SvgText } from "react-native-svg";
+import {
+  getWeeklyStats,
+  getStreak,
+  getWeeklyTotals,
+  type DayStatEntry,
+  type WeeklyTotals,
+} from "../../utils/swipeStats";
 
 const TRASH_KEY = "@app_trash";
 const FAVORITES_KEY = "@app_favorites";
@@ -27,6 +35,61 @@ const DELETED_COUNT_KEY = "@app_deleted_count";
 const { width } = Dimensions.get("window");
 
 type MediaItem = { id: string; fileSize?: number; type?: string };
+
+const CHART_W = width - 64;
+const CHART_H = 120;
+const BAR_GAP = 6;
+
+function WeeklyBarChart({ data, dark }: { data: DayStatEntry[]; dark: boolean }) {
+  if (data.length === 0) {
+    return (
+      <View style={{ height: CHART_H, justifyContent: "center", alignItems: "center" }}>
+        <Text style={{ color: dark ? "rgba(255,255,255,0.3)" : "rgba(0,0,0,0.25)", fontSize: 13 }}>
+          Swipe des photos pour voir ton activité ici
+        </Text>
+      </View>
+    );
+  }
+
+  const maxMB = Math.max(...data.map((d) => d.deletedMB), 0.01);
+  const barW = (CHART_W - BAR_GAP * (data.length - 1)) / data.length;
+  const today = new Date().toISOString().slice(0, 10);
+
+  return (
+    <Svg width={CHART_W} height={CHART_H + 24}>
+      {data.map((d, i) => {
+        const barH = Math.max((d.deletedMB / maxMB) * CHART_H * 0.85, d.deletedMB > 0 ? 4 : 2);
+        const x = i * (barW + BAR_GAP);
+        const y = CHART_H - barH;
+        const isToday = d.date === today;
+        const color = isToday ? "#8B8BFF" : d.deletedMB > 0 ? "#5AC8FA" : (dark ? "#2a2a2a" : "#e8e8e8");
+        const labelColor = isToday ? "#8B8BFF" : (dark ? "rgba(255,255,255,0.4)" : "rgba(0,0,0,0.35)");
+        return (
+          <React.Fragment key={d.date}>
+            <Rect
+              x={x}
+              y={y}
+              width={barW}
+              height={barH}
+              rx={barW / 3}
+              fill={color}
+            />
+            <SvgText
+              x={x + barW / 2}
+              y={CHART_H + 16}
+              textAnchor="middle"
+              fontSize={11}
+              fontWeight={isToday ? "700" : "500"}
+              fill={labelColor}
+            >
+              {d.label}
+            </SvgText>
+          </React.Fragment>
+        );
+      })}
+    </Svg>
+  );
+}
 
 function formatSize(bytes: number): string {
   if (bytes >= 1_073_741_824) return `${(bytes / 1_073_741_824).toFixed(1)} Go`;
@@ -47,7 +110,12 @@ export default function StatsScreen() {
   const [libraryCount, setLibraryCount] = useState(0);
   const cachedTrashSize = useRef<{ count: number; size: number } | null>(null);
 
+  const [weeklyStats, setWeeklyStats] = useState<DayStatEntry[]>([]);
+  const [streak, setStreak] = useState(0);
+  const [weeklyTotals, setWeeklyTotals] = useState<WeeklyTotals | null>(null);
+
   const loadData = useCallback(async () => {
+    try {
     const [dm, trashRaw, favRaw, indexRaw, freedRaw, deletedRaw] = await Promise.all([
       AsyncStorage.getItem(DARK_MODE_KEY),
       AsyncStorage.getItem(TRASH_KEY),
@@ -65,6 +133,16 @@ export default function StatsScreen() {
     setTotalSwiped(indexRaw ? Number(indexRaw) : 0);
     setFreedSize(freedRaw ? Number(freedRaw) : 0);
     setDeletedCount(deletedRaw ? Number(deletedRaw) : 0);
+
+    // Weekly swipe activity stats
+    const [ws, st, wt] = await Promise.all([
+      getWeeklyStats(),
+      getStreak(),
+      getWeeklyTotals(),
+    ]);
+    setWeeklyStats(ws);
+    setStreak(st);
+    setWeeklyTotals(wt);
 
     // Nombre total de photos dans la bibliothèque
     try {
@@ -102,7 +180,11 @@ export default function StatsScreen() {
     const total = known + fetched;
     cachedTrashSize.current = { count: trash.length, size: total };
     setTrashSize(total);
-    setSizeLoading(false);
+    } catch {
+      // Ne pas bloquer l'UI si une erreur survient
+    } finally {
+      setSizeLoading(false);
+    }
   }, []);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
@@ -150,6 +232,74 @@ export default function StatsScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+
+        {/* ACTIVITÉ HEBDOMADAIRE */}
+        <Text style={[styles.sectionLabel, { color: sub }]}>ACTIVITÉ — 7 DERNIERS JOURS</Text>
+        <View style={[styles.bigCard, { backgroundColor: card, borderColor: border, paddingHorizontal: 16, paddingVertical: 20 }]}>
+          <WeeklyBarChart data={weeklyStats} dark={darkMode} />
+        </View>
+
+        {/* STREAK + COMPARAISON SEMAINE */}
+        <View style={styles.rowCards}>
+          {/* Streak */}
+          <View style={[styles.halfCard, { backgroundColor: card, borderColor: border }]}>
+            <Text style={{ fontSize: 36 }}>🔥</Text>
+            <Text style={[styles.bigNumber, { fontSize: 40, lineHeight: 44 }, { color: streak > 0 ? "#FF9500" : (darkMode ? "#555" : "#ccc") }]}>
+              {streak}
+            </Text>
+            <Text style={[styles.statLabel, { color: text, marginTop: 2 }]}>
+              jour{streak !== 1 ? "s" : ""} de suite
+            </Text>
+            <Text style={[styles.statSub, { color: sub, marginTop: 2 }]}>
+              {streak === 0 ? "Swipe aujourd'hui !" : streak === 1 ? "Bonne reprise !" : "Continue comme ça !"}
+            </Text>
+          </View>
+
+          {/* Comparaison semaine */}
+          <View style={[styles.halfCard, { backgroundColor: card, borderColor: border }]}>
+            <Ionicons name="trending-up-outline" size={28} color="#8B8BFF" />
+            <Text style={[styles.bigNumber, { fontSize: 28, lineHeight: 34, color: text, marginTop: 6 }]}>
+              {weeklyTotals ? weeklyTotals.thisWeek.swipedCount.toLocaleString("fr-FR") : "—"}
+            </Text>
+            <Text style={[styles.statLabel, { color: text, marginTop: 2 }]}>
+              photos triées
+            </Text>
+            {weeklyTotals && weeklyTotals.lastWeek.swipedCount > 0 && (
+              <Text style={[styles.statSub, { color: sub, marginTop: 2 }]}>
+                {weeklyTotals.thisWeek.swipedCount >= weeklyTotals.lastWeek.swipedCount
+                  ? `+${weeklyTotals.thisWeek.swipedCount - weeklyTotals.lastWeek.swipedCount} vs sem. passée`
+                  : `-${weeklyTotals.lastWeek.swipedCount - weeklyTotals.thisWeek.swipedCount} vs sem. passée`}
+              </Text>
+            )}
+            {weeklyTotals && weeklyTotals.lastWeek.swipedCount === 0 && (
+              <Text style={[styles.statSub, { color: sub, marginTop: 2 }]}>cette semaine</Text>
+            )}
+          </View>
+        </View>
+
+        {/* Mo libérés cette semaine */}
+        {weeklyTotals && weeklyTotals.thisWeek.deletedMB > 0 && (
+          <View style={[styles.freedCard, { backgroundColor: card, borderColor: "rgba(138,139,255,0.25)", marginBottom: 20 }]}>
+            <View style={[styles.freedIcon, { backgroundColor: "rgba(138,139,255,0.12)" }]}>
+              <Ionicons name="bar-chart" size={36} color="#8B8BFF" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.freedValue, { color: "#8B8BFF", fontSize: 28 }]}>
+                {weeklyTotals.thisWeek.deletedMB >= 1000
+                  ? `${(weeklyTotals.thisWeek.deletedMB / 1024).toFixed(1)} Go`
+                  : `${weeklyTotals.thisWeek.deletedMB.toFixed(0)} Mo`}
+              </Text>
+              <Text style={[styles.freedLabel, { color: text }]}>supprimés cette semaine</Text>
+              {weeklyTotals.lastWeek.deletedMB > 0 && (
+                <Text style={[styles.freedSub, { color: sub }]}>
+                  {weeklyTotals.thisWeek.deletedMB >= weeklyTotals.lastWeek.deletedMB
+                    ? `+${(weeklyTotals.thisWeek.deletedMB - weeklyTotals.lastWeek.deletedMB).toFixed(0)} Mo vs sem. passée`
+                    : `-${(weeklyTotals.lastWeek.deletedMB - weeklyTotals.thisWeek.deletedMB).toFixed(0)} Mo vs sem. passée`}
+                </Text>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* VUE D'ENSEMBLE */}
         <Text style={[styles.sectionLabel, { color: sub }]}>VUE D'ENSEMBLE</Text>
@@ -289,6 +439,26 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: "row", alignItems: "center", gap: 5 },
   legendDot: { width: 8, height: 8, borderRadius: 4 },
   legendLabel: { fontSize: 11, color: "rgba(128,128,128,0.8)", fontWeight: "500" },
+
+  rowCards: {
+    flexDirection: "row",
+    gap: 12,
+    marginTop: 12,
+    marginBottom: 12,
+  },
+  halfCard: {
+    flex: 1,
+    borderRadius: 18,
+    padding: 16,
+    borderWidth: 1,
+    alignItems: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 6,
+    elevation: 2,
+    gap: 2,
+  },
 
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 12 },
   statCard: {
