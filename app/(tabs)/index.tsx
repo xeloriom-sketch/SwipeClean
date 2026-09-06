@@ -32,6 +32,7 @@ import { WhatsNewModal, NewBadge, shouldShowWhatsNew, markWhatsNewSeen } from ".
 import { checkSwipeMilestones, checkAndUnlock, checkNightSwipe, checkFavMilestones, type Achievement } from "../../utils/achievements";
 import { recordSwipe as recordSwipeStat } from "../../utils/swipeStats";
 import { devLog } from "../../utils/devLogger";
+import { initAds, onSwipeForAd } from "../../utils/ads";
 
 // react-native-video requires a native build — not available in Expo Go
 let VideoPlayer: React.ComponentType<any> | null = null;
@@ -169,25 +170,11 @@ const FancyLoader = ({ dark }: { dark: boolean }) => <AppLoader dark={dark} />;
 const MediaCard = React.memo(function MediaCard({
   item,
   isTop,
-  imageScale,
-  imagePanX,
-  imagePanY,
 }: {
   item: MediaItem;
   isTop: boolean;
-  imageScale: SharedValue<number>;
-  imagePanX: SharedValue<number>;
-  imagePanY: SharedValue<number>;
 }) {
   const [isMuted, setIsMuted] = useState(true);
-
-  const zoomStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: imageScale.value },
-      { translateX: imagePanX.value },
-      { translateY: imagePanY.value },
-    ],
-  }));
 
   useEffect(() => {
     setIsMuted(true);
@@ -272,17 +259,15 @@ const MediaCard = React.memo(function MediaCard({
 
   return (
     <View style={styles.card}>
-      <Animated.View style={[StyleSheet.absoluteFill, zoomStyle]}>
-        <Image
-          source={{ uri: item.uri }}
-          style={styles.media}
-          contentFit="cover"
-          transition={isTop ? 0 : 180}
-          cachePolicy="memory-disk"
-          priority="high"
-          recyclingKey={item.id}
-        />
-      </Animated.View>
+      <Image
+        source={{ uri: item.uri }}
+        style={[StyleSheet.absoluteFill, styles.media]}
+        contentFit="cover"
+        transition={isTop ? 0 : 180}
+        cachePolicy="memory-disk"
+        priority="high"
+        recyclingKey={item.id}
+      />
       <LinearGradient
         colors={["transparent", "rgba(0,0,0,0.55)"]}
         style={styles.photoInfoGradient}
@@ -308,11 +293,7 @@ const SwipeableCard = React.forwardRef<SwipeableCardRef, {
   const translateX = useSharedValue(0);
   const translateY = useSharedValue(0);
   const swipeDir = useSharedValue<SwipeDirection>(null);
-  const imageScale = useSharedValue(1);
-  const imagePanX = useSharedValue(0);
-  const imagePanY = useSharedValue(0);
-  const isZoomedIn = useSharedValue(false);
-  const savedScale = useSharedValue(1);
+  const cardScale = useSharedValue(1);
   const mountProgress = useSharedValue(0);
 
   useEffect(() => {
@@ -350,7 +331,7 @@ const SwipeableCard = React.forwardRef<SwipeableCardRef, {
         { translateX: translateX.value },
         { translateY: translateY.value },
         { rotate: `${rotate}deg` },
-        { scale: 0.94 + 0.06 * mountProgress.value },
+        { scale: (0.94 + 0.06 * mountProgress.value) * cardScale.value },
       ],
       zIndex: 10,
       opacity: 1,
@@ -429,32 +410,9 @@ const SwipeableCard = React.forwardRef<SwipeableCardRef, {
     return { opacity: 0 };
   });
 
-  const pinchGesture = Gesture.Pinch()
-    .onUpdate((e) => {
-      const next = Math.min(Math.max(savedScale.value * e.scale, 1), 4);
-      imageScale.value = next;
-      isZoomedIn.value = next > 1.05;
-    })
-    .onEnd(() => {
-      if (imageScale.value < 1.15) {
-        imageScale.value = withSpring(1, { damping: 15 });
-        imagePanX.value = withSpring(0, { damping: 15 });
-        imagePanY.value = withSpring(0, { damping: 15 });
-        savedScale.value = 1;
-        isZoomedIn.value = false;
-      } else {
-        savedScale.value = imageScale.value;
-      }
-    });
-
   const panGesture = Gesture.Pan()
     .enabled(isTop)
     .onUpdate((e) => {
-      if (isZoomedIn.value) {
-        imagePanX.value = e.translationX / Math.max(imageScale.value, 1);
-        imagePanY.value = e.translationY / Math.max(imageScale.value, 1);
-        return;
-      }
       translateX.value = e.translationX;
       translateY.value = e.translationY;
 
@@ -480,11 +438,6 @@ const SwipeableCard = React.forwardRef<SwipeableCardRef, {
       }
     })
     .onEnd(() => {
-      if (isZoomedIn.value) {
-        imagePanX.value = withSpring(imagePanX.value, { damping: 18 });
-        imagePanY.value = withSpring(imagePanY.value, { damping: 18 });
-        return;
-      }
       const FLYOFF = { duration: 400, easing: Easing.in(Easing.quad) } as const;
       if (swipeDir.value === "left") {
         stackProgress.value = withTiming(1, { duration: 400 });
@@ -526,9 +479,9 @@ const SwipeableCard = React.forwardRef<SwipeableCardRef, {
       }
     });
 
-  // Double-tap détecté manuellement : un tap simple ne bloque PAS le pan/pinch
+  // Double-tap : ouvre le fullscreen. Tap simple : effet rebond.
   const lastTapTime = useRef(0);
-  const handleTap = () => {
+  const handleTapJS = () => {
     const now = Date.now();
     if (onDoubleTap && now - lastTapTime.current < 300) {
       onDoubleTap();
@@ -540,12 +493,18 @@ const SwipeableCard = React.forwardRef<SwipeableCardRef, {
 
   const tapGesture = Gesture.Tap()
     .enabled(isTop)
-    .maxDuration(350) // 350ms = bon équilibre entre tap naturel et début de swipe
+    .maxDuration(350)
     .onEnd((_e, success) => {
-      if (success) runOnJS(handleTap)();
+      if (!success) return;
+      // Animation sur le thread UI — instantanée sur iOS et Android
+      cardScale.value = withSequence(
+        withTiming(0.88, { duration: 55 }),
+        withSpring(1, { damping: 7, stiffness: 220, mass: 0.8 })
+      );
+      runOnJS(handleTapJS)();
     });
 
-  const combinedGesture = Gesture.Simultaneous(tapGesture, panGesture, pinchGesture);
+  const combinedGesture = Gesture.Simultaneous(tapGesture, panGesture);
 
   useImperativeHandle(ref, () => ({
     triggerSwipe: (direction) => {
@@ -592,7 +551,7 @@ const SwipeableCard = React.forwardRef<SwipeableCardRef, {
         style={[styles.cardWrapper, cardStyle]}
         renderToHardwareTextureAndroid
       >
-        <MediaCard item={item} isTop={isTop} imageScale={imageScale} imagePanX={imagePanX} imagePanY={imagePanY} />
+        <MediaCard item={item} isTop={isTop} />
         {isTop && (
           <>
             <Animated.View
@@ -762,6 +721,77 @@ function Confetti({ active }: { active: boolean }) {
 }
 
 
+/* ---- FullscreenViewer ---- */
+function FullscreenViewer({ uri, onClose }: { uri: string; onClose: () => void }) {
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+  const panX = useSharedValue(0);
+  const panY = useSharedValue(0);
+  const isZoomed = useSharedValue(false);
+
+  const pinch = Gesture.Pinch()
+    .onUpdate((e) => {
+      const next = Math.min(Math.max(savedScale.value * e.scale, 1), 5);
+      scale.value = next;
+      isZoomed.value = next > 1.05;
+    })
+    .onEnd(() => {
+      if (scale.value < 1.15) {
+        scale.value = withSpring(1, { damping: 15 });
+        panX.value = withSpring(0, { damping: 15 });
+        panY.value = withSpring(0, { damping: 15 });
+        savedScale.value = 1;
+        isZoomed.value = false;
+      } else {
+        savedScale.value = scale.value;
+      }
+    });
+
+  const pan = Gesture.Pan()
+    .onUpdate((e) => {
+      if (!isZoomed.value) return;
+      panX.value = e.translationX / Math.max(scale.value, 1);
+      panY.value = e.translationY / Math.max(scale.value, 1);
+    })
+    .onEnd(() => {
+      if (!isZoomed.value) return;
+      panX.value = withSpring(panX.value, { damping: 18 });
+      panY.value = withSpring(panY.value, { damping: 18 });
+    });
+
+  const tap = Gesture.Tap()
+    .maxDuration(250)
+    .onEnd((_e, success) => {
+      if (success) runOnJS(onClose)();
+    });
+
+  const combined = Gesture.Simultaneous(tap, pinch, pan);
+
+  const imgStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: scale.value },
+      { translateX: panX.value },
+      { translateY: panY.value },
+    ],
+  }));
+
+  return (
+    <GestureDetector gesture={combined}>
+      <Animated.View style={styles.fullscreenOverlay}>
+        <Animated.View style={[{ width: "100%", height: "100%" }, imgStyle]}>
+          <Image
+            source={{ uri }}
+            style={styles.fullscreenImage}
+            contentFit="contain"
+            transition={180}
+            cachePolicy="memory"
+          />
+        </Animated.View>
+      </Animated.View>
+    </GestureDetector>
+  );
+}
+
 function fireAchievementNotif(a: Achievement) {
   Notifications.scheduleNotificationAsync({
     content: {
@@ -883,6 +913,7 @@ export default function GalleryScreen() {
     Audio.setAudioModeAsync({ playsInSilentModeIOS: true })
       .then(() => initSounds())
       .catch(() => {});
+    initAds();
     return () => {
       Object.values(preloadedSounds).forEach((s) => s?.unloadAsync().catch(() => {}));
     };
@@ -1108,6 +1139,7 @@ export default function GalleryScreen() {
       triggerHaptics(direction);
       devLog("Swipe", `dir=${direction} type=${item.type} id=${item.id} size=${item.fileSize ?? "?"}`, "info");
       recordSwipeStat(item.fileSize, direction).catch(() => {});
+      onSwipeForAd();
       if (soundEnabled && direction !== "bottom") {
         playSwipeSound(direction === "left" ? "delete" : direction === "right" ? "keep" : "star");
       }
@@ -1558,7 +1590,7 @@ export default function GalleryScreen() {
         onClose={handleCloseWhatsNew}
       />
 
-      {/* Fullscreen viewer — double-tap on swipe card */}
+      {/* Fullscreen viewer — double-tap on swipe card. Tap = close, pinch = zoom */}
       <Modal
         visible={fullscreenUri !== null}
         transparent
@@ -1566,24 +1598,9 @@ export default function GalleryScreen() {
         statusBarTranslucent
         onRequestClose={() => setFullscreenUri(null)}
       >
-        <TouchableOpacity
-          style={styles.fullscreenOverlay}
-          activeOpacity={1}
-          onPress={() => setFullscreenUri(null)}
-        >
-          {fullscreenUri ? (
-            <Image
-              source={{ uri: fullscreenUri }}
-              style={styles.fullscreenImage}
-              contentFit="contain"
-              transition={180}
-              cachePolicy="memory"
-            />
-          ) : null}
-          <View style={[styles.fullscreenClose, { top: insets.top + 8 }]} pointerEvents="none">
-            <Ionicons name="close-circle" size={36} color="rgba(255,255,255,0.75)" />
-          </View>
-        </TouchableOpacity>
+        {fullscreenUri ? (
+          <FullscreenViewer uri={fullscreenUri} onClose={() => setFullscreenUri(null)} />
+        ) : null}
       </Modal>
     </SafeAreaView>
   );
@@ -1879,12 +1896,8 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  fullscreenClose: {
-    position: "absolute",
-    right: 20,
-  },
-
 });
+
 
 // Constantes stables pour éviter que React.memo soit annulé par des arrays inline
 const ACTION_BTN_DELETE = [styles.actionBtn, styles.actionBtnDelete];

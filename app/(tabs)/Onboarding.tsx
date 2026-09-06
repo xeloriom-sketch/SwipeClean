@@ -23,6 +23,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import { Ionicons } from "@expo/vector-icons";
+import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { router } from "expo-router";
@@ -34,7 +35,16 @@ const ONBOARDED_KEY = "@app_onboarded";
 const CARD_W = width * 0.75;
 const CARD_H = CARD_W * 1.36;
 
-type Dir = "left" | "right" | "up" | "down" | "trash";
+type Dir = "left" | "right" | "up" | "down" | "trash" | "duplicates" | "doubletap";
+
+const PHOTOS = [
+  require("../../assets/images/onboarding_1.jpg"), // montagne — swipe gauche
+  require("../../assets/images/onboarding_2.jpg"), // nature — swipe droite
+  require("../../assets/images/onboarding_3.jpg"), // paysage — favoris
+  require("../../assets/images/onboarding_4.jpg"), // beau — passer
+  require("../../assets/images/onboarding_5.jpg"), // photo — corbeille
+  require("../../assets/images/onboarding_6.jpg"), // portrait — doublons
+];
 
 const STEPS = [
   {
@@ -48,6 +58,7 @@ const STEPS = [
     title: "Direction\nla corbeille.",
     desc: "Pas de suppression immédiate — récupérez toujours vos photos depuis la Corbeille.",
     icon: "trash-outline" as const,
+    image: PHOTOS[0],
   },
   {
     key: "keep",
@@ -60,6 +71,7 @@ const STEPS = [
     title: "Gardez ce\nqui compte.",
     desc: "La photo reste dans votre galerie, intacte. Vos souvenirs sont préservés.",
     icon: "heart" as const,
+    image: PHOTOS[1],
   },
   {
     key: "star",
@@ -72,6 +84,7 @@ const STEPS = [
     title: "Créez vos\nfavoris.",
     desc: "Épinglez vos meilleures photos. Retrouvez-les instantanément dans l'onglet Favoris.",
     icon: "star" as const,
+    image: PHOTOS[2],
   },
   {
     key: "skip",
@@ -84,6 +97,7 @@ const STEPS = [
     title: "Passez si\nvous hésitez.",
     desc: "Pas sûr ? Glissez vers le bas pour décider plus tard. Aucune décision forcée.",
     icon: "play-skip-forward" as const,
+    image: PHOTOS[3],
   },
   {
     key: "trash",
@@ -96,6 +110,33 @@ const STEPS = [
     title: "Vous gardez\nle contrôle.",
     desc: "Sélectionnez des photos, puis restaurez ou supprimez-les définitivement.",
     icon: "trash" as const,
+    image: PHOTOS[4],
+  },
+  {
+    key: "doubletap",
+    dir: "doubletap" as Dir,
+    color: "#FFD60A",
+    dark: "#1A1400",
+    cardTop: "#1a1400" as const,
+    cardBot: "#3a2e00" as const,
+    label: "DOUBLE TAP",
+    title: "Agrandis\nla photo.",
+    desc: "Double-tapez sur une photo pour l'afficher en plein écran. Pincez pour zoomer, tapez pour fermer.",
+    icon: "expand-outline" as const,
+    image: PHOTOS[4],
+  },
+  {
+    key: "duplicates",
+    dir: "duplicates" as Dir,
+    color: "#BF5AF2",
+    dark: "#0D0014",
+    cardTop: "#0d0014" as const,
+    cardBot: "#2d1a4a" as const,
+    label: "LES DOUBLONS",
+    title: "Trouvez les\ncopies cachées.",
+    desc: "SwipeClean détecte automatiquement vos photos en double. Supprimez-les facilement depuis le menu Doublons.",
+    icon: "copy-outline" as const,
+    image: PHOTOS[5],
   },
 ];
 
@@ -255,25 +296,25 @@ function SwipeCard({ step, onDone }: { step: typeof STEPS[0]; onDone: () => void
 
       <GestureDetector gesture={pan}>
         <Animated.View style={[cardStyles.card, cardStyle]}>
-          <LinearGradient
-            colors={[step.cardTop, step.cardBot]}
+          {/* Vraie photo */}
+          <Image
+            source={step.image}
             style={StyleSheet.absoluteFill}
+            contentFit="cover"
+            cachePolicy="memory"
           />
-          {/* Abstract landscape silhouette */}
-          <View style={cardStyles.scene}>
-            <View style={[cardStyles.sky, { backgroundColor: step.color + "06" }]} />
-            <View style={cardStyles.hills}>
-              <View style={[cardStyles.hillL, { backgroundColor: step.color + "1A" }]} />
-              <View style={[cardStyles.hillR, { backgroundColor: step.color + "12" }]} />
-            </View>
-            <View style={[cardStyles.ground, { backgroundColor: step.color + "0A" }]} />
-          </View>
+          {/* Dégradé bas pour l'icône */}
+          <LinearGradient
+            colors={["transparent", "rgba(0,0,0,0.55)"]}
+            style={cardStyles.photoGradient}
+            pointerEvents="none"
+          />
           {/* Direction icon */}
-          <View style={[cardStyles.iconBadge, { backgroundColor: step.color + "1E" }]}>
-            <Ionicons name={step.icon} size={28} color={step.color + "AA"} />
+          <View style={[cardStyles.iconBadge, { backgroundColor: step.color + "CC" }]}>
+            <Ionicons name={step.icon} size={28} color="#fff" />
           </View>
           {/* Gesture overlay */}
-          <Animated.View style={[cardStyles.overlay, { backgroundColor: step.color + "E8" }, overlayStyle]}>
+          <Animated.View style={[cardStyles.overlay, { backgroundColor: step.color + "D0" }, overlayStyle]}>
             <Ionicons name={step.icon} size={52} color="#fff" />
             <Text style={cardStyles.overlayText}>{step.title.replace("\n", " ")}</Text>
           </Animated.View>
@@ -295,11 +336,11 @@ function SwipeCard({ step, onDone }: { step: typeof STEPS[0]; onDone: () => void
 }
 
 /* ─── Trash interactive demo ───────────────────────────────── */
-const MINI_GRADIENTS: [string, string][] = [
-  ["#1a0510", "#16213e"],
-  ["#001a0a", "#0a2818"],
-  ["#00061a", "#0a1628"],
-  ["#0d0014", "#1a0a28"],
+const TRASH_PHOTOS = [
+  require("../../assets/images/onboarding_1.jpg"),
+  require("../../assets/images/onboarding_3.jpg"),
+  require("../../assets/images/onboarding_4.jpg"),
+  require("../../assets/images/onboarding_2.jpg"),
 ];
 
 function TrashDemo({ color, onDone }: { color: string; onDone: () => void }) {
@@ -338,9 +379,11 @@ function TrashDemo({ color, onDone }: { color: string; onDone: () => void }) {
           return (
             <TouchableOpacity key={i} onPress={() => !acted && toggle(i)} activeOpacity={0.8}>
               <View style={[trashStyles.photo, { width: GSIZE, height: GSIZE }]}>
-                <LinearGradient
-                  colors={MINI_GRADIENTS[i]}
+                <Image
+                  source={TRASH_PHOTOS[i]}
                   style={StyleSheet.absoluteFill}
+                  contentFit="cover"
+                  cachePolicy="memory"
                 />
                 {sel && (
                   <View style={[trashStyles.selOver, { borderColor: color }]}>
@@ -384,6 +427,153 @@ function TrashDemo({ color, onDone }: { color: string; onDone: () => void }) {
         <View style={trashStyles.doneRow}>
           <Ionicons name="checkmark-circle" size={16} color={color} />
           <Text style={[trashStyles.hint, { color, marginTop: 0 }]}>Bien joué !</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+/* ─── Double-tap demo ──────────────────────────────────────────── */
+function DoubleTapDemo({ color, onDone }: { color: string; onDone: () => void }) {
+  const [zoomed, setZoomed] = useState(false);
+  const [acted, setActed] = useState(false);
+  const sc = useSharedValue(1);
+  const rippleOp = useSharedValue(0);
+  const rippleSc = useSharedValue(0.3);
+
+  const triggerZoom = () => {
+    if (acted) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    rippleOp.value = withSequence(withTiming(0.7, { duration: 60 }), withTiming(0, { duration: 300 }));
+    rippleSc.value = withSequence(withTiming(0.3, { duration: 1 }), withTiming(1.6, { duration: 360 }));
+    sc.value = withSequence(withTiming(1.18, { duration: 220 }), withSpring(1, { damping: 10, stiffness: 180 }));
+    setZoomed(true);
+    setActed(true);
+    setTimeout(onDone, 900);
+  };
+
+  const imgStyle = useAnimatedStyle(() => ({ transform: [{ scale: sc.value }] }));
+  const rippleStyle = useAnimatedStyle(() => ({ opacity: rippleOp.value, transform: [{ scale: rippleSc.value }] }));
+
+  const CARD_SIZE = width * 0.72;
+
+  return (
+    <View style={{ alignItems: "center", gap: 16 }}>
+      <TouchableOpacity onPress={triggerZoom} activeOpacity={0.95}>
+        <View style={{ width: CARD_SIZE, height: CARD_SIZE * 1.3, borderRadius: 20, overflow: "hidden", backgroundColor: "#111" }}>
+          <Animated.View style={[StyleSheet.absoluteFill, imgStyle]}>
+            <Image
+              source={require("../../assets/images/onboarding_5.jpg")}
+              style={StyleSheet.absoluteFill}
+              contentFit="cover"
+              cachePolicy="memory"
+            />
+          </Animated.View>
+          {/* Ripple */}
+          <Animated.View
+            pointerEvents="none"
+            style={[StyleSheet.absoluteFill, { alignItems: "center", justifyContent: "center" }, rippleStyle]}
+          >
+            <View style={{ width: 100, height: 100, borderRadius: 50, borderWidth: 2, borderColor: color }} />
+          </Animated.View>
+          {/* Hint overlay si pas encore agi */}
+          {!acted && (
+            <View style={{ position: "absolute", bottom: 12, alignSelf: "center", backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Ionicons name="finger-print-outline" size={14} color={color} />
+              <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>Double-tapez</Text>
+            </View>
+          )}
+          {acted && (
+            <View style={{ position: "absolute", bottom: 12, alignSelf: "center", backgroundColor: color + "CC", paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, flexDirection: "row", alignItems: "center", gap: 6 }}>
+              <Ionicons name="checkmark-circle" size={14} color="#fff" />
+              <Text style={{ color: "#fff", fontSize: 12, fontWeight: "600" }}>Plein écran !</Text>
+            </View>
+          )}
+        </View>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+/* ─── Duplicates interactive demo ─────────────────────────────── */
+
+function DuplicatesDemo({ color, onDone }: { color: string; onDone: () => void }) {
+  const [deleted, setDeleted] = useState<number[]>([]);
+  const [acted, setActed] = useState(false);
+
+  const doDelete = (i: number) => {
+    if (acted) return;
+    Haptics.selectionAsync();
+    const next = [...deleted, i];
+    setDeleted(next);
+    if (next.length >= 1) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setActed(true);
+      setTimeout(onDone, 700);
+    }
+  };
+
+  const GSIZE = (width * 0.84 - 8) / 2;
+
+  return (
+    <View style={trashStyles.shell}>
+      <View style={trashStyles.header}>
+        <Ionicons name="copy-outline" size={16} color="rgba(255,255,255,0.45)" />
+        <Text style={trashStyles.headerTxt}>Doublons détectés · 2 groupes</Text>
+      </View>
+
+      <View style={{ gap: 12 }}>
+        {/* Groupe 1 : 2 copies */}
+        <View style={{ gap: 6 }}>
+          <Text style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", fontWeight: "600" }}>GROUPE 1 · 2 copies</Text>
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            {[0, 1].map((i) => {
+              const isDup = i === 1;
+              const isDeleted = deleted.includes(i);
+              return (
+                <TouchableOpacity key={i} onPress={() => isDup && !isDeleted && doDelete(i)} activeOpacity={isDup ? 0.7 : 1}>
+                  <View style={[{ width: GSIZE, height: GSIZE, borderRadius: 12, overflow: "hidden" }]}>
+                    <Image
+                      source={require("../../assets/images/onboarding_6.jpg")}
+                      style={StyleSheet.absoluteFill}
+                      contentFit="cover"
+                      cachePolicy="memory"
+                    />
+                    {isDup && !isDeleted && (
+                      <View style={[trashStyles.selOver, { borderColor: color, backgroundColor: color + "20" }]}>
+                        <View style={[trashStyles.check, { backgroundColor: color }]}>
+                          <Ionicons name="trash-outline" size={10} color="#fff" />
+                        </View>
+                        <View style={{ position: "absolute", bottom: 6, left: 6, backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 6 }}>
+                          <Text style={{ color: "#fff", fontSize: 9, fontWeight: "700" }}>DOUBLON</Text>
+                        </View>
+                      </View>
+                    )}
+                    {isDeleted && (
+                      <View style={[StyleSheet.absoluteFill, { backgroundColor: "rgba(0,0,0,0.65)", alignItems: "center", justifyContent: "center", borderRadius: 12 }]}>
+                        <Ionicons name="checkmark-circle" size={28} color={color} />
+                      </View>
+                    )}
+                    {!isDup && (
+                      <View style={{ position: "absolute", bottom: 6, left: 6, backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 5, paddingVertical: 2, borderRadius: 6 }}>
+                        <Text style={{ color: "#fff", fontSize: 9, fontWeight: "700" }}>ORIGINAL</Text>
+                      </View>
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
+      </View>
+
+      <Text style={trashStyles.hint}>
+        {acted ? "Doublon supprimé !" : "Touchez le doublon pour le supprimer"}
+      </Text>
+      {acted && (
+        <View style={trashStyles.doneRow}>
+          <Ionicons name="checkmark-circle" size={16} color={color} />
+          <Text style={[trashStyles.hint, { color, marginTop: 0 }]}>Parfait !</Text>
         </View>
       )}
     </View>
@@ -514,10 +704,14 @@ export default function OnboardingScreen() {
 
         {/* Interactive zone */}
         <View style={styles.zone}>
-          {step.dir !== "trash" ? (
-            <SwipeCard key={step.key} step={step} onDone={() => goTo(stepIdx + 1)} />
-          ) : (
+          {step.dir === "trash" ? (
             <TrashDemo key={step.key} color={step.color} onDone={() => goTo(stepIdx + 1)} />
+          ) : step.dir === "duplicates" ? (
+            <DuplicatesDemo key={step.key} color={step.color} onDone={() => goTo(stepIdx + 1)} />
+          ) : step.dir === "doubletap" ? (
+            <DoubleTapDemo key={step.key} color={step.color} onDone={() => goTo(stepIdx + 1)} />
+          ) : (
+            <SwipeCard key={step.key} step={step} onDone={() => goTo(stepIdx + 1)} />
           )}
         </View>
 
@@ -629,20 +823,13 @@ const cardStyles = StyleSheet.create({
     elevation: 16,
   },
 
-  scene: { ...StyleSheet.absoluteFillObject },
-  sky: { position: "absolute", top: 0, left: 0, right: 0, height: "55%" },
-  hills: {
+  photoGradient: {
     position: "absolute",
-    bottom: "28%",
     left: 0,
     right: 0,
-    height: "35%",
-    flexDirection: "row",
-    alignItems: "flex-end",
+    bottom: 0,
+    height: 80,
   },
-  hillL: { flex: 1, height: "80%", borderTopLeftRadius: 80, borderTopRightRadius: 40 },
-  hillR: { flex: 1, height: "100%", borderTopLeftRadius: 50, borderTopRightRadius: 90 },
-  ground: { position: "absolute", bottom: 0, left: 0, right: 0, height: "30%" },
 
   iconBadge: {
     position: "absolute",
