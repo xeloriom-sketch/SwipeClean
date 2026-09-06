@@ -526,17 +526,26 @@ const SwipeableCard = React.forwardRef<SwipeableCardRef, {
       }
     });
 
-  const doubleTapGesture = Gesture.Tap()
-    .numberOfTaps(2)
+  // Double-tap détecté manuellement : un tap simple ne bloque PAS le pan/pinch
+  const lastTapTime = useRef(0);
+  const handleTap = () => {
+    const now = Date.now();
+    if (onDoubleTap && now - lastTapTime.current < 300) {
+      onDoubleTap();
+      lastTapTime.current = 0;
+    } else {
+      lastTapTime.current = now;
+    }
+  };
+
+  const tapGesture = Gesture.Tap()
     .enabled(isTop)
-    .onEnd(() => {
-      if (onDoubleTap) runOnJS(onDoubleTap)();
+    .maxDuration(200) // échec si le doigt reste > 200ms (= début d'un swipe)
+    .onEnd((_e, success) => {
+      if (success) runOnJS(handleTap)();
     });
 
-  const combinedGesture = Gesture.Exclusive(
-    doubleTapGesture,
-    Gesture.Simultaneous(panGesture, pinchGesture)
-  );
+  const combinedGesture = Gesture.Simultaneous(tapGesture, panGesture, pinchGesture);
 
   useImperativeHandle(ref, () => ({
     triggerSwipe: (direction) => {
