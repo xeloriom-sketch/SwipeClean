@@ -90,7 +90,8 @@
         "react-native-google-mobile-ads",
         {
           "androidAppId": "ca-app-pub-3421517351913205~1367769553",
-          "iosAppId": "ca-app-pub-3421517351913205~1367769553"
+          "iosAppId": "ca-app-pub-3421517351913205~1367769553",
+          "userTrackingUsageDescription": "Cette app affiche des publicités. Autoriser le suivi permet d'afficher des pubs pertinentes."
         }
       ]
     ],
