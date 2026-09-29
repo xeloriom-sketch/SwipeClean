@@ -56,7 +56,20 @@ function clearTimer() {
   }
 }
 
+// Safety net for SDKs without a FAILED_TO_SHOW event: if CLOSED never arrives after
+// show(), release the instance instead of staying stuck with showing = true.
+const SHOW_WATCHDOG_MS = 90000;
+let showWatchdog: ReturnType<typeof setTimeout> | null = null;
+
+function clearShowWatchdog() {
+  if (showWatchdog) {
+    clearTimeout(showWatchdog);
+    showWatchdog = null;
+  }
+}
+
 function destroy() {
+  clearShowWatchdog();
   if (unsubscribe) {
     try {
       unsubscribe();
@@ -119,14 +132,18 @@ function loadAd() {
       scheduleRetry();
     });
 
-    // Without this, a failed presentation left showing=true / interstitial non-null
-    // forever: no ad was ever shown again and the native instance was never released.
-    const failedType = AdEventType.FAILED_TO_SHOW ?? "failed_to_show";
-    const offFailedToShow = ad.addAdEventListener?.(failedType, () => {
-      if (gen !== generation) return;
-      destroy();
-      scheduleRetry();
-    });
+    // Only registered when the installed SDK exposes it: addAdEventListener throws on
+    // an unknown event type, which would abort loadAd() and stop ads loading entirely.
+    // react-native-google-mobile-ads 16.0.2 does not have it; the watchdog below covers
+    // that case.
+    const failedType = AdEventType.FAILED_TO_SHOW;
+    const offFailedToShow = failedType
+      ? ad.addAdEventListener(failedType, () => {
+          if (gen !== generation) return;
+          destroy();
+          scheduleRetry();
+        })
+      : null;
 
     interstitial = ad;
     unsubscribe = () => {
@@ -176,6 +193,13 @@ export function onSwipeForAd() {
     const ad = interstitial;
     adLoaded = false;
     showing = true;
+    clearShowWatchdog();
+    showWatchdog = setTimeout(() => {
+      showWatchdog = null;
+      if (!showing) return;
+      destroy();
+      scheduleReload(RELOAD_AFTER_CLOSE_MS);
+    }, SHOW_WATCHDOG_MS);
     try {
       ad.show();
     } catch {
@@ -191,6 +215,7 @@ export function onSwipeForAd() {
 
 export function resetAds() {
   clearTimer();
+  clearShowWatchdog();
   destroy();
   generation++;
   retryCount = 0;

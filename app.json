@@ -56,7 +56,6 @@
       "policy": "appVersion"
     },
     "plugins": [
-      "./plugins/withAdsSdkVersion",
       "expo-router",
       "expo-updates",
       [
