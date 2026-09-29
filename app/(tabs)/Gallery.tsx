@@ -164,47 +164,54 @@ export default function GalleryScreen() {
     };
 
     (async () => {
-      const startTime = Date.now();
+      // Sans try/finally, un rejet de requestPermissionsAsync/getAlbumsAsync laissait
+      // l'écran bloqué sur l'AppLoader indéfiniment — ressenti comme un plantage.
+      try {
+        const startTime = Date.now();
 
-      const { status } = await MediaLibrary.requestPermissionsAsync();
-      if (status !== "granted") {
+        const { status } = await MediaLibrary.requestPermissionsAsync();
+        if (status !== "granted") {
+          if (mounted) setInitialLoading(false);
+          return;
+        }
+
+        const albums = await MediaLibrary.getAlbumsAsync();
+        const valid = albums.filter((a) => a.assetCount > 0);
+
+        if (!mounted) return;
+        setGalleries(valid.map((a) => ({ id: a.id, title: a.title, count: a.assetCount, coverUris: [] })));
+
+        // Charger toutes les couvertures par chunks de 6 avant d'afficher
+        for (let i = 0; i < valid.length; i += 6) {
+          if (!mounted) return;
+          const chunk = valid.slice(i, i + 6);
+          const results = await Promise.all(
+            chunk.map((album) =>
+              Promise.race([
+                loadCovers(album),
+                new Promise<null>((res) => setTimeout(() => res(null), 4000)),
+              ])
+            )
+          );
+          if (!mounted) return;
+          setGalleries((prev) =>
+            prev.map((g) => {
+              const r = results.find((x) => x?.id === g.id);
+              return r ? { ...g, coverUris: r.uris } : g;
+            })
+          );
+        }
+
+        const elapsed = Date.now() - startTime;
+        if (elapsed < 400) await new Promise((r) => setTimeout(r, 400 - elapsed));
+        if (!mounted) return;
+        // Filtrer les albums sans couverture chargée (URI invalide ou erreur)
+        setGalleries((prev) => prev.filter((g) => g.coverUris.length > 0));
+        setInitialLoading(false);
+      } catch {
+      } finally {
         if (mounted) setInitialLoading(false);
-        return;
       }
-
-      const albums = await MediaLibrary.getAlbumsAsync();
-      const valid = albums.filter((a) => a.assetCount > 0);
-
-      if (!mounted) return;
-      setGalleries(valid.map((a) => ({ id: a.id, title: a.title, count: a.assetCount, coverUris: [] })));
-
-      // Charger toutes les couvertures par chunks de 6 avant d'afficher
-      for (let i = 0; i < valid.length; i += 6) {
-        if (!mounted) return;
-        const chunk = valid.slice(i, i + 6);
-        const results = await Promise.all(
-          chunk.map((album) =>
-            Promise.race([
-              loadCovers(album),
-              new Promise<null>((res) => setTimeout(() => res(null), 4000)),
-            ])
-          )
-        );
-        if (!mounted) return;
-        setGalleries((prev) =>
-          prev.map((g) => {
-            const r = results.find((x) => x?.id === g.id);
-            return r ? { ...g, coverUris: r.uris } : g;
-          })
-        );
-      }
-
-      const elapsed = Date.now() - startTime;
-      if (elapsed < 400) await new Promise((r) => setTimeout(r, 400 - elapsed));
-      if (!mounted) return;
-      // Filtrer les albums sans couverture chargée (URI invalide ou erreur)
-      setGalleries((prev) => prev.filter((g) => g.coverUris.length > 0));
-      setInitialLoading(false);
     })();
 
     return () => { mounted = false; };

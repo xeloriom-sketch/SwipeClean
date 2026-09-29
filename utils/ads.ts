@@ -35,6 +35,11 @@ let interstitial: any = null;
 let unsubscribe: (() => void) | null = null;
 let adLoaded = false;
 let loading = false;
+// True between show() and CLOSED/FAILED_TO_SHOW. Without it, a swipe landing on the
+// next multiple while the ad is on screen called loadAd() -> destroy(), which
+// unsubscribed the visible ad's CLOSED listener: the reload loop stopped for good
+// and the native instance leaked.
+let showing = false;
 let initialized = false;
 let retryCount = 0;
 let timer: ReturnType<typeof setTimeout> | null = null;
@@ -61,6 +66,7 @@ function destroy() {
   interstitial = null;
   adLoaded = false;
   loading = false;
+  showing = false;
 }
 
 function scheduleReload(delay: number) {
@@ -80,7 +86,7 @@ function scheduleRetry() {
 
 function loadAd() {
   if (IS_EXPO_GO || !InterstitialAd || !AD_UNIT_ID) return;
-  if (loading || adLoaded) return;
+  if (loading || adLoaded || showing) return;
 
   clearTimer();
   destroy();
@@ -113,11 +119,21 @@ function loadAd() {
       scheduleRetry();
     });
 
+    // Without this, a failed presentation left showing=true / interstitial non-null
+    // forever: no ad was ever shown again and the native instance was never released.
+    const failedType = AdEventType.FAILED_TO_SHOW ?? "failed_to_show";
+    const offFailedToShow = ad.addAdEventListener?.(failedType, () => {
+      if (gen !== generation) return;
+      destroy();
+      scheduleRetry();
+    });
+
     interstitial = ad;
     unsubscribe = () => {
       offLoaded?.();
       offClosed?.();
       offError?.();
+      offFailedToShow?.();
     };
 
     ad.load();
@@ -129,7 +145,7 @@ function loadAd() {
 
 function onAppStateChange(state: AppStateStatus) {
   if (state === "active") {
-    if (!adLoaded && !loading && !timer) loadAd();
+    if (!adLoaded && !loading && !timer && !showing) loadAd();
   } else {
     // Nothing is visible in the background: stop burning requests until we return.
     clearTimer();
@@ -154,10 +170,12 @@ export async function initAds() {
 export function onSwipeForAd() {
   swipeCount++;
   if (swipeCount % SWIPES_BEFORE_AD !== 0) return;
+  if (showing) return;
 
   if (adLoaded && interstitial) {
     const ad = interstitial;
     adLoaded = false;
+    showing = true;
     try {
       ad.show();
     } catch {

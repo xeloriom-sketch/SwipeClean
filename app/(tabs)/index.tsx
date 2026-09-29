@@ -13,6 +13,7 @@ import {
   useColorScheme,
   Linking,
   Modal,
+  AppState,
 } from "react-native";
 import { usePopup } from "../../components/Popup";
 import { router, useFocusEffect } from "expo-router";
@@ -25,23 +26,30 @@ import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context"
 import { LinearGradient } from "expo-linear-gradient";
 import { BlurView } from "expo-blur";
 import { Image } from "expo-image";
-import { Audio } from "expo-av";
+import { Audio, InterruptionModeAndroid, InterruptionModeIOS } from "expo-av";
 import * as Notifications from "expo-notifications";
 import AppLoader from "../../components/AppLoader";
 import { WhatsNewModal, NewBadge, shouldShowWhatsNew, markWhatsNewSeen } from "../../components/WhatsNew";
 import { checkSwipeMilestones, checkAndUnlock, checkNightSwipe, checkFavMilestones, type Achievement } from "../../utils/achievements";
 import { recordSwipe as recordSwipeStat } from "../../utils/swipeStats";
 import { devLog } from "../../utils/devLogger";
+import { resolveMediaUri } from "../../utils/mediaUri";
+import { queueWrite, flushWrites } from "../../utils/storageQueue";
 import { initAds, onSwipeForAd } from "../../utils/ads";
 
 // react-native-video requires a native build — not available in Expo Go
 let VideoPlayer: React.ComponentType<any> | null = null;
 let ResizeMode: { COVER: string } = { COVER: "cover" };
+// Android: SurfaceView (défaut de react-native-video) ne supporte ni borderRadius,
+// ni overflow:hidden, ni les transforms du parent animé -> carte noire pendant le swipe.
+// TextureView est composé normalement dans la hiérarchie de vues.
+let VideoViewType: { TEXTURE: any; SURFACE: any } = { TEXTURE: 2, SURFACE: 1 };
 try {
   const rnv = require("react-native-video");
   if (rnv && rnv.default) {
     VideoPlayer = rnv.default;
     ResizeMode = rnv.ResizeMode ?? { COVER: "cover" };
+    VideoViewType = rnv.ViewType ?? VideoViewType;
     devLog("Video", "VideoPlayer chargé OK", "info");
   } else {
     devLog("Video", "require OK mais rnv.default est null", "warn");
@@ -76,8 +84,9 @@ import Animated, {
   SharedValue,
   Easing,
 } from "react-native-reanimated";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
+import { Gesture, GestureDetector, GestureHandlerRootView } from "react-native-gesture-handler";
 import * as Haptics from "expo-haptics";
+import { deleteAssetsInBatches } from "../../utils/mediaDelete";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 const BTN_SIZE = Math.min(Math.round(SCREEN_WIDTH * 0.16), 66);
@@ -164,6 +173,38 @@ const formatDuration = (seconds: number): string => {
   return `${m}:${s.toString().padStart(2, "0")}`;
 };
 
+// Écran non focalisé ou app en arrière-plan: ExoPlayer continuerait à décoder
+// (batterie, chauffe, son audible si l'utilisateur avait démuté).
+function useScreenActive() {
+  const [active, setActive] = useState(true);
+  const focusedRef = useRef(true);
+  const appActiveRef = useRef(AppState.currentState === "active");
+  const sync = useCallback(() => {
+    setActive(focusedRef.current && appActiveRef.current);
+  }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (st) => {
+      appActiveRef.current = st === "active";
+      sync();
+    });
+    return () => sub.remove();
+  }, [sync]);
+
+  useFocusEffect(
+    useCallback(() => {
+      focusedRef.current = true;
+      sync();
+      return () => {
+        focusedRef.current = false;
+        sync();
+      };
+    }, [sync])
+  );
+
+  return active;
+}
+
 const FancyLoader = ({ dark }: { dark: boolean }) => <AppLoader dark={dark} />;
 
 /* ---- MediaCard ---- */
@@ -175,12 +216,29 @@ const MediaCard = React.memo(function MediaCard({
   isTop: boolean;
 }) {
   const [isMuted, setIsMuted] = useState(true);
+  const [videoFailed, setVideoFailed] = useState(false);
+  const screenActive = useScreenActive();
 
   useEffect(() => {
     setIsMuted(true);
+    setVideoFailed(false);
   }, [item.id]);
 
-  if (!item.uri) {
+  // log hors phase de rendu: devLog notifie ses abonnés de façon synchrone
+  // (Settings.tsx fait un setState) -> setState pendant le rendu d'un autre composant.
+  useEffect(() => {
+    if (item.type === "video") {
+      devLog(
+        "Video",
+        `Rendu vidéo id=${item.id} uri=${item.uri?.slice(0, 60)} player=${VideoPlayer ? "OK" : "NULL"}`,
+        VideoPlayer ? "info" : "warn"
+      );
+    }
+  }, [item.id, item.type, item.uri]);
+
+  const resolvedUri = resolveMediaUri(item.uri, item.id, item.type);
+
+  if (!resolvedUri) {
     return (
       <View style={[styles.card, styles.mediaError]}>
         <Ionicons
@@ -194,33 +252,48 @@ const MediaCard = React.memo(function MediaCard({
   }
 
   if (item.type === "video") {
-    devLog("Video", `Rendu vidéo id=${item.id} uri=${item.uri?.slice(0, 60)} player=${VideoPlayer ? "OK" : "NULL"}`, VideoPlayer ? "info" : "warn");
+    const videoPlaceholder = (
+      <View style={[styles.media, { backgroundColor: "#111", justifyContent: "center", alignItems: "center" }]}>
+        <Ionicons name="play-circle-outline" size={64} color="rgba(255,255,255,0.4)" />
+        <Text style={{ color: "rgba(255,255,255,0.4)", marginTop: 8, fontSize: 13 }}>Vidéo</Text>
+      </View>
+    );
+    // Un seul ExoPlayer monté à la fois: la carte du dessous garderait un décodeur
+    // matériel + une surface alloués, et beaucoup d'appareils n'en exposent qu'un ou deux.
+    const Player = VideoPlayer;
+    const canPlay = Player && isTop && screenActive && !videoFailed;
     return (
       <View style={styles.card}>
-        {VideoPlayer ? (
+        {canPlay ? (
           <VideoErrorBoundary
             uri={item.uri ?? undefined}
-            fallback={
-              <View style={[styles.media, { backgroundColor: "#111", justifyContent: "center", alignItems: "center" }]}>
-                <Ionicons name="play-circle-outline" size={64} color="rgba(255,255,255,0.4)" />
-                <Text style={{ color: "rgba(255,255,255,0.4)", marginTop: 8, fontSize: 13 }}>Vidéo</Text>
-              </View>
-            }
+            fallback={videoPlaceholder}
           >
-            <VideoPlayer
-              source={{ uri: item.uri }}
+            <Player
+              source={{ uri: resolvedUri }}
               style={styles.media}
               resizeMode={ResizeMode.COVER}
               repeat
               muted={isMuted}
-              paused={!isTop}
+              paused={!isTop || !screenActive}
+              viewType={VideoViewType.TEXTURE}
+              playInBackground={false}
+              playWhenInactive={false}
+              disableFocus
+              bufferConfig={{
+                minBufferMs: 2000,
+                maxBufferMs: 5000,
+                bufferForPlaybackMs: 1000,
+                bufferForPlaybackAfterRebufferMs: 1500,
+              }}
+              onError={(e: any) => {
+                devLog("Video", `onError id=${item.id}: ${JSON.stringify(e?.error ?? e)}`, "error");
+                setVideoFailed(true);
+              }}
             />
           </VideoErrorBoundary>
         ) : (
-          <View style={[styles.media, { backgroundColor: "#111", justifyContent: "center", alignItems: "center" }]}>
-            <Ionicons name="play-circle-outline" size={64} color="rgba(255,255,255,0.4)" />
-            <Text style={{ color: "rgba(255,255,255,0.4)", marginTop: 8, fontSize: 13 }}>Vidéo</Text>
-          </View>
+          videoPlaceholder
         )}
         {item.duration != null && (
           <View style={styles.videoBadge}>
@@ -260,7 +333,7 @@ const MediaCard = React.memo(function MediaCard({
   return (
     <View style={styles.card}>
       <Image
-        source={{ uri: item.uri }}
+        source={{ uri: resolvedUri }}
         style={[StyleSheet.absoluteFill, styles.media]}
         contentFit="cover"
         transition={isTop ? 0 : 180}
@@ -549,7 +622,7 @@ const SwipeableCard = React.forwardRef<SwipeableCardRef, {
     <GestureDetector gesture={combinedGesture}>
       <Animated.View
         style={[styles.cardWrapper, cardStyle]}
-        renderToHardwareTextureAndroid
+        renderToHardwareTextureAndroid={item.type !== "video"}
       >
         <MediaCard item={item} isTop={isTop} />
         {isTop && (
@@ -612,15 +685,25 @@ const soundSources = {
 
 const preloadedSounds: Partial<Record<"delete" | "keep" | "star", Audio.Sound>> = {};
 
+// Le store est module-level: sans garde, chaque remontage de l'écran recrée
+// trois Audio.Sound par-dessus les précédents sans les décharger
+// -> fuite cumulative de MediaPlayer côté Android.
+let soundsInitialized = false;
+
 async function initSounds() {
+  if (soundsInitialized) return;
+  soundsInitialized = true;
   try {
     await Promise.all(
       (Object.keys(soundSources) as Array<"delete" | "keep" | "star">).map(async (k) => {
+        if (preloadedSounds[k]) return;
         const { sound } = await Audio.Sound.createAsync(soundSources[k], { volume: 0.85 });
         preloadedSounds[k] = sound;
       })
     );
-  } catch {}
+  } catch {
+    soundsInitialized = false;
+  }
 }
 
 /* ---- Animated action button ---- */
@@ -819,6 +902,14 @@ export default function GalleryScreen() {
   const keptListRef = useRef<string[]>([]); // miroir en mémoire pour éviter les races AsyncStorage
   const fetchedIds = useRef<Set<string>>(new Set());
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (persistTimer.current) clearTimeout(persistTimer.current);
+      flushWrites();
+    },
+    []
+  );
   const permGranted = useRef(false);
   const containerOpacity = useSharedValue(0);
   const containerScale = useSharedValue(0.98);
@@ -910,13 +1001,18 @@ export default function GalleryScreen() {
 
   // Audio mode — play sounds even when iOS silent switch is off, preload sounds
   useEffect(() => {
-    Audio.setAudioModeAsync({ playsInSilentModeIOS: true })
+    Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: true,
+      interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
+      interruptionModeIOS: InterruptionModeIOS.MixWithOthers,
+    })
       .then(() => initSounds())
       .catch(() => {});
     initAds();
-    return () => {
-      Object.values(preloadedSounds).forEach((s) => s?.unloadAsync().catch(() => {}));
-    };
+    // Pas de unloadAsync ici: preloadedSounds survit au composant (module-level),
+    // le décharger au démontage rendait l'écran muet après un retour sur l'écran.
   }, []);
 
   // Bootstrap
@@ -938,24 +1034,32 @@ export default function GalleryScreen() {
           AsyncStorage.getItem(FAVORITES_KEY),
           AsyncStorage.getItem(KEPT_KEY),
         ]);
-        if (favRaw) favoritesRef.current = JSON.parse(favRaw);
-        if (keptRaw) {
-          const keptArr = JSON.parse(keptRaw) as string[];
+        const safeParse = <T,>(raw: string | null, fallback: T): T => {
+          if (!raw) return fallback;
+          try {
+            const v = JSON.parse(raw);
+            return v ?? fallback;
+          } catch {
+            return fallback;
+          }
+        };
+
+        favoritesRef.current = safeParse(favRaw, favoritesRef.current);
+        const keptArr = safeParse<string[]>(keptRaw, []);
+        if (Array.isArray(keptArr)) {
           keptListRef.current = keptArr;
           keptArr.forEach(id => keptCache.current.add(id));
         }
         const autoTrashDays = autoTrashRaw ? Number(autoTrashRaw) : 0;
 
-        if (trashRaw) {
-          let trashArr = JSON.parse(trashRaw) as Array<MediaItem & { trashedAt?: number }>;
+        let trashArr = safeParse<Array<MediaItem & { trashedAt?: number }>>(trashRaw, []);
+        if (Array.isArray(trashArr)) {
+          let expiredIds: string[] = [];
 
           if (autoTrashDays > 0) {
             const cutoff = Date.now() - autoTrashDays * 24 * 60 * 60 * 1000;
-            const toDelete = trashArr.filter((i) => i.trashedAt && i.trashedAt < cutoff);
-            if (toDelete.length > 0) {
-              try {
-                await MediaLibrary.deleteAssetsAsync(toDelete.map((i) => i.id));
-              } catch {}
+            expiredIds = trashArr.filter((i) => i.trashedAt && i.trashedAt < cutoff).map((i) => i.id);
+            if (expiredIds.length > 0) {
               trashArr = trashArr.filter((i) => !i.trashedAt || i.trashedAt >= cutoff);
               await AsyncStorage.setItem(TRASH_KEY, JSON.stringify(trashArr));
             }
@@ -965,6 +1069,15 @@ export default function GalleryScreen() {
           trashRef.current = trashArr;
           setTrashCount(trashArr.length);
           Notifications.setBadgeCountAsync(trashArr.length).catch(() => {});
+
+          // La purge ouvre une boîte de dialogue système Android qui passe l'app en
+          // arrière-plan: la déclencher pendant le splash rendait l'Activity éligible
+          // à la destruction avant même le premier rendu.
+          if (expiredIds.length > 0) {
+            setTimeout(() => {
+              deleteAssetsInBatches(expiredIds).catch(() => {});
+            }, 3000);
+          }
         }
         const saved = await AsyncStorage.getItem(CARD_INDEX_KEY);
         if (saved) setCurrentIndex(Number(saved));
@@ -1067,7 +1180,7 @@ export default function GalleryScreen() {
     const entry = { ...item, trashedAt: Date.now() };
     trashRef.current = [entry, ...trashRef.current].slice(0, 1000);
     setTrashCount(trashRef.current.length);
-    AsyncStorage.setItem(TRASH_KEY, JSON.stringify(trashRef.current)).catch(() => {});
+    queueWrite(TRASH_KEY, trashRef.current);
     Notifications.setBadgeCountAsync(trashRef.current.length).catch(() => {});
 
     // Lazy fetch taille en arrière-plan (ne bloque pas l'animation de swipe)
@@ -1082,7 +1195,7 @@ export default function GalleryScreen() {
               const idx = trashRef.current.findIndex((e) => e.id === item.id);
               if (idx >= 0) {
                 trashRef.current[idx] = { ...trashRef.current[idx], fileSize: size };
-                AsyncStorage.setItem(TRASH_KEY, JSON.stringify(trashRef.current)).catch(() => {});
+                queueWrite(TRASH_KEY, trashRef.current);
                 devLog("Trash", `fileSize lazy=${(size / 1048576).toFixed(2)}Mo id=${item.id}`, "info");
               }
             }
@@ -1104,14 +1217,14 @@ export default function GalleryScreen() {
     // Écriture depuis le miroir mémoire — évite les races read-modify-write sur swipes rapides
     if (!keptListRef.current.includes(id)) {
       keptListRef.current = [id, ...keptListRef.current].slice(0, 10000);
-      AsyncStorage.setItem(KEPT_KEY, JSON.stringify(keptListRef.current)).catch(() => {});
+      queueWrite(KEPT_KEY, keptListRef.current);
     }
   }, []);
 
   const removeFromKept = useCallback((id: string) => {
     keptCache.current.delete(id);
     keptListRef.current = keptListRef.current.filter(i => i !== id);
-    AsyncStorage.setItem(KEPT_KEY, JSON.stringify(keptListRef.current)).catch(() => {});
+    queueWrite(KEPT_KEY, keptListRef.current);
   }, []);
 
   const triggerHaptics = useCallback(
@@ -1210,7 +1323,7 @@ export default function GalleryScreen() {
       trashCache.current.delete(item.id);
       trashRef.current = trashRef.current.filter((i) => i.id !== item.id);
       setTrashCount(trashRef.current.length);
-      AsyncStorage.setItem(TRASH_KEY, JSON.stringify(trashRef.current)).catch(() => {});
+      queueWrite(TRASH_KEY, trashRef.current);
       Notifications.setBadgeCountAsync(trashRef.current.length).catch(() => {});
     } else if (direction === "right") {
       removeFromKept(item.id);
@@ -1258,9 +1371,13 @@ export default function GalleryScreen() {
     AsyncStorage.setItem(SORT_KEY, newSort ? "oldest" : "newest").catch(() => {});
   }, [sortOldest]);
 
-  // Précharger les prochaines cartes en mémoire pour éviter les écrans noirs (surtout iOS)
+  // Précharger les prochaines cartes en mémoire pour éviter les écrans noirs (surtout iOS).
+  // Android: Image.prefetch passe par GlideUrl, qui attend une URL http -> MalformedURLException
+  // sur file:// et content://, et décoderait la photo en pleine résolution si ça passait.
+  // Le pré-décodage JSX plus bas couvre les deux plateformes.
   useEffect(() => {
-    for (let i = 0; i <= 8; i++) {
+    if (Platform.OS !== "ios") return;
+    for (let i = 0; i <= 3; i++) {
       const next = assets[currentIndex + i];
       if (next?.uri && next.type === "photo") {
         Image.prefetch(next.uri, { cachePolicy: "memory-disk" }).catch(() => {});
@@ -1521,15 +1638,19 @@ export default function GalleryScreen() {
         {/* Card stack */}
         <View style={styles.swiperContainer}>
           <View style={styles.stackWrap}>
-            {/* Pré-décodage des prochaines cartes en mémoire pour éviter l'écran noir au swipe rapide */}
-            {assets.slice(currentIndex + 2, currentIndex + 10).map(asset =>
+            {/* Pré-décodage des prochaines cartes pour éviter l'écran noir au swipe rapide.
+                opacity/zIndex n'empêchent pas le décodage: 8 bitmaps à la taille de la carte
+                = ~50 Mo de heap, reconstruits à chaque swipe -> OOM sur milieu de gamme.
+                Fenêtre réduite à 2 et décodage en basse résolution. */}
+            {assets.slice(currentIndex + 2, currentIndex + 4).map(asset =>
               asset?.uri && asset.type === "photo" ? (
                 <Image
                   key={`pre_${asset.id}`}
-                  source={{ uri: asset.uri }}
-                  style={{ position: "absolute", width: RESPONSIVE.cardWidth, height: RESPONSIVE.cardHeight, opacity: 0.01, zIndex: -1 }}
-                  cachePolicy="memory"
-                  priority="high"
+                  source={{ uri: resolveMediaUri(asset.uri, asset.id, "photo") ?? asset.uri }}
+                  style={{ position: "absolute", width: 1, height: 1, opacity: 0, zIndex: -1 }}
+                  allowDownscaling
+                  cachePolicy="disk"
+                  priority="low"
                 />
               ) : null
             )}
@@ -1550,7 +1671,13 @@ export default function GalleryScreen() {
                 onSwipe={handleSwipe}
                 isTop
                 stackProgress={stackProgress}
-                onDoubleTap={() => setFullscreenUri(topCard.uri)}
+                // FullscreenViewer rend toujours un <Image>: sur une vidéo l'overlay
+                // était noir et sans indication de sortie.
+                onDoubleTap={
+                  topCard.type === "photo"
+                    ? () => setFullscreenUri(topCard.uri)
+                    : undefined
+                }
               />
             )}
           </View>
@@ -1598,9 +1725,14 @@ export default function GalleryScreen() {
         statusBarTranslucent
         onRequestClose={() => setFullscreenUri(null)}
       >
-        {fullscreenUri ? (
-          <FullscreenViewer uri={fullscreenUri} onClose={() => setFullscreenUri(null)} />
-        ) : null}
+        {/* Android: un Modal RN est une fenêtre séparée, hors du GestureHandlerRootView
+            racine — sans ce wrapper, pinch/pan/tap-to-close ne reçoivent aucun touch
+            et l'utilisateur se retrouve coincé dans l'overlay. */}
+        <GestureHandlerRootView style={{ flex: 1 }}>
+          {fullscreenUri ? (
+            <FullscreenViewer uri={fullscreenUri} onClose={() => setFullscreenUri(null)} />
+          ) : null}
+        </GestureHandlerRootView>
       </Modal>
     </SafeAreaView>
   );

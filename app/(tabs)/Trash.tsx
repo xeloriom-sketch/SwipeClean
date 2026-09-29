@@ -21,6 +21,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { FlashList } from "@shopify/flash-list";
 import { Image } from "expo-image";
 import { unlockAndNotify, checkStorageMilestones, notifyAchievement } from "../../utils/achievements";
+import { resolveMediaUri } from "../../utils/mediaUri";
+import { deleteAssetsInBatches } from "../../utils/mediaDelete";
 
 const { width } = Dimensions.get("window");
 
@@ -39,10 +41,19 @@ type Item = { id: string; uri: string; type?: string; fileSize?: number };
 // =====================================================
 // 🔒 IMAGE 100% IMMUTABLE (ANTI BUG ANDROID)
 // =====================================================
-const StableImage = React.memo(function StableImage({ uri }: { uri: string }) {
+const StableImage = React.memo(function StableImage({
+  uri,
+  id,
+  type,
+}: {
+  uri: string;
+  id: string;
+  type?: string;
+}) {
+  const src = resolveMediaUri(uri, id, type === "video" ? "video" : "photo");
   return (
     <Image
-      source={{ uri }}
+      source={{ uri: src ?? uri }}
       style={styles.thumb}
       contentFit="cover"
       transition={0}
@@ -71,7 +82,7 @@ const TrashItem = ({
       style={styles.card}
     >
       {/* IMAGE IMMUTABLE */}
-      <StableImage uri={item.uri} />
+      <StableImage uri={item.uri} id={item.id} type={item.type} />
 
       {/* OVERLAY (au lieu de modifier la card/image) */}
       {isSelected && <View style={styles.selectionOverlay} />}
@@ -106,19 +117,30 @@ export default function TrashScreen() {
 
   useEffect(() => {
     (async () => {
-      const [raw, dark] = await Promise.all([
-        AsyncStorage.getItem(TRASH_KEY),
-        AsyncStorage.getItem(DARK_MODE_KEY),
-      ]);
+      try {
+        const [raw, dark] = await Promise.all([
+          AsyncStorage.getItem(TRASH_KEY),
+          AsyncStorage.getItem(DARK_MODE_KEY),
+        ]);
 
-      setDarkMode(dark === "true");
+        setDarkMode(dark === "true");
 
-      const parsed: Item[] = raw ? JSON.parse(raw) : [];
-      setItems(parsed);
+        // Un JSON corrompu faisait rejeter l'IIFE: setItems n'était jamais appelé
+        // et la corbeille apparaissait vide alors qu'elle contenait des photos.
+        let parsed: Item[] = [];
+        try {
+          parsed = raw ? JSON.parse(raw) : [];
+          if (!Array.isArray(parsed)) parsed = [];
+        } catch {
+          parsed = [];
+          await AsyncStorage.removeItem(TRASH_KEY).catch(() => {});
+        }
+        setItems(parsed);
 
-      const init: Record<string, boolean> = {};
-      parsed.forEach(i => (init[i.id] = false));
-      setSelectedIds(init);
+        const init: Record<string, boolean> = {};
+        parsed.forEach(i => (init[i.id] = false));
+        setSelectedIds(init);
+      } catch {}
     })();
   }, []);
 
@@ -186,7 +208,7 @@ export default function TrashScreen() {
                 (s, r) => s + (r.status === "fulfilled" ? r.value : 0), 0
               );
 
-              await MediaLibrary.deleteAssetsAsync(ids);
+              await deleteAssetsInBatches(ids);
               const remaining = items.filter(i => !selectedIds[i.id]);
               await persist(remaining);
 

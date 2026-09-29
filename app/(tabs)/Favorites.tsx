@@ -10,6 +10,8 @@ import {
   ScrollView,
   Platform,
   Modal,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   useColorScheme,
   ActivityIndicator,
 } from "react-native";
@@ -22,6 +24,7 @@ import { router } from "expo-router";
 import { Image } from "expo-image";
 import * as MediaLibrary from "expo-media-library";
 import AppLoader from "../../components/AppLoader";
+import { resolveMediaUri } from "../../utils/mediaUri";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -94,7 +97,11 @@ const FavThumb = React.memo(function FavThumb({
         style={StyleSheet.absoluteFill}
       >
         <Image
-          source={{ uri: item.uri }}
+          source={{
+            uri:
+              resolveMediaUri(item.uri, item.id, item.type === "video" ? "video" : "photo") ??
+              item.uri,
+          }}
           style={{ width: "100%", height: "100%" }}
           contentFit="cover"
           cachePolicy="memory-disk"
@@ -175,17 +182,22 @@ export default function FavoritesScreen() {
         let parsed: Item[] = [];
         try { parsed = raw ? JSON.parse(raw) : []; } catch { parsed = []; }
 
-        const enriched = await Promise.all(
-          parsed.map(async (item) => {
-            if (item.imgW && item.imgH && item.creationTime) return item;
-            try {
-              const info = await MediaLibrary.getAssetInfoAsync(item.id);
-              return { ...item, imgW: info.width, imgH: info.height, creationTime: info.creationTime };
-            } catch {
-              return item;
-            }
-          })
-        );
+        // Jusqu'à 1000 favoris: un Promise.all sur toute la liste lançait autant
+        // d'appels natifs concurrents et saturait le dispatcher d'expo-media-library.
+        const enrich = async (item: Item): Promise<Item> => {
+          if (item.imgW && item.imgH && item.creationTime) return item;
+          try {
+            const info = await MediaLibrary.getAssetInfoAsync(item.id);
+            return { ...item, imgW: info.width, imgH: info.height, creationTime: info.creationTime };
+          } catch {
+            return item;
+          }
+        };
+        const enriched: Item[] = [];
+        for (let i = 0; i < parsed.length; i += 20) {
+          if (cancelled) return;
+          enriched.push(...(await Promise.all(parsed.slice(i, i + 20).map(enrich))));
+        }
         if (cancelled) return;
         setImages(enriched);
       } finally {
@@ -236,7 +248,29 @@ export default function FavoritesScreen() {
     });
   }, [images]);
 
-  const [leftCol, rightCol] = useMemo(() => splitMasonry(itemsWithHeight), [itemsWithHeight]);
+  // Le masonry vit dans un ScrollView (non virtualisé): monter 1000 vignettes d'un
+  // coup décode autant de bitmaps -> OOM Android. On monte par paliers au scroll.
+  const PAGE = 40;
+  const [visibleCount, setVisibleCount] = useState(PAGE);
+
+  useEffect(() => {
+    setVisibleCount(PAGE);
+  }, [images.length]);
+
+  const [leftCol, rightCol] = useMemo(
+    () => splitMasonry(itemsWithHeight.slice(0, visibleCount)),
+    [itemsWithHeight, visibleCount]
+  );
+
+  const onGalleryScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
+      if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 600) {
+        setVisibleCount((c) => (c >= itemsWithHeight.length ? c : c + PAGE));
+      }
+    },
+    [itemsWithHeight.length]
+  );
 
   const handleRemove = useCallback((item: Item) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -335,6 +369,8 @@ export default function FavoritesScreen() {
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.gallery}
+          onScroll={onGalleryScroll}
+          scrollEventThrottle={200}
         >
           <View style={styles.columns}>
             {/* Left column */}

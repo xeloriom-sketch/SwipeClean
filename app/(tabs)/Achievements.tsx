@@ -71,12 +71,14 @@ export default function AchievementsScreen() {
 
   useEffect(() => {
     (async () => {
-      const [dm, achiev] = await Promise.all([
-        AsyncStorage.getItem(DARK_MODE_KEY),
-        getUnlocked(),
-      ]);
-      if (dm !== null) setDarkMode(dm === "true");
-      setAchievements(achiev);
+      try {
+        const [dm, achiev] = await Promise.all([
+          AsyncStorage.getItem(DARK_MODE_KEY),
+          getUnlocked(),
+        ]);
+        if (dm !== null) setDarkMode(dm === "true");
+        setAchievements(achiev);
+      } catch {}
     })();
   }, []);
 

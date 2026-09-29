@@ -65,22 +65,24 @@ export default function SettingsScreen() {
 
   useEffect(() => {
     (async () => {
-      const [dm, vs, snd, dkAuto, atDays, notif, nh] = await Promise.all([
-        AsyncStorage.getItem(DARK_MODE_KEY),
-        AsyncStorage.getItem(VIBRATE_KEY),
-        AsyncStorage.getItem(SOUND_KEY),
-        AsyncStorage.getItem(AUTO_DARK_KEY),
-        AsyncStorage.getItem(AUTO_TRASH_DAYS_KEY),
-        isNotificationsEnabled(),
-        getNotifHour(),
-      ]);
-      if (dm !== null) setDarkMode(dm === "true");
-      if (vs !== null) setVibrateSwipe(vs === "true");
-      if (snd !== null) setSoundEnabled(snd !== "false");
-      if (dkAuto !== null) setDarkAuto(dkAuto === "true");
-      if (atDays !== null) setAutoTrashDays(Number(atDays) as 0 | 7 | 30);
-      setNotifications(notif);
-      setNotifHourState(nh);
+      try {
+        const [dm, vs, snd, dkAuto, atDays, notif, nh] = await Promise.all([
+          AsyncStorage.getItem(DARK_MODE_KEY),
+          AsyncStorage.getItem(VIBRATE_KEY),
+          AsyncStorage.getItem(SOUND_KEY),
+          AsyncStorage.getItem(AUTO_DARK_KEY),
+          AsyncStorage.getItem(AUTO_TRASH_DAYS_KEY),
+          isNotificationsEnabled(),
+          getNotifHour(),
+        ]);
+        if (dm !== null) setDarkMode(dm === "true");
+        if (vs !== null) setVibrateSwipe(vs === "true");
+        if (snd !== null) setSoundEnabled(snd !== "false");
+        if (dkAuto !== null) setDarkAuto(dkAuto === "true");
+        if (atDays !== null) setAutoTrashDays(Number(atDays) as 0 | 7 | 30);
+        setNotifications(notif);
+        setNotifHourState(nh);
+      } catch {}
     })();
   }, []);
 

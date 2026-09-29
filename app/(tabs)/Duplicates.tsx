@@ -20,6 +20,7 @@ import { Image } from "expo-image";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePopup } from "../../components/Popup";
 import AppLoader from "../../components/AppLoader";
+import { deleteAssetsInBatches } from "../../utils/mediaDelete";
 
 const { width } = Dimensions.get("window");
 const DARK_MODE_KEY = "@app_dark_mode";
@@ -188,6 +189,8 @@ function GroupCard({
 }
 
 /* ---- Screen ---- */
+const MAX_SCANNED_ASSETS = 30000;
+
 export default function DuplicatesScreen() {
   const [darkMode, setDarkMode] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -243,6 +246,8 @@ export default function DuplicatesScreen() {
         after = page.endCursor;
         setProgress(0.7 * Math.min(allAssets.length / Math.max(page.totalCount, 1), 1));
         if (cancelRef.current) return;
+        // Garde-fou: au-delà, la photothèque entière en mémoire fait tomber Hermes.
+        if (allAssets.length >= MAX_SCANNED_ASSETS) hasNext = false;
       }
 
       if (allAssets.length === 0) {
@@ -260,29 +265,30 @@ export default function DuplicatesScreen() {
       try {
         const albums = await MediaLibrary.getAlbumsAsync({ includeSmartAlbums: false });
         if (!cancelRef.current) {
-          await Promise.all(
-            albums.map(async (album) => {
-              try {
-                let hasNextAlbum = true;
-                let albumAfter: string | undefined;
-                while (hasNextAlbum) {
-                  if (cancelRef.current) return; // arrêt si l'écran est démonté
-                  const page = await MediaLibrary.getAssetsAsync({
-                    album,
-                    first: 2000,
-                    after: albumAfter,
-                  });
-                  for (const asset of page.assets) {
-                    const arr = albumMap.get(asset.id) ?? [];
-                    if (!arr.includes(album.title)) arr.push(album.title);
-                    albumMap.set(asset.id, arr);
-                  }
-                  hasNextAlbum = page.hasNextPage;
-                  albumAfter = page.endCursor;
+          // Séquentiel: un Promise.all lançait une requête MediaStore de 2000 lignes
+          // par album *en même temps*, chaque page transitant par un CursorWindow.
+          for (const album of albums) {
+            if (cancelRef.current) return;
+            try {
+              let hasNextAlbum = true;
+              let albumAfter: string | undefined;
+              while (hasNextAlbum) {
+                if (cancelRef.current) return;
+                const page = await MediaLibrary.getAssetsAsync({
+                  album,
+                  first: 500,
+                  after: albumAfter,
+                });
+                for (const asset of page.assets) {
+                  const arr = albumMap.get(asset.id) ?? [];
+                  if (!arr.includes(album.title)) arr.push(album.title);
+                  albumMap.set(asset.id, arr);
                 }
-              } catch {}
-            })
-          );
+                hasNextAlbum = page.hasNextPage;
+                albumAfter = page.endCursor;
+              }
+            } catch {}
+          }
         }
       } catch {}
 
@@ -365,7 +371,7 @@ export default function DuplicatesScreen() {
             onPress: async () => {
               try {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                await MediaLibrary.deleteAssetsAsync(toDelete.map((a) => a.id));
+                await deleteAssetsInBatches(toDelete.map((a) => a.id));
                 setGroups((prev) => prev?.filter((g) => g.key !== group.key) ?? null);
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               } catch {
@@ -400,7 +406,7 @@ export default function DuplicatesScreen() {
             try {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
               const ids = groups.flatMap((g) => g.items.slice(1).map((a) => a.id)); // garde le 1er de chaque groupe
-              await MediaLibrary.deleteAssetsAsync(ids);
+              await deleteAssetsInBatches(ids);
               setGroups([]);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               showPopup({
