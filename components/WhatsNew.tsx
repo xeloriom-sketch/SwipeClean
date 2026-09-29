@@ -195,7 +195,7 @@ export function WhatsNewModal({
               end={{ x: 1, y: 0 }}
               style={styles.ctaGradient}
             >
-              <Text style={styles.ctaText}>C'est parti !</Text>
+              <Text style={styles.ctaText}>C&apos;est parti !</Text>
               <Ionicons name="arrow-forward" size={18} color="#fff" style={{ marginLeft: 8 }} />
             </LinearGradient>
           </TouchableOpacity>

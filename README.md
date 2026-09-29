@@ -25,7 +25,6 @@ Application mobile React Native / Expo pour nettoyer sa galerie photo par swipe,
 | Gradient | expo-linear-gradient ^15.0 |
 | OTA | expo-updates ~0.28 (EAS Update) |
 | CI/CD | EAS Build + GitHub Actions |
-| Tests | Jest 30 + @testing-library/react-native |
 | Types | TypeScript ~5.9 |
 
 **React Compiler** activé (`experiments.reactCompiler: true`), **New Architecture** activée.
@@ -188,9 +187,6 @@ npm run ios
 
 # Build Android natif
 npm run android
-
-# Tests
-npm test
 
 # Lint
 npm run lint

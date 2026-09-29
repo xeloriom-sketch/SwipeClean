@@ -122,7 +122,7 @@ export default function AchievementsScreen() {
           <View style={[styles.emptyEncourage, { backgroundColor: card, borderColor: border }]}>
             <Ionicons name="flash" size={32} color="#FFD60A" />
             <Text style={[styles.encourageTitle, { color: text }]}>Commence à swiper !</Text>
-            <Text style={[styles.encourageSub, { color: sub }]}>Tes premiers succès t'attendent</Text>
+            <Text style={[styles.encourageSub, { color: sub }]}>Tes premiers succès t&apos;attendent</Text>
           </View>
         ) : (
           <>

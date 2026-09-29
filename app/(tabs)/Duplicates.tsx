@@ -472,7 +472,7 @@ export default function DuplicatesScreen() {
               Trouver les doublons
             </Text>
             <Text style={[styles.scanSub, { color: subColor }]}>
-              Analyse ta photothèque et regroupe les photos identiques pour libérer de l'espace.
+              Analyse ta photothèque et regroupe les photos identiques pour libérer de l&apos;espace.
             </Text>
             <TouchableOpacity style={styles.scanBtn} onPress={scan} activeOpacity={0.82}>
               <Ionicons name="search" size={18} color="#fff" style={{ marginRight: 8 }} />

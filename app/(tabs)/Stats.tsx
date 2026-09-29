@@ -302,7 +302,7 @@ export default function StatsScreen() {
         )}
 
         {/* VUE D'ENSEMBLE */}
-        <Text style={[styles.sectionLabel, { color: sub }]}>VUE D'ENSEMBLE</Text>
+        <Text style={[styles.sectionLabel, { color: sub }]}>VUE D&apos;ENSEMBLE</Text>
         <View style={[styles.bigCard, { backgroundColor: card, borderColor: border }]}>
           <Text style={[styles.bigNumber, { color: text }]}>{totalSwiped.toLocaleString("fr-FR")}</Text>
           <Text style={[styles.bigLabel, { color: sub }]}>PHOTOS TRIÉES AU TOTAL</Text>

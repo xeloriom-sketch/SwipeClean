@@ -39,7 +39,7 @@ type Item = { id: string; uri: string; type?: string; fileSize?: number };
 // =====================================================
 // 🔒 IMAGE 100% IMMUTABLE (ANTI BUG ANDROID)
 // =====================================================
-const StableImage = React.memo(({ uri }: { uri: string }) => {
+const StableImage = React.memo(function StableImage({ uri }: { uri: string }) {
   return (
     <Image
       source={{ uri }}

@@ -238,7 +238,7 @@ export default function GalleryScreen() {
         <View style={styles.emptyContainer}>
           <EmptyGalleryIcon size={120} color={darkMode ? "#555" : "#ccc"} />
           <Text style={[styles.emptyText, { color: sub }]}>
-            Vous n'avez aucune galerie
+            Vous n&apos;avez aucune galerie
           </Text>
         </View>
       ) : (
