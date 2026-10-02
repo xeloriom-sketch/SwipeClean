@@ -12,7 +12,8 @@ export const FAV_FOLDERS_KEY = "@app_fav_folders";
 export type FavFolder = {
   id: string;
   name: string;
-  emoji: string;
+  /** Nom d'icône Ionicons. */
+  icon: string;
   createdAt: number;
 };
 
@@ -24,10 +25,38 @@ export type FavFoldersState = {
 
 export const EMPTY_FOLDERS: FavFoldersState = { folders: [], assign: {} };
 
-export const FOLDER_EMOJIS = [
-  "📁", "⭐️", "❤️", "🌴", "🏔️", "🐾",
-  "🍔", "🎉", "👨‍👩‍👧", "💼", "🎨", "🚗",
+export const FOLDER_ICONS = [
+  "folder-outline",
+  "airplane-outline",
+  "heart-outline",
+  "people-outline",
+  "home-outline",
+  "restaurant-outline",
+  "briefcase-outline",
+  "paw-outline",
+  "camera-outline",
+  "musical-notes-outline",
+  "football-outline",
+  "leaf-outline",
 ];
+
+export const DEFAULT_FOLDER_ICON = FOLDER_ICONS[0];
+
+/** Dossiers créés avant le passage aux icônes : on retrouve l'intention de l'emoji. */
+const LEGACY_EMOJI_ICONS: Record<string, string> = {
+  "📁": "folder-outline",
+  "⭐️": "star-outline",
+  "❤️": "heart-outline",
+  "🌴": "airplane-outline",
+  "🏔️": "leaf-outline",
+  "🐾": "paw-outline",
+  "🍔": "restaurant-outline",
+  "🎉": "sparkles-outline",
+  "👨‍👩‍👧": "people-outline",
+  "💼": "briefcase-outline",
+  "🎨": "color-palette-outline",
+  "🚗": "car-sport-outline",
+};
 
 export const MAX_FOLDERS = 30;
 export const MAX_FOLDER_NAME = 24;
@@ -44,9 +73,17 @@ export async function loadFavFolders(): Promise<FavFoldersState> {
     if (!raw) return EMPTY_FOLDERS;
     const parsed = JSON.parse(raw);
     const folders: FavFolder[] = Array.isArray(parsed?.folders)
-      ? parsed.folders.filter(
-          (f: any) => f && typeof f.id === "string" && typeof f.name === "string"
-        )
+      ? parsed.folders
+          .filter((f: any) => f && typeof f.id === "string" && typeof f.name === "string")
+          .map((f: any) => ({
+            id: f.id,
+            name: f.name,
+            icon:
+              typeof f.icon === "string"
+                ? f.icon
+                : LEGACY_EMOJI_ICONS[f.emoji] ?? DEFAULT_FOLDER_ICON,
+            createdAt: typeof f.createdAt === "number" ? f.createdAt : Date.now(),
+          }))
       : [];
     const assign: Record<string, string> =
       parsed?.assign && typeof parsed.assign === "object" ? parsed.assign : {};
@@ -65,12 +102,12 @@ export function saveFavFolders(state: FavFoldersState): void {
 export function createFolder(
   state: FavFoldersState,
   name: string,
-  emoji: string
+  icon: string
 ): FavFoldersState {
   const folder: FavFolder = {
     id: newId(),
     name: name.trim().slice(0, MAX_FOLDER_NAME) || "Dossier",
-    emoji: emoji || FOLDER_EMOJIS[0],
+    icon: icon || DEFAULT_FOLDER_ICON,
     createdAt: Date.now(),
   };
   return { ...state, folders: [...state.folders, folder] };
@@ -80,7 +117,7 @@ export function renameFolder(
   state: FavFoldersState,
   id: string,
   name: string,
-  emoji: string
+  icon: string
 ): FavFoldersState {
   return {
     ...state,
@@ -89,14 +126,14 @@ export function renameFolder(
         ? {
             ...f,
             name: name.trim().slice(0, MAX_FOLDER_NAME) || f.name,
-            emoji: emoji || f.emoji,
+            icon: icon || f.icon,
           }
         : f
     ),
   };
 }
 
-/** Supprime le dossier — les photos restent en favoris, elles redeviennent « sans dossier ». */
+/** Supprime le dossier — les photos restent en favoris, elles redeviennent non rangées. */
 export function deleteFolder(state: FavFoldersState, id: string): FavFoldersState {
   const assign: Record<string, string> = {};
   for (const [itemId, folderId] of Object.entries(state.assign)) {
@@ -149,13 +186,4 @@ export function countByFolder(
     else unfiled++;
   }
   return { byFolder, unfiled };
-}
-
-export function folderOf(
-  state: FavFoldersState,
-  itemId: string
-): FavFolder | null {
-  const folderId = state.assign[itemId];
-  if (!folderId) return null;
-  return state.folders.find((f) => f.id === folderId) ?? null;
 }
