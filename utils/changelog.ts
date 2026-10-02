@@ -26,10 +26,10 @@ export const CHANGELOG: ChangelogEntry[] = [
         description: "Crée autant de dossiers que tu veux, avec un nom et une icône — Vacances, Famille, Boulot…",
       },
       {
-        icon: "hand-left-outline",
+        icon: "checkmark-done-outline",
         color: "#AF52DE",
-        title: "Ranger en un appui long",
-        description: "Appui long sur une photo, « Déplacer vers un dossier », et c'est rangé. Un appui long sur un dossier pour le renommer ou le supprimer.",
+        title: "Sélection multiple",
+        description: "Appui long pour démarrer la sélection, tape les photos à ajouter, puis « Déplacer » — ou « Tout » pour prendre le dossier entier d'un coup.",
       },
       {
         icon: "funnel-outline",

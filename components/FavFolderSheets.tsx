@@ -1,7 +1,11 @@
-// components/FavFolderSheets.tsx — feuilles d'action des favoris (dossiers, partage)
+// components/FavFolderSheets.tsx — feuilles d'action des favoris (dossiers)
 //
 // Même grammaire visuelle que la feuille de tri déjà présente dans Favoris :
 // Modal translucide + glissement natif, poignée, lignes séparées par un hairline.
+//
+// Tous les styles de texte portent un `lineHeight` explicite, et les emojis sont dans
+// leur propre <Text>: un emoji hérite de la boîte de ligne du texte qui l'entoure et
+// se fait rogner en haut et en bas sur Android dès que `lineHeight` manque.
 import React, { useEffect, useRef, useState } from "react";
 import {
   View,
@@ -63,6 +67,7 @@ export function Sheet({
 
 function Row({
   icon,
+  emoji,
   label,
   sub,
   dark,
@@ -71,7 +76,8 @@ function Row({
   trailing,
   onPress,
 }: Theme & {
-  icon: keyof typeof Ionicons.glyphMap | null;
+  icon?: keyof typeof Ionicons.glyphMap;
+  emoji?: string;
   label: string;
   sub?: string;
   destructive?: boolean;
@@ -82,7 +88,9 @@ function Row({
   const color = destructive ? "#FF3B30" : active ? ACCENT : dark ? "#fff" : "#000";
   return (
     <TouchableOpacity style={styles.row} activeOpacity={0.6} onPress={onPress}>
-      {icon ? (
+      {emoji ? (
+        <Text style={styles.rowEmoji}>{emoji}</Text>
+      ) : icon ? (
         <Ionicons name={icon} size={21} color={color} style={{ width: 28 }} />
       ) : null}
       <View style={{ flex: 1 }}>
@@ -100,55 +108,6 @@ function Row({
   );
 }
 
-/* ---------- Actions sur une photo ---------- */
-
-export function ItemActionSheet({
-  visible,
-  dark,
-  canShare,
-  currentFolder,
-  onShare,
-  onMove,
-  onRemove,
-  onClose,
-}: Theme & {
-  visible: boolean;
-  canShare: boolean;
-  currentFolder: FavFolder | null;
-  onShare: () => void;
-  onMove: () => void;
-  onRemove: () => void;
-  onClose: () => void;
-}) {
-  return (
-    <Sheet visible={visible} dark={dark} onClose={onClose}>
-      {canShare && (
-        <Row
-          dark={dark}
-          icon="share-social-outline"
-          label="Partager"
-          sub="Envoyer la photo à une autre app"
-          onPress={onShare}
-        />
-      )}
-      <Row
-        dark={dark}
-        icon="folder-outline"
-        label="Déplacer vers un dossier"
-        sub={currentFolder ? `Actuellement : ${currentFolder.emoji} ${currentFolder.name}` : "Sans dossier"}
-        onPress={onMove}
-      />
-      <Row
-        dark={dark}
-        icon="heart-dislike-outline"
-        label="Retirer des favoris"
-        destructive
-        onPress={onRemove}
-      />
-    </Sheet>
-  );
-}
-
 /* ---------- Choix du dossier ---------- */
 
 export function FolderPickSheet({
@@ -163,8 +122,8 @@ export function FolderPickSheet({
 }: Theme & {
   visible: boolean;
   folders: FavFolder[];
+  /** Dossier commun aux photos sélectionnées, `null` si aucun ou s'il diverge. */
   currentId: string | null;
-  /** Nombre de photos concernées (1 ou sélection multiple). */
   count: number;
   onPick: (folderId: string | null) => void;
   onCreate: () => void;
@@ -177,7 +136,7 @@ export function FolderPickSheet({
       title={count > 1 ? `Déplacer ${count} photos` : "Déplacer la photo"}
       onClose={onClose}
     >
-      <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
+      <ScrollView style={{ maxHeight: 320 }} showsVerticalScrollIndicator={false}>
         <Row
           dark={dark}
           icon="remove-circle-outline"
@@ -187,24 +146,15 @@ export function FolderPickSheet({
           onPress={() => onPick(null)}
         />
         {folders.map((f) => (
-          <TouchableOpacity
+          <Row
             key={f.id}
-            style={styles.row}
-            activeOpacity={0.6}
+            dark={dark}
+            emoji={f.emoji}
+            label={f.name}
+            active={currentId === f.id}
+            trailing={currentId === f.id ? <Ionicons name="checkmark" size={20} color={ACCENT} /> : undefined}
             onPress={() => onPick(f.id)}
-          >
-            <Text style={{ fontSize: 19, width: 28 }}>{f.emoji}</Text>
-            <Text
-              style={[
-                styles.rowLabel,
-                { flex: 1, color: currentId === f.id ? ACCENT : dark ? "#fff" : "#000" },
-              ]}
-              numberOfLines={1}
-            >
-              {f.name}
-            </Text>
-            {currentId === f.id && <Ionicons name="checkmark" size={20} color={ACCENT} />}
-          </TouchableOpacity>
+          />
         ))}
       </ScrollView>
       <Row dark={dark} icon="add-circle-outline" label="Nouveau dossier" active onPress={onCreate} />
@@ -237,7 +187,7 @@ export function FolderFormSheet({
     if (!visible) return;
     setName(folder?.name ?? "");
     setEmoji(folder?.emoji ?? FOLDER_EMOJIS[0]);
-    const t = setTimeout(() => input.current?.focus(), 280);
+    const t = setTimeout(() => input.current?.focus(), 260);
     return () => clearTimeout(t);
   }, [visible, folder]);
 
@@ -272,7 +222,7 @@ export function FolderFormSheet({
               emoji === e && { backgroundColor: ACCENT },
             ]}
           >
-            <Text style={{ fontSize: 20 }}>{e}</Text>
+            <Text style={styles.emojiCellText}>{e}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -365,7 +315,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     marginBottom: 16,
   },
-  title: { fontSize: 17, fontWeight: "700", marginBottom: 8 },
+  title: { fontSize: 17, lineHeight: 24, fontWeight: "700", marginBottom: 8 },
 
   row: {
     flexDirection: "row",
@@ -375,8 +325,9 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(128,128,128,0.2)",
   },
-  rowLabel: { fontSize: 16 },
-  rowSub: { fontSize: 12, marginTop: 2 },
+  rowEmoji: { fontSize: 19, lineHeight: 26, width: 28, textAlign: "center" },
+  rowLabel: { fontSize: 16, lineHeight: 22 },
+  rowSub: { fontSize: 12, lineHeight: 17, marginTop: 2 },
 
   emojiGrid: {
     flexDirection: "row",
@@ -392,6 +343,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
+  emojiCellText: { fontSize: 20, lineHeight: 28 },
   input: {
     height: 48,
     borderRadius: 12,
@@ -405,5 +357,5 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     marginTop: 12,
   },
-  ctaText: { fontSize: 16, fontWeight: "700" },
+  ctaText: { fontSize: 16, lineHeight: 22, fontWeight: "700" },
 });
