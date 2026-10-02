@@ -1,16 +1,36 @@
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { AppState, type AppStateStatus } from "react-native";
+import { queueWrite } from "./storageQueue";
 
 const IS_EXPO_GO = Constants.executionEnvironment === "storeClient";
 const IS_DEV = __DEV__;
 
-const SWIPES_BEFORE_AD = 15;
+// Le compteur de swipes vit en AsyncStorage, pas seulement en mémoire. Un compteur
+// de module repart à zéro à chaque démarrage à froid : quelqu'un qui trie 8 photos
+// par session n'atteignait jamais le seuil, l'interstitiel se chargeait (requêtes et
+// taux de correspondance côté AdMob) mais n'était jamais affiché — zéro impression.
+const ADS_STATE_KEY = "@app_ads_state";
+
+const FIRST_AD_AFTER = 12;
+const THEN_EVERY = 20;
+// Garde-fou contre deux pubs collées: le seuil peut être déjà franchi au lancement
+// suivant, et un interstitiel juste après un autre est une mauvaise expérience
+// autant qu'un risque côté règles AdMob.
+const MIN_GAP_MS = 2 * 60 * 1000;
+
 const RELOAD_AFTER_CLOSE_MS = 1000;
 const RETRY_BASE_MS = 30000;
 const RETRY_MAX_MS = 15 * 60 * 1000;
 const MAX_RETRIES = 8;
 
-let swipeCount = 0;
+/** Swipes depuis la dernière pub affichée. */
+let swipesSinceAd = 0;
+/** Nombre de pubs déjà montrées sur la vie de l'install (seuil progressif). */
+let adsShown = 0;
+let lastShownAt = 0;
+/** Seuil franchi mais aucune pub prête: on affiche dès qu'une l'est. */
+let due = false;
 
 let InterstitialAd: any = null;
 let AdEventType: any = null;
@@ -177,6 +197,8 @@ export async function initAds() {
     appStateSub = AppState.addEventListener("change", onAppStateChange);
   }
 
+  await loadState();
+
   try {
     await MobileAds().initialize();
   } catch {}
@@ -184,15 +206,48 @@ export async function initAds() {
   loadAd();
 }
 
+function persistState() {
+  queueWrite(ADS_STATE_KEY, { n: swipesSinceAd, shown: adsShown, t: lastShownAt });
+}
+
+async function loadState() {
+  try {
+    const raw = await AsyncStorage.getItem(ADS_STATE_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    // `initAds` n'est pas attendu par l'appelant: quelques swipes peuvent déjà avoir
+    // été comptés avant que la lecture aboutisse. Le max évite de les perdre.
+    if (typeof parsed?.n === "number") swipesSinceAd = Math.max(swipesSinceAd, parsed.n);
+    if (typeof parsed?.shown === "number") adsShown = parsed.shown;
+    if (typeof parsed?.t === "number") lastShownAt = parsed.t;
+    if (swipesSinceAd >= nextThreshold()) due = true;
+  } catch {}
+}
+
+/** Premier interstitiel plus tôt, puis plus espacé. */
+function nextThreshold(): number {
+  return adsShown === 0 ? FIRST_AD_AFTER : THEN_EVERY;
+}
+
 export function onSwipeForAd() {
-  swipeCount++;
-  if (swipeCount % SWIPES_BEFORE_AD !== 0) return;
-  if (showing) return;
+  swipesSinceAd++;
+  persistState();
+
+  if (swipesSinceAd >= nextThreshold()) due = true;
+  if (!due || showing) return;
+
+  // Trop tôt après la précédente: on reste « dû » et on retentera au swipe suivant.
+  if (lastShownAt && Date.now() - lastShownAt < MIN_GAP_MS) return;
 
   if (adLoaded && interstitial) {
     const ad = interstitial;
     adLoaded = false;
     showing = true;
+    due = false;
+    swipesSinceAd = 0;
+    adsShown++;
+    lastShownAt = Date.now();
+    persistState();
     clearShowWatchdog();
     showWatchdog = setTimeout(() => {
       showWatchdog = null;
@@ -209,7 +264,8 @@ export function onSwipeForAd() {
     return;
   }
 
-  // Missed the slot: make sure one is on the way for the next multiple.
+  // Rien de prêt: `due` reste armé, donc le prochain swipe affichera la pub dès
+  // qu'elle sera chargée au lieu d'attendre un nouveau cycle complet.
   if (!loading && !timer) loadAd();
 }
 
@@ -219,7 +275,10 @@ export function resetAds() {
   destroy();
   generation++;
   retryCount = 0;
-  swipeCount = 0;
+  swipesSinceAd = 0;
+  adsShown = 0;
+  lastShownAt = 0;
+  due = false;
   initialized = false;
   if (appStateSub) {
     appStateSub.remove();
