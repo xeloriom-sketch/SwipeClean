@@ -1,6 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import Constants from "expo-constants";
 import { AppState, type AppStateStatus } from "react-native";
+import { devLog } from "./devLogger";
 import { queueWrite } from "./storageQueue";
 
 const IS_EXPO_GO = Constants.executionEnvironment === "storeClient";
@@ -12,12 +13,11 @@ const IS_DEV = __DEV__;
 // taux de correspondance côté AdMob) mais n'était jamais affiché — zéro impression.
 const ADS_STATE_KEY = "@app_ads_state";
 
-const FIRST_AD_AFTER = 12;
-const THEN_EVERY = 20;
-// Garde-fou contre deux pubs collées: le seuil peut être déjà franchi au lancement
-// suivant, et un interstitiel juste après un autre est une mauvaise expérience
-// autant qu'un risque côté règles AdMob.
-const MIN_GAP_MS = 2 * 60 * 1000;
+const SWIPES_PER_AD = 15;
+// Plancher de confort: 15 swipes peuvent être expédiés en vingt secondes. Le seuil
+// n'est pas annulé pour autant — il reste « dû » et part au swipe suivant une fois
+// le délai écoulé.
+const MIN_GAP_MS = 60 * 1000;
 
 const RELOAD_AFTER_CLOSE_MS = 1000;
 const RETRY_BASE_MS = 30000;
@@ -26,7 +26,7 @@ const MAX_RETRIES = 8;
 
 /** Swipes depuis la dernière pub affichée. */
 let swipesSinceAd = 0;
-/** Nombre de pubs déjà montrées sur la vie de l'install (seuil progressif). */
+/** Nombre de pubs déjà montrées sur la vie de l'install (journal/diagnostic). */
 let adsShown = 0;
 let lastShownAt = 0;
 /** Seuil franchi mais aucune pub prête: on affiche dès qu'une l'est. */
@@ -137,18 +137,21 @@ function loadAd() {
       adLoaded = true;
       loading = false;
       retryCount = 0;
+      devLog("Ads", `pub prête (compteur ${swipesSinceAd}/${nextThreshold()})`);
     });
 
     const offClosed = ad.addAdEventListener(AdEventType.CLOSED, () => {
       if (gen !== generation) return;
       destroy();
       retryCount = 0;
+      devLog("Ads", "pub fermée, rechargement");
       scheduleReload(RELOAD_AFTER_CLOSE_MS);
     });
 
     const offError = ad.addAdEventListener(AdEventType.ERROR, () => {
       if (gen !== generation) return;
       destroy();
+      devLog("Ads", `échec de chargement (essai ${retryCount + 1})`, "warn");
       scheduleRetry();
     });
 
@@ -190,7 +193,11 @@ function onAppStateChange(state: AppStateStatus) {
 }
 
 export async function initAds() {
-  if (IS_EXPO_GO || !MobileAds || initialized) return;
+  if (IS_EXPO_GO || !MobileAds) {
+    devLog("Ads", "AdMob indisponible (Expo Go ou binaire sans le module)", "warn");
+    return;
+  }
+  if (initialized) return;
   initialized = true;
 
   if (!appStateSub) {
@@ -198,6 +205,7 @@ export async function initAds() {
   }
 
   await loadState();
+  devLog("Ads", `init — compteur ${swipesSinceAd}/${nextThreshold()}, ${adsShown} pub(s) déjà vues`);
 
   try {
     await MobileAds().initialize();
@@ -224,20 +232,26 @@ async function loadState() {
   } catch {}
 }
 
-/** Premier interstitiel plus tôt, puis plus espacé. */
 function nextThreshold(): number {
-  return adsShown === 0 ? FIRST_AD_AFTER : THEN_EVERY;
+  return SWIPES_PER_AD;
 }
 
 export function onSwipeForAd() {
   swipesSinceAd++;
   persistState();
+  if (swipesSinceAd % 5 === 0) {
+    devLog("Ads", `compteur ${swipesSinceAd}/${nextThreshold()}`);
+  }
 
   if (swipesSinceAd >= nextThreshold()) due = true;
   if (!due || showing) return;
 
   // Trop tôt après la précédente: on reste « dû » et on retentera au swipe suivant.
-  if (lastShownAt && Date.now() - lastShownAt < MIN_GAP_MS) return;
+  if (lastShownAt && Date.now() - lastShownAt < MIN_GAP_MS) {
+    const wait = Math.ceil((MIN_GAP_MS - (Date.now() - lastShownAt)) / 1000);
+    devLog("Ads", `seuil atteint, report de ${wait}s (écart minimal)`);
+    return;
+  }
 
   if (adLoaded && interstitial) {
     const ad = interstitial;
@@ -248,6 +262,7 @@ export function onSwipeForAd() {
     adsShown++;
     lastShownAt = Date.now();
     persistState();
+    devLog("Ads", `affichage de la pub n°${adsShown}`);
     clearShowWatchdog();
     showWatchdog = setTimeout(() => {
       showWatchdog = null;
@@ -266,6 +281,7 @@ export function onSwipeForAd() {
 
   // Rien de prêt: `due` reste armé, donc le prochain swipe affichera la pub dès
   // qu'elle sera chargée au lieu d'attendre un nouveau cycle complet.
+  devLog("Ads", `seuil atteint mais aucune pub prête (chargement: ${loading})`, "warn");
   if (!loading && !timer) loadAd();
 }
 
