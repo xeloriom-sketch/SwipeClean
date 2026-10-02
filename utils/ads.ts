@@ -110,9 +110,19 @@ function scheduleReload(delay: number) {
   }, delay);
 }
 
+// Le palier monte jusqu'à MAX_RETRIES puis reste au plafond : il ne s'arrête jamais.
+// Avant, passé huit échecs, `scheduleRetry` ne programmait plus rien du tout et il n'y
+// avait plus une seule pub pour le reste de la session.
 function scheduleRetry() {
-  if (retryCount >= MAX_RETRIES) return;
-  const backoff = Math.min(RETRY_BASE_MS * 2 ** retryCount, RETRY_MAX_MS);
+  const step = Math.min(retryCount, MAX_RETRIES);
+  const backoff = Math.min(RETRY_BASE_MS * 2 ** step, RETRY_MAX_MS);
+  if (retryCount === MAX_RETRIES) {
+    devLog(
+      "Ads",
+      `échecs répétés, essai toutes les ${Math.round(RETRY_MAX_MS / 60000)} min`,
+      "warn"
+    );
+  }
   retryCount++;
   scheduleReload(backoff + Math.random() * 1000);
 }
@@ -148,10 +158,14 @@ function loadAd() {
       scheduleReload(RELOAD_AFTER_CLOSE_MS);
     });
 
-    const offError = ad.addAdEventListener(AdEventType.ERROR, () => {
+    const offError = ad.addAdEventListener(AdEventType.ERROR, (error: any) => {
       if (gen !== generation) return;
       destroy();
-      devLog("Ads", `échec de chargement (essai ${retryCount + 1})`, "warn");
+      // Le code d'AdMob est la seule façon de distinguer un no-fill (normal sur une app
+      // sans trafic) d'un problème de configuration ou de réseau.
+      const code = error?.code ?? error?.userInfo?.code ?? "inconnu";
+      const message = error?.message ?? "";
+      devLog("Ads", `échec de chargement (essai ${retryCount + 1}) — ${code} ${message}`.trim(), "warn");
       scheduleRetry();
     });
 
@@ -185,6 +199,9 @@ function loadAd() {
 
 function onAppStateChange(state: AppStateStatus) {
   if (state === "active") {
+    // Un palier de backoff atteint hier ne doit pas peser sur la session d'aujourd'hui.
+    // On ne force aucune requête pour autant: le timer en cours est respecté.
+    retryCount = 0;
     if (!adLoaded && !loading && !timer && !showing) loadAd();
   } else {
     // Nothing is visible in the background: stop burning requests until we return.
@@ -282,7 +299,15 @@ export function onSwipeForAd() {
   // Rien de prêt: `due` reste armé, donc le prochain swipe affichera la pub dès
   // qu'elle sera chargée au lieu d'attendre un nouveau cycle complet.
   devLog("Ads", `seuil atteint mais aucune pub prête (chargement: ${loading})`, "warn");
-  if (!loading && !timer) loadAd();
+  if (loading) return;
+  // Un créneau dû ne doit pas patienter derrière un backoff de plusieurs minutes :
+  // c'est précisément le moment où il faut retenter, et le palier repart de zéro
+  // puisque la tentative est déclenchée par l'utilisateur.
+  if (timer) {
+    clearTimer();
+    retryCount = 0;
+  }
+  loadAd();
 }
 
 export function resetAds() {
