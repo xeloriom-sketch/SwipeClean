@@ -21,7 +21,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import { CHANGELOG, type ChangelogEntry } from "../utils/changelog";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import Constants from "expo-constants";
 
 const { width, height } = Dimensions.get("window");
 const WHATS_NEW_KEY = "@app_whats_new_seen";
@@ -30,11 +29,13 @@ export function getLatestEntry(): ChangelogEntry {
   return CHANGELOG[0];
 }
 
+// La popup se cale sur la version du changelog, pas sur celle de l'app: une mise à
+// jour OTA garde `version` d'app.json (runtimeVersion = appVersion, la changer
+// couperait l'OTA des installs existantes) et la popup ne serait jamais réaffichée.
 export async function shouldShowWhatsNew(): Promise<boolean> {
   try {
     const seen = await AsyncStorage.getItem(WHATS_NEW_KEY);
-    const current = Constants.expoConfig?.version ?? "0";
-    return seen !== current;
+    return seen !== getLatestEntry().version;
   } catch {
     return false;
   }
@@ -42,8 +43,7 @@ export async function shouldShowWhatsNew(): Promise<boolean> {
 
 export async function markWhatsNewSeen(): Promise<void> {
   try {
-    const current = Constants.expoConfig?.version ?? "0";
-    await AsyncStorage.setItem(WHATS_NEW_KEY, current);
+    await AsyncStorage.setItem(WHATS_NEW_KEY, getLatestEntry().version);
   } catch {}
 }
 
@@ -133,7 +133,7 @@ export function WhatsNewModal({
   const backdropStyle = useAnimatedStyle(() => ({ opacity: backdropOp.value }));
 
   const entry = getLatestEntry();
-  const version = Constants.expoConfig?.version ?? "—";
+  const version = entry.version;
 
   const cardBg = dark ? "#1c1c1e" : "#ffffff";
   const titleColor = dark ? "#fff" : "#111";

@@ -4271,6 +4271,11 @@ expo-server@^1.0.5:
   resolved "https://registry.npmjs.org/expo-server/-/expo-server-1.0.5.tgz"
   integrity sha512-IGR++flYH70rhLyeXF0Phle56/k4cee87WeQ4mamS+MkVAVP+dDlOHf2nN06Z9Y2KhU0Gp1k+y61KkghF7HdhA==
 
+expo-sharing@~14.0.8:
+  version "14.0.8"
+  resolved "https://registry.npmjs.org/expo-sharing/-/expo-sharing-14.0.8.tgz"
+  integrity sha512-A1pPr2iBrxypFDCWVAESk532HK+db7MFXbvO2sCV9ienaFXAk7lIBm6bkqgE6vzRd9O3RGdEGzYx80cYlc089Q==
+
 expo-splash-screen@~31.0.12:
   version "31.0.12"
   resolved "https://registry.npmjs.org/expo-splash-screen/-/expo-splash-screen-31.0.12.tgz"

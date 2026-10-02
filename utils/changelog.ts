@@ -16,6 +16,30 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.0.20",
+    tagline: "Tes favoris, enfin rangés.",
+    features: [
+      {
+        icon: "folder-outline",
+        color: "#1EB0AD",
+        title: "Dossiers de favoris",
+        description: "Crée autant de dossiers que tu veux, avec un nom et une icône — Vacances, Famille, Boulot…",
+      },
+      {
+        icon: "hand-left-outline",
+        color: "#AF52DE",
+        title: "Ranger en un appui long",
+        description: "Appui long sur une photo, « Déplacer vers un dossier », et c'est rangé. Un appui long sur un dossier pour le renommer ou le supprimer.",
+      },
+      {
+        icon: "funnel-outline",
+        color: "#FF9500",
+        title: "Filtrer et exporter par dossier",
+        description: "Un tap sur un dossier n'affiche que ses photos, et l'export crée un album dédié dans ta photothèque.",
+      },
+    ],
+  },
+  {
     version: "1.0.18",
     tagline: "Une grande mise à jour t'attend !",
     features: [

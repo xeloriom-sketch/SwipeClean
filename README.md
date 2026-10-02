@@ -116,6 +116,7 @@ Chargé depuis `expo-media-library` par batch de 40, photos + vidéos.
 |---|---|
 | `@app_trash` | IDs photos en corbeille |
 | `@app_favorites` | IDs photos favorites |
+| `@app_fav_folders` | Dossiers de favoris + affectation photo → dossier |
 | `@gallery_last_index_v2` | Dernier index de card consulté |
 | `@app_dark_mode` | Mode sombre forcé |
 | `@app_dark_auto` | Mode auto (suit système) |

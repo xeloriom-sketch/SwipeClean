@@ -25,6 +25,28 @@ import { Image } from "expo-image";
 import * as MediaLibrary from "expo-media-library";
 import AppLoader from "../../components/AppLoader";
 import { resolveMediaUri } from "../../utils/mediaUri";
+import { isShareSupported, shareMedia } from "../../utils/shareMedia";
+import {
+  ACCENT,
+  FolderFormSheet,
+  FolderManageSheet,
+  FolderPickSheet,
+  ItemActionSheet,
+} from "../../components/FavFolderSheets";
+import {
+  EMPTY_FOLDERS,
+  MAX_FOLDERS,
+  countByFolder,
+  createFolder,
+  deleteFolder,
+  loadFavFolders,
+  moveItems,
+  pruneAssignments,
+  renameFolder,
+  saveFavFolders,
+  type FavFolder,
+  type FavFoldersState,
+} from "../../utils/favFolders";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
@@ -39,6 +61,9 @@ const DARK_MODE_KEY = "@app_dark_mode";
 const SORT_FAV_KEY = "@app_fav_sort";
 
 type SortMode = "custom" | "newest" | "oldest" | "largest";
+
+/** `all` = tous les favoris, `unfiled` = ceux rangés dans aucun dossier. */
+type FolderFilter = "all" | "unfiled" | string;
 
 const GAP = 8;
 const PADDING = 10;
@@ -77,11 +102,15 @@ function splitMasonry(items: ItemWithHeight[]): [ItemWithHeight[], ItemWithHeigh
 /* ---- Animated thumb ---- */
 const FavThumb = React.memo(function FavThumb({
   item,
+  folderEmoji,
   onPress,
+  onLongPress,
   onRemove,
 }: {
   item: ItemWithHeight;
+  folderEmoji?: string;
   onPress: () => void;
+  onLongPress: () => void;
   onRemove: () => void;
 }) {
   const scale = useSharedValue(1);
@@ -92,7 +121,8 @@ const FavThumb = React.memo(function FavThumb({
       <TouchableOpacity
         activeOpacity={1}
         onPress={onPress}
-        onLongPress={() => { scale.value = withSpring(0.96, { damping: 18, stiffness: 400 }); }}
+        onPressIn={() => { scale.value = withSpring(0.97, { damping: 18, stiffness: 400 }); }}
+        onLongPress={onLongPress}
         onPressOut={() => { scale.value = withSpring(1, { damping: 18, stiffness: 400 }); }}
         style={StyleSheet.absoluteFill}
       >
@@ -112,6 +142,11 @@ const FavThumb = React.memo(function FavThumb({
             <Ionicons name="videocam" size={11} color="#fff" />
           </View>
         )}
+        {folderEmoji ? (
+          <View style={styles.folderTag}>
+            <Text style={{ fontSize: 11 }}>{folderEmoji}</Text>
+          </View>
+        ) : null}
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.deleteBtn}
@@ -126,7 +161,19 @@ const FavThumb = React.memo(function FavThumb({
 });
 
 /* ---- Fullscreen viewer ---- */
-const FullscreenViewer = ({ uri, onClose }: { uri: string; onClose: () => void }) => {
+const FullscreenViewer = ({
+  uri,
+  canShare,
+  sharing,
+  onShare,
+  onClose,
+}: {
+  uri: string;
+  canShare: boolean;
+  sharing: boolean;
+  onShare: () => void;
+  onClose: () => void;
+}) => {
   const opacity = useSharedValue(0);
   useEffect(() => { opacity.value = withTiming(1, { duration: 220 }); }, []);
   const style = useAnimatedStyle(() => ({ opacity: opacity.value }));
@@ -150,6 +197,23 @@ const FullscreenViewer = ({ uri, onClose }: { uri: string; onClose: () => void }
         <TouchableOpacity style={styles.fullscreenClose} onPress={close}>
           <Ionicons name="close-circle" size={36} color="#fff" />
         </TouchableOpacity>
+        {canShare && (
+          <TouchableOpacity
+            style={styles.fullscreenShare}
+            onPress={onShare}
+            disabled={sharing}
+            activeOpacity={0.8}
+          >
+            {sharing ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <>
+                <Ionicons name="share-social" size={18} color="#fff" />
+                <Text style={styles.fullscreenShareText}>Partager</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        )}
       </Animated.View>
     </Modal>
   );
@@ -162,25 +226,51 @@ export default function FavoritesScreen() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [darkMode, setDarkMode] = useState(systemScheme === "dark");
-  const [selectedUri, setSelectedUri] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Item | null>(null);
   const [sortMode, setSortMode] = useState<SortMode>("custom");
   const [showSortSheet, setShowSortSheet] = useState(false);
   const { popup, showPopup } = usePopup(darkMode);
+
+  /* Dossiers */
+  const [folderState, setFolderState] = useState<FavFoldersState>(EMPTY_FOLDERS);
+  const [filter, setFilter] = useState<FolderFilter>("all");
+  const [actionItem, setActionItem] = useState<Item | null>(null);
+  const [moveTarget, setMoveTarget] = useState<Item | null>(null);
+  /** `undefined` = fermé, `null` = création, sinon renommage. */
+  const [formFolder, setFormFolder] = useState<FavFolder | null | undefined>(undefined);
+  const [manageFolder, setManageFolder] = useState<FavFolder | null>(null);
+  /** Photo à ranger dans le dossier qu'on est en train de créer. */
+  const [pendingMove, setPendingMove] = useState<Item | null>(null);
+
+  /* Partage */
+  const [canShare, setCanShare] = useState(false);
+  const [sharing, setSharing] = useState(false);
+
+  useEffect(() => {
+    isShareSupported().then(setCanShare);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const [raw, dark, sort] = await Promise.all([
+        const [raw, dark, sort, folders] = await Promise.all([
           AsyncStorage.getItem(FAVORITES_KEY),
           AsyncStorage.getItem(DARK_MODE_KEY),
           AsyncStorage.getItem(SORT_FAV_KEY),
+          loadFavFolders(),
         ]);
         if (cancelled) return;
         setDarkMode(dark === "true");
         if (sort) setSortMode(sort as SortMode);
         let parsed: Item[] = [];
         try { parsed = raw ? JSON.parse(raw) : []; } catch { parsed = []; }
+
+        // Une photo retirée des favoris hors de cet écran laisse une affectation
+        // orpheline: on nettoie au chargement.
+        const pruned = pruneAssignments(folders, parsed.map((i) => i.id));
+        setFolderState(pruned);
+        if (pruned !== folders) saveFavFolders(pruned);
 
         // Jusqu'à 1000 favoris: un Promise.all sur toute la liste lançait autant
         // d'appels natifs concurrents et saturait le dispatcher d'expo-media-library.
@@ -206,6 +296,25 @@ export default function FavoritesScreen() {
     })();
     return () => { cancelled = true; };
   }, []);
+
+  // Enchaîner deux Modal dans la même frame fait clignoter l'animation sur Android et
+  // déclenche un warning de présentation concurrente sur iOS: on laisse la première
+  // se fermer avant d'ouvrir la suivante.
+  const afterSheetClose = useCallback((fn: () => void) => {
+    setTimeout(fn, 260);
+  }, []);
+
+  /** Toute mutation des dossiers passe par ici: un seul point d'écriture. */
+  const updateFolders = useCallback(
+    (fn: (prev: FavFoldersState) => FavFoldersState) => {
+      setFolderState((prev) => {
+        const next = fn(prev);
+        saveFavFolders(next);
+        return next;
+      });
+    },
+    []
+  );
 
   const applySort = useCallback(async (mode: SortMode) => {
     setSortMode(mode);
@@ -248,6 +357,17 @@ export default function FavoritesScreen() {
     });
   }, [images]);
 
+  const visible = useMemo<ItemWithHeight[]>(() => {
+    if (filter === "all") return itemsWithHeight;
+    if (filter === "unfiled") return itemsWithHeight.filter((i) => !folderState.assign[i.id]);
+    return itemsWithHeight.filter((i) => folderState.assign[i.id] === filter);
+  }, [itemsWithHeight, filter, folderState.assign]);
+
+  const counts = useMemo(
+    () => countByFolder(folderState, images.map((i) => i.id)),
+    [folderState, images]
+  );
+
   // Le masonry vit dans un ScrollView (non virtualisé): monter 1000 vignettes d'un
   // coup décode autant de bitmaps -> OOM Android. On monte par paliers au scroll.
   const PAGE = 40;
@@ -255,21 +375,21 @@ export default function FavoritesScreen() {
 
   useEffect(() => {
     setVisibleCount(PAGE);
-  }, [images.length]);
+  }, [visible.length, filter]);
 
   const [leftCol, rightCol] = useMemo(
-    () => splitMasonry(itemsWithHeight.slice(0, visibleCount)),
-    [itemsWithHeight, visibleCount]
+    () => splitMasonry(visible.slice(0, visibleCount)),
+    [visible, visibleCount]
   );
 
   const onGalleryScroll = useCallback(
     (e: NativeSyntheticEvent<NativeScrollEvent>) => {
       const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
       if (layoutMeasurement.height + contentOffset.y >= contentSize.height - 600) {
-        setVisibleCount((c) => (c >= itemsWithHeight.length ? c : c + PAGE));
+        setVisibleCount((c) => (c >= visible.length ? c : c + PAGE));
       }
     },
-    [itemsWithHeight.length]
+    [visible.length]
   );
 
   const handleRemove = useCallback((item: Item) => {
@@ -279,10 +399,122 @@ export default function FavoritesScreen() {
       AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(updated)).catch(() => {});
       return updated;
     });
-  }, []);
+    updateFolders((prev) => moveItems(prev, [item.id], null));
+  }, [updateFolders]);
+
+  /* ---- Partage ---- */
+  const handleShare = useCallback(
+    async (item: Item) => {
+      if (sharing) return;
+      setSharing(true);
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      const result = await shareMedia(
+        item.id,
+        item.type === "video" ? "video" : "photo",
+        item.uri
+      );
+      setSharing(false);
+      if (result === "unavailable") {
+        setCanShare(false);
+        showPopup({
+          icon: "📤",
+          title: "Bientôt disponible",
+          message: "Le partage arrive avec la prochaine version de l'app.",
+          buttons: [{ text: "OK", style: "default" }],
+        });
+      } else if (result === "error") {
+        showPopup({
+          icon: "⚠️",
+          title: "Partage impossible",
+          message: "Ce média n'est pas accessible depuis le stockage de l'appareil.",
+          buttons: [{ text: "OK", style: "default" }],
+        });
+      }
+    },
+    [sharing, showPopup]
+  );
+
+  /* ---- Dossiers ---- */
+  const handlePickFolder = useCallback(
+    (folderId: string | null) => {
+      const item = moveTarget;
+      setMoveTarget(null);
+      if (!item) return;
+      updateFolders((prev) => moveItems(prev, [item.id], folderId));
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    },
+    [moveTarget, updateFolders]
+  );
+
+  const handleSubmitFolder = useCallback(
+    (name: string, emoji: string) => {
+      const editing = formFolder;
+      const pending = pendingMove;
+      setFormFolder(undefined);
+      setPendingMove(null);
+
+      if (editing) {
+        updateFolders((prev) => renameFolder(prev, editing.id, name, emoji));
+        return;
+      }
+      if (folderState.folders.length >= MAX_FOLDERS) {
+        afterSheetClose(() =>
+          showPopup({
+            icon: "📁",
+            title: "Trop de dossiers",
+            message: `Maximum ${MAX_FOLDERS} dossiers.`,
+            buttons: [{ text: "OK", style: "default" }],
+          })
+        );
+        return;
+      }
+
+      // On range tout de suite la photo en cours de déplacement dans le dossier créé:
+      // sinon créer un dossier depuis la feuille « Déplacer » ne ferait rien de visible.
+      let next = createFolder(folderState, name, emoji);
+      const created = next.folders[next.folders.length - 1];
+      if (pending) {
+        next = moveItems(next, [pending.id], created.id);
+        setFilter(created.id);
+      }
+      updateFolders(() => next);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    },
+    [afterSheetClose, folderState, formFolder, pendingMove, showPopup, updateFolders]
+  );
+
+  const handleDeleteFolder = useCallback(() => {
+    const target = manageFolder;
+    setManageFolder(null);
+    if (!target) return;
+    afterSheetClose(() =>
+      showPopup({
+        icon: "🗑️",
+        title: `Supprimer « ${target.name} » ?`,
+        message: "Les photos restent dans tes favoris, elles redeviennent simplement non rangées.",
+        buttons: [
+          { text: "Annuler", style: "cancel" },
+          {
+            text: "Supprimer",
+            style: "destructive",
+            onPress: () => {
+              updateFolders((prev) => deleteFolder(prev, target.id));
+              setFilter((f) => (f === target.id ? "all" : f));
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+            },
+          },
+        ],
+      })
+    );
+  }, [afterSheetClose, manageFolder, showPopup, updateFolders]);
+
+  const activeFolder = useMemo(
+    () => folderState.folders.find((f) => f.id === filter) ?? null,
+    [folderState.folders, filter]
+  );
 
   const exportToAlbum = useCallback(async () => {
-    if (images.length === 0) return;
+    if (visible.length === 0) return;
     setExporting(true);
     try {
       const { status } = await MediaLibrary.requestPermissionsAsync();
@@ -290,8 +522,10 @@ export default function FavoritesScreen() {
         showPopup({ icon: "🔒", title: "Permission requise", message: "Autoriser l'accès à la photothèque pour exporter.", buttons: [{ text: "OK", style: "default" }] });
         return;
       }
-      const albumName = "SwipeClean — Favoris";
-      const ids = images.map((i) => i.id);
+      const albumName = activeFolder
+        ? `SwipeClean — ${activeFolder.name}`
+        : "SwipeClean — Favoris";
+      const ids = visible.map((i) => i.id);
       let album = await MediaLibrary.getAlbumAsync(albumName);
       if (!album) {
         album = await MediaLibrary.createAlbumAsync(albumName, ids[0], false);
@@ -306,13 +540,48 @@ export default function FavoritesScreen() {
     } finally {
       setExporting(false);
     }
-  }, [images]);
+  }, [visible, activeFolder, showPopup]);
 
   const bg = darkMode ? "#0d0d0d" : "#F8F8F8";
   const textColor = darkMode ? "#fff" : "#0d0d0d";
   const subColor = darkMode ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.38)";
+  const chipBg = darkMode ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.05)";
 
   if (loading) return <AppLoader dark={darkMode} />;
+
+  const renderChip = (
+    key: string,
+    label: string,
+    count: number | null,
+    active: boolean,
+    onPress: () => void,
+    onLongPress?: () => void
+  ) => (
+    <TouchableOpacity
+      key={key}
+      activeOpacity={0.75}
+      onPress={onPress}
+      onLongPress={onLongPress}
+      style={[styles.chip, { backgroundColor: active ? ACCENT : chipBg }]}
+    >
+      <Text
+        style={[styles.chipText, { color: active ? "#fff" : textColor }]}
+        numberOfLines={1}
+      >
+        {label}
+      </Text>
+      {count !== null && (
+        <Text
+          style={[
+            styles.chipCount,
+            { color: active ? "rgba(255,255,255,0.75)" : subColor },
+          ]}
+        >
+          {count}
+        </Text>
+      )}
+    </TouchableOpacity>
+  );
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bg }]}>
@@ -329,10 +598,12 @@ export default function FavoritesScreen() {
         </TouchableOpacity>
 
         <View style={styles.titleWrap}>
-          <Text style={[styles.title, { color: textColor }]}>Favoris</Text>
-          {images.length > 0 && (
+          <Text style={[styles.title, { color: textColor }]}>
+            {activeFolder ? activeFolder.name : "Favoris"}
+          </Text>
+          {visible.length > 0 && (
             <View style={styles.badge}>
-              <Text style={styles.badgeText}>{images.length}</Text>
+              <Text style={styles.badgeText}>{visible.length}</Text>
             </View>
           )}
         </View>
@@ -355,7 +626,7 @@ export default function FavoritesScreen() {
               {exporting ? (
                 <ActivityIndicator size="small" color={textColor} />
               ) : (
-                <Ionicons name="share-outline" size={26} color={textColor} />
+                <Ionicons name="download-outline" size={25} color={textColor} />
               )}
             </TouchableOpacity>
           </View>
@@ -364,8 +635,49 @@ export default function FavoritesScreen() {
         )}
       </View>
 
+      {/* Dossiers */}
+      {images.length > 0 && (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipRow}
+        >
+          {renderChip("all", "Tous", images.length, filter === "all", () => setFilter("all"))}
+          {folderState.folders.map((f) =>
+            renderChip(
+              f.id,
+              `${f.emoji} ${f.name}`,
+              counts.byFolder[f.id] ?? 0,
+              filter === f.id,
+              () => setFilter(f.id),
+              () => {
+                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                setManageFolder(f);
+              }
+            )
+          )}
+          {folderState.folders.length > 0 &&
+            counts.unfiled > 0 &&
+            renderChip(
+              "unfiled",
+              "Non rangées",
+              counts.unfiled,
+              filter === "unfiled",
+              () => setFilter("unfiled")
+            )}
+          <TouchableOpacity
+            activeOpacity={0.75}
+            onPress={() => setFormFolder(null)}
+            style={[styles.chip, { backgroundColor: chipBg }]}
+          >
+            <Ionicons name="add" size={16} color={textColor} />
+            <Text style={[styles.chipText, { color: textColor }]}>Dossier</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      )}
+
       {/* Masonry grid */}
-      {images.length > 0 ? (
+      {visible.length > 0 ? (
         <ScrollView
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.gallery}
@@ -379,7 +691,16 @@ export default function FavoritesScreen() {
                 <FavThumb
                   key={item.id}
                   item={item}
-                  onPress={() => setSelectedUri(item.uri)}
+                  folderEmoji={
+                    filter === "all"
+                      ? folderState.folders.find((f) => f.id === folderState.assign[item.id])?.emoji
+                      : undefined
+                  }
+                  onPress={() => setSelected(item)}
+                  onLongPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    setActionItem(item);
+                  }}
                   onRemove={() => handleRemove(item)}
                 />
               ))}
@@ -391,13 +712,34 @@ export default function FavoritesScreen() {
                 <FavThumb
                   key={item.id}
                   item={item}
-                  onPress={() => setSelectedUri(item.uri)}
+                  folderEmoji={
+                    filter === "all"
+                      ? folderState.folders.find((f) => f.id === folderState.assign[item.id])?.emoji
+                      : undefined
+                  }
+                  onPress={() => setSelected(item)}
+                  onLongPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                    setActionItem(item);
+                  }}
                   onRemove={() => handleRemove(item)}
                 />
               ))}
             </View>
           </View>
         </ScrollView>
+      ) : images.length > 0 ? (
+        <View style={styles.empty}>
+          <Ionicons
+            name="folder-open-outline"
+            size={64}
+            color={darkMode ? "rgba(255,255,255,0.12)" : "rgba(0,0,0,0.1)"}
+          />
+          <Text style={[styles.emptyTitle, { color: textColor }]}>Dossier vide</Text>
+          <Text style={[styles.emptySub, { color: subColor }]}>
+            Appui long sur une photo pour la ranger ici
+          </Text>
+        </View>
       ) : (
         <View style={styles.empty}>
           <Ionicons
@@ -413,9 +755,91 @@ export default function FavoritesScreen() {
       )}
 
       {/* Fullscreen */}
-      {selectedUri && (
-        <FullscreenViewer uri={selectedUri} onClose={() => setSelectedUri(null)} />
+      {selected && (
+        <FullscreenViewer
+          uri={
+            resolveMediaUri(
+              selected.uri,
+              selected.id,
+              selected.type === "video" ? "video" : "photo"
+            ) ?? selected.uri
+          }
+          canShare={canShare}
+          sharing={sharing}
+          onShare={() => handleShare(selected)}
+          onClose={() => setSelected(null)}
+        />
       )}
+
+      {/* Actions sur une photo */}
+      <ItemActionSheet
+        visible={!!actionItem}
+        dark={darkMode}
+        canShare={canShare}
+        currentFolder={
+          actionItem
+            ? folderState.folders.find((f) => f.id === folderState.assign[actionItem.id]) ?? null
+            : null
+        }
+        onShare={() => {
+          const item = actionItem;
+          setActionItem(null);
+          if (item) afterSheetClose(() => handleShare(item));
+        }}
+        onMove={() => {
+          const item = actionItem;
+          setActionItem(null);
+          afterSheetClose(() => setMoveTarget(item));
+        }}
+        onRemove={() => {
+          const item = actionItem;
+          setActionItem(null);
+          if (item) handleRemove(item);
+        }}
+        onClose={() => setActionItem(null)}
+      />
+
+      {/* Choix du dossier */}
+      <FolderPickSheet
+        visible={!!moveTarget}
+        dark={darkMode}
+        folders={folderState.folders}
+        currentId={moveTarget ? folderState.assign[moveTarget.id] ?? null : null}
+        count={1}
+        onPick={handlePickFolder}
+        onCreate={() => {
+          setPendingMove(moveTarget);
+          setMoveTarget(null);
+          afterSheetClose(() => setFormFolder(null));
+        }}
+        onClose={() => setMoveTarget(null)}
+      />
+
+      {/* Création / renommage */}
+      <FolderFormSheet
+        visible={formFolder !== undefined}
+        dark={darkMode}
+        folder={formFolder ?? null}
+        onSubmit={handleSubmitFolder}
+        onClose={() => {
+          setFormFolder(undefined);
+          setPendingMove(null);
+        }}
+      />
+
+      {/* Gestion d'un dossier */}
+      <FolderManageSheet
+        visible={!!manageFolder}
+        dark={darkMode}
+        folder={manageFolder}
+        onRename={() => {
+          const target = manageFolder;
+          setManageFolder(null);
+          afterSheetClose(() => setFormFolder(target));
+        }}
+        onDelete={handleDeleteFolder}
+        onClose={() => setManageFolder(null)}
+      />
 
       {/* Sort bottom sheet */}
       <Modal
@@ -439,10 +863,10 @@ export default function FavoritesScreen() {
               onPress={() => applySort(mode)}
               activeOpacity={0.7}
             >
-              <Text style={[styles.sortOptionText, { color: darkMode ? "#fff" : "#000" }, sortMode === mode && { color: "#007AFF" }]}>
+              <Text style={[styles.sortOptionText, { color: darkMode ? "#fff" : "#000" }, sortMode === mode && { color: ACCENT }]}>
                 {sortLabel[mode]}
               </Text>
-              {sortMode === mode && <Ionicons name="checkmark" size={20} color="#007AFF" />}
+              {sortMode === mode && <Ionicons name="checkmark" size={20} color={ACCENT} />}
             </TouchableOpacity>
           ))}
           <View style={{ height: 24 }} />
@@ -465,7 +889,7 @@ const styles = StyleSheet.create({
     paddingVertical: Platform.OS === "ios" ? 10 : 14,
   },
   headerBtn: { padding: 4 },
-  titleWrap: { flexDirection: "row", alignItems: "center", gap: 8 },
+  titleWrap: { flexDirection: "row", alignItems: "center", gap: 8, flexShrink: 1 },
   title: { fontSize: 20, fontWeight: "700", letterSpacing: 0.2 },
   badge: {
     backgroundColor: "#E53935",
@@ -475,9 +899,27 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: "#fff", fontSize: 12, fontWeight: "700" },
 
+  chipRow: {
+    paddingHorizontal: PADDING + 2,
+    paddingBottom: 10,
+    gap: 8,
+    alignItems: "center",
+  },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 13,
+    paddingVertical: 8,
+    borderRadius: 18,
+    maxWidth: width * 0.6,
+  },
+  chipText: { fontSize: 13.5, fontWeight: "600" },
+  chipCount: { fontSize: 12, fontWeight: "600" },
+
   gallery: {
     paddingHorizontal: PADDING,
-    paddingTop: PADDING,
+    paddingTop: 2,
     paddingBottom: 48,
   },
   columns: {
@@ -493,6 +935,15 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(0,0,0,0.55)",
     borderRadius: 8,
     padding: 4,
+  },
+  folderTag: {
+    position: "absolute",
+    bottom: 8,
+    right: 8,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    borderRadius: 9,
+    paddingHorizontal: 5,
+    paddingVertical: 3,
   },
   deleteBtn: {
     position: "absolute",
@@ -533,6 +984,21 @@ const styles = StyleSheet.create({
     top: Platform.OS === "ios" ? 56 : 36,
     right: 20,
   },
+  fullscreenShare: {
+    position: "absolute",
+    bottom: Platform.OS === "ios" ? 52 : 36,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    minWidth: 140,
+    justifyContent: "center",
+    paddingHorizontal: 22,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.16)",
+  },
+  fullscreenShareText: { color: "#fff", fontSize: 15, fontWeight: "600" },
 
   sortSheet: {
     borderTopLeftRadius: 20,
