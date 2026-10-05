@@ -1182,7 +1182,13 @@ export default function GalleryScreen() {
         let hasNextPage = true;
         let pages = 0;
 
+        // `fetchedIds` n'est alimenté qu'une fois le résultat retenu (plus bas): un
+        // chargement périmé marquerait sinon comme « déjà vues » des photos qu'il vient
+        // de jeter, et elles manqueraient dans le nouvel ordre de tri.
+        const seen = new Set<string>();
+
         while (items.length === 0 && hasNextPage && pages < MAX_PAGES_PER_FETCH) {
+          if (gen !== fetchGeneration.current) break;
           pages++;
           const res = await MediaLibrary.getAssetsAsync({
             mediaType: ["photo", "video"],
@@ -1193,8 +1199,8 @@ export default function GalleryScreen() {
 
           // Zéro appel async par photo — expo-image 3.x gère ph:// nativement sur iOS
           for (const asset of res.assets) {
-            if (trashCache.current.has(asset.id) || keptCache.current.has(asset.id) || fetchedIds.current.has(asset.id)) continue;
-            fetchedIds.current.add(asset.id);
+            if (trashCache.current.has(asset.id) || keptCache.current.has(asset.id) || fetchedIds.current.has(asset.id) || seen.has(asset.id)) continue;
+            seen.add(asset.id);
             items.push({
               id: asset.id,
               uri: asset.uri || null,
@@ -1225,6 +1231,7 @@ export default function GalleryScreen() {
         }
 
         if (items.length > 0) {
+          items.forEach((it) => fetchedIds.current.add(it.id));
           setAssets((prev) => {
             const map = new Map(prev.map((p) => [p.id, p]));
             items.forEach((it) => !map.has(it.id) && map.set(it.id, it));
