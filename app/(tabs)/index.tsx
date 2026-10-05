@@ -96,7 +96,10 @@ const REVIEW_PROMPTED_KEY = "@app_review_prompted";
 const TRASH_KEY = "@app_trash";
 const FAVORITES_KEY = "@app_favorites";
 const KEPT_KEY = "@app_kept";
+/** Hérité: un index dans la pile filtrée, plus jamais restauré (voir le bootstrap). */
 const CARD_INDEX_KEY = "@gallery_last_index_v2";
+/** Nombre de swipes sur la vie de l'install — les paliers de succès sont exacts. */
+const TOTAL_SWIPES_KEY = "@app_swipes_total";
 const DARK_MODE_KEY = "@app_dark_mode";
 const VIBRATE_KEY = "@app_vibrate_swipe";
 const ONBOARDED_KEY = "@app_onboarded";
@@ -106,6 +109,9 @@ const AUTO_DARK_KEY = "@app_dark_auto";
 const AUTO_TRASH_DAYS_KEY = "@app_auto_trash_days";
 const BATCH_SIZE = 60;
 const PRELOAD_THRESHOLD = 10;
+// Plafond d'un seul appel à `fetchAssets`, pour ne pas bloquer sur une photothèque de
+// 50 000 médias déjà triés. Au-delà, `fetchTick` reprend là où le curseur s'est arrêté.
+const MAX_PAGES_PER_FETCH = 25;
 const SPLASH_MIN_MS = 0;
 
 const isTablet = SCREEN_WIDTH >= 768;
@@ -890,6 +896,12 @@ export default function GalleryScreen() {
   const insets = useSafeAreaInsets();
   const [assets, setAssets] = useState<MediaItem[]>([]);
   const [hasMore, setHasMore] = useState(true);
+  const [fetchTick, setFetchTick] = useState(0);
+  // Rien ne doit être chargé avant que la corbeille et les « gardées » soient en
+  // mémoire: la première page partait sans filtre, et des photos déjà triées
+  // revenaient dans la pile. Invisible tant que l'index restauré les sautait, bien
+  // visible maintenant que la reprise se fait à l'index 0.
+  const [cachesReady, setCachesReady] = useState(false);
   const cursorRef = useRef<string | undefined>(undefined);
   const hasMoreRef = useRef(true);
   const trashRef = useRef<Array<MediaItem & { trashedAt?: number }>>([]);
@@ -901,11 +913,20 @@ export default function GalleryScreen() {
   const keptCache = useRef<Set<string>>(new Set());
   const keptListRef = useRef<string[]>([]); // miroir en mémoire pour éviter les races AsyncStorage
   const fetchedIds = useRef<Set<string>>(new Set());
+  const totalSwipesRef = useRef(0);
+  /** Incrémenté par tout ce qui vide la pile: un fetch en vol devient périmé. */
+  const fetchGeneration = useRef(0);
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(
     () => () => {
-      if (persistTimer.current) clearTimeout(persistTimer.current);
+      // Le timer est annulé, donc on écrit le compteur nous-mêmes: sinon jusqu'à 800 ms
+      // de swipes disparaissaient du total à vie (et donc des paliers de succès).
+      if (persistTimer.current) {
+        clearTimeout(persistTimer.current);
+        persistTimer.current = null;
+        AsyncStorage.setItem(TOTAL_SWIPES_KEY, String(totalSwipesRef.current)).catch(() => {});
+      }
       flushWrites();
     },
     []
@@ -982,6 +1003,7 @@ export default function GalleryScreen() {
           const newVal = so === "oldest";
           if (newVal === sortOldest) return;
           setSortOldest(newVal);
+          fetchGeneration.current++;
           setAssets([]);
           setCurrentIndex(0);
           setHasMore(true);
@@ -1079,8 +1101,27 @@ export default function GalleryScreen() {
             }, 3000);
           }
         }
-        const saved = await AsyncStorage.getItem(CARD_INDEX_KEY);
-        if (saved) setCurrentIndex(Number(saved));
+        // `currentIndex` indexe `assets`, qui *exclut* déjà tout ce qui est trié
+        // (keptCache + trashCache). Le restaurer d'une session à l'autre le faisait
+        // pointer dans le vide: quelqu'un ayant trié 350 photos repartait à l'index 350
+        // d'une liste qui n'en contenait plus que quelques dizaines — carte du dessus
+        // `undefined`, `hasMore` encore vrai, donc l'écran de chargement à vie. La bonne
+        // position de reprise est toujours 0.
+        //
+        // L'ancienne clé ne servait que de compteur de swipes pour les succès: on la
+        // récupère une fois dans un compteur à vie dédié, puis on l'oublie.
+        const [totalRaw, legacyIndexRaw] = await Promise.all([
+          AsyncStorage.getItem(TOTAL_SWIPES_KEY),
+          AsyncStorage.getItem(CARD_INDEX_KEY),
+        ]);
+        if (totalRaw !== null) {
+          totalSwipesRef.current = Number(totalRaw) || 0;
+        } else if (legacyIndexRaw !== null) {
+          totalSwipesRef.current = Number(legacyIndexRaw) || 0;
+          AsyncStorage.setItem(TOTAL_SWIPES_KEY, String(totalSwipesRef.current)).catch(() => {});
+        }
+        // Les caches sont peuplés: le chargement peut filtrer correctement.
+        setCachesReady(true);
         await fetchAssets();
         const elapsed = Date.now() - t0;
         if (elapsed < SPLASH_MIN_MS) {
@@ -1089,6 +1130,9 @@ export default function GalleryScreen() {
       } catch (err) {
         logger.error("init", err);
       } finally {
+        // Filet: si le bootstrap a échoué avant de l'armer, on débloque quand même le
+        // chargement. Mieux vaut filtrer de façon imparfaite que rester sur le loader.
+        setCachesReady(true);
         setLoading(false);
         containerOpacity.value = withTiming(1, { duration: 600, easing: Easing.out(Easing.cubic) });
         containerScale.value = withSpring(1, { damping: 28, stiffness: 90, mass: 1.1 });
@@ -1114,6 +1158,11 @@ export default function GalleryScreen() {
     async (force = false) => {
       if (isFetching.current || (!hasMoreRef.current && !force)) return;
       isFetching.current = true;
+      // `fetchTick` ne doit repartir que si le curseur a bougé. Sinon une permission
+      // refusée ou un `getAssetsAsync` qui échoue relancerait l'effet de préchargement
+      // en boucle, sans attente et sans fin.
+      let advanced = false;
+      const gen = ++fetchGeneration.current;
       try {
         if (!permGranted.current) {
           const { status } = await MediaLibrary.requestPermissionsAsync();
@@ -1121,58 +1170,100 @@ export default function GalleryScreen() {
           permGranted.current = true;
         }
 
-        const res = await MediaLibrary.getAssetsAsync({
-          mediaType: ["photo", "video"],
-          first: BATCH_SIZE,
-          after: cursorRef.current,
-          sortBy: [["creationTime", sortOldest]],
-        });
-
-        // Zéro appel async par photo — expo-image 3.x gère ph:// nativement sur iOS
+        // Une page entièrement déjà triée (keptCache / trashCache) ne produisait aucune
+        // carte, donc aucun changement de `assets.length` — et c'est ce changement qui
+        // relançait la page suivante. Le chargement s'arrêtait là, pour de bon: écran de
+        // chargement infini chez qui a déjà trié sa photothèque, et plusieurs secondes
+        // d'attente chez les autres (une page par aller-retour de rendu). On enchaîne
+        // donc les pages ici jusqu'à obtenir une carte, ou jusqu'au bout de la
+        // photothèque — un `finally` libère `isFetching` dans tous les cas.
         const items: MediaItem[] = [];
-        for (const asset of res.assets) {
-          if (trashCache.current.has(asset.id) || keptCache.current.has(asset.id) || fetchedIds.current.has(asset.id)) continue;
-          fetchedIds.current.add(asset.id);
-          items.push({
-            id: asset.id,
-            uri: asset.uri || null,
-            type: asset.mediaType === "video" ? "video" : "photo",
-            createdAt: resolveMediaDate(asset.creationTime, asset.modificationTime),
-            width: asset.width,
-            height: asset.height,
-            duration: asset.duration,
-            fileSize: undefined,
+        let endCursor = cursorRef.current;
+        let hasNextPage = true;
+        let pages = 0;
+
+        while (items.length === 0 && hasNextPage && pages < MAX_PAGES_PER_FETCH) {
+          pages++;
+          const res = await MediaLibrary.getAssetsAsync({
+            mediaType: ["photo", "video"],
+            first: BATCH_SIZE,
+            after: endCursor,
+            sortBy: [["creationTime", sortOldest]],
           });
+
+          // Zéro appel async par photo — expo-image 3.x gère ph:// nativement sur iOS
+          for (const asset of res.assets) {
+            if (trashCache.current.has(asset.id) || keptCache.current.has(asset.id) || fetchedIds.current.has(asset.id)) continue;
+            fetchedIds.current.add(asset.id);
+            items.push({
+              id: asset.id,
+              uri: asset.uri || null,
+              type: asset.mediaType === "video" ? "video" : "photo",
+              createdAt: resolveMediaDate(asset.creationTime, asset.modificationTime),
+              width: asset.width,
+              height: asset.height,
+              duration: asset.duration,
+              fileSize: undefined,
+            });
+          }
+
+          endCursor = res.endCursor;
+          hasNextPage = res.hasNextPage;
         }
 
-        setAssets((prev) => {
-          const map = new Map(prev.map((p) => [p.id, p]));
-          items.forEach((it) => !map.has(it.id) && map.set(it.id, it));
-          return Array.from(map.values());
-        });
-        cursorRef.current = res.endCursor;
-        hasMoreRef.current = res.hasNextPage;
-        setHasMore(res.hasNextPage);
+        if (pages > 1) {
+          devLog("Fetch", `${pages} pages parcourues pour ${items.length} carte(s)`, "info");
+        }
+
+        // Un changement d'ordre de tri (ou un reset) vide la pile et remet le curseur à
+        // zéro pendant que cette boucle tourne: jusqu'à 25 allers-retours, soit une
+        // fenêtre large. Sans ce contrôle, la requête périmée réécrivait le curseur et
+        // réinjectait des photos dans l'ancien ordre dans une pile qu'on vient de vider.
+        if (gen !== fetchGeneration.current) {
+          devLog("Fetch", "résultat périmé ignoré (tri changé pendant le chargement)", "warn");
+          return;
+        }
+
+        if (items.length > 0) {
+          setAssets((prev) => {
+            const map = new Map(prev.map((p) => [p.id, p]));
+            items.forEach((it) => !map.has(it.id) && map.set(it.id, it));
+            return Array.from(map.values());
+          });
+        }
+        cursorRef.current = endCursor;
+        hasMoreRef.current = hasNextPage;
+        setHasMore(hasNextPage);
+        advanced = true;
       } catch (err: any) {
         logger.error("fetchAssets", err);
         devLog("Fetch", `fetchAssets FAILED: ${err?.message ?? err}`, "error");
       } finally {
         isFetching.current = false;
+        // Fait repasser l'effet de préchargement même quand la page n'a rien donné:
+        // `assets.length` seul ne bouge pas, et c'était là tout le problème. Mais
+        // seulement si le curseur a avancé — pas sur un échec, qui bouclerait sans fin.
+        if (advanced) setFetchTick((t) => t + 1);
       }
     },
     [sortOldest]
   );
 
   useEffect(() => {
+    if (!cachesReady) return;
     if ((assets.length - currentIndex <= PRELOAD_THRESHOLD || currentIndex >= assets.length) && hasMore) {
       fetchAssets();
     }
-  }, [assets.length, currentIndex, hasMore, fetchAssets]);
+  }, [assets.length, currentIndex, hasMore, fetchAssets, fetchTick, cachesReady]);
 
-  const persistIndex = useCallback((idx: number) => {
+  // La valeur est relue dans le timer, jamais capturée: le bootstrap restaure le
+  // compteur de façon asynchrone, et un swipe arrivé avant cette restauration aurait
+  // sinon écrit « 1 » par-dessus un total de plusieurs centaines.
+  const persistTotalSwipes = useCallback(() => {
     if (persistTimer.current) clearTimeout(persistTimer.current);
     persistTimer.current = setTimeout(() => {
-      AsyncStorage.setItem(CARD_INDEX_KEY, String(idx)).catch(() => {});
+      persistTimer.current = null;
+      AsyncStorage.setItem(TOTAL_SWIPES_KEY, String(totalSwipesRef.current)).catch(() => {});
     }, 800);
   }, []);
 
@@ -1278,15 +1369,18 @@ export default function GalleryScreen() {
         setTimeout(() => checkFavMilestones(newTotal).then(showAchievement), 0);
       }
 
-      const newSwipeTotal = currentIndex + 1;
+      // Compteur à vie, pas l'index de la pile: les paliers de succès testent une
+      // égalité exacte, et l'index repart de 0 à chaque session depuis qu'il ne
+      // compte plus que les photos restant à trier.
+      totalSwipesRef.current += 1;
+      const newSwipeTotal = totalSwipesRef.current;
+      persistTotalSwipes();
       setTimeout(() => {
         checkSwipeMilestones(newSwipeTotal).then(showAchievement);
         checkNightSwipe().then(showAchievement);
       }, 0);
 
-      const newIndex = currentIndex + 1;
-      setCurrentIndex(newIndex);
-      persistIndex(newIndex);
+      setCurrentIndex(currentIndex + 1);
 
       // Demande de review après 10 swipes (iOS uniquement, une seule fois)
       if (Platform.OS === "ios" && newSwipeTotal === 10) {
@@ -1312,7 +1406,7 @@ export default function GalleryScreen() {
         }, 1500);
       }
     },
-    [currentIndex, assets, triggerHaptics, addToTrash, addToFavorites, addToKept, persistIndex, soundEnabled]
+    [currentIndex, assets, triggerHaptics, addToTrash, addToFavorites, addToKept, persistTotalSwipes, soundEnabled]
   );
 
   const handleUndo = useCallback(() => {
@@ -1332,15 +1426,21 @@ export default function GalleryScreen() {
       AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(favoritesRef.current)).catch(() => {});
       removeFromKept(item.id);
     }
-    const newIndex = currentIndex - 1;
-    setCurrentIndex(newIndex);
-    persistIndex(newIndex);
+    setCurrentIndex(currentIndex - 1);
+    // Annuler un swipe doit aussi décompter le palier, sinon un aller-retour sur la
+    // même photo gonfle le total.
+    totalSwipesRef.current = Math.max(0, totalSwipesRef.current - 1);
+    persistTotalSwipes();
     setLastSwipe(null);
-  }, [lastSwipe, currentIndex, persistIndex]);
+  }, [lastSwipe, currentIndex, persistTotalSwipes]);
 
   const resetGallery = useCallback(async () => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await AsyncStorage.multiRemove([CARD_INDEX_KEY, KEPT_KEY]);
+    // Recommencer le tri ne remet pas à zéro les succès ni les statistiques: on ne
+    // touche donc ni au compteur à vie, ni à l'ancienne clé qui lui sert de repli
+    // tant que le bootstrap ne l'a pas migrée.
+    await AsyncStorage.removeItem(KEPT_KEY);
+    fetchGeneration.current++;
     stackProgress.value = 0;
     trashCache.current.clear();
     keptCache.current.clear();
@@ -1359,6 +1459,7 @@ export default function GalleryScreen() {
     const newSort = !sortOldest;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setSortOldest(newSort);
+    fetchGeneration.current++;
     setAssets([]);
     setCurrentIndex(0);
     setHasMore(true);

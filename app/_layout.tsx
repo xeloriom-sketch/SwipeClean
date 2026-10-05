@@ -5,7 +5,7 @@ import { Stack } from "expo-router";
 import { usePopup } from "../components/Popup";
 import * as Updates from "expo-updates";
 import * as Notifications from "expo-notifications";
-import { isNotificationsEnabled, scheduleDailyReminder } from "../utils/notifications";
+import { isNotificationsEnabled, maybeSendApologyNotice, scheduleDailyReminder } from "../utils/notifications";
 
 // Doit être au niveau module (avant tout render) pour que les notifs s'affichent en foreground
 Notifications.setNotificationHandler({
@@ -36,8 +36,19 @@ function useEnsureDailyReminder() {
   }, []);
 }
 
+function useApologyNotice() {
+  useEffect(() => {
+    // Après le premier rendu, et une seule fois dans la vie de l'install.
+    const t = setTimeout(() => {
+      maybeSendApologyNotice();
+    }, 2500);
+    return () => clearTimeout(t);
+  }, []);
+}
+
 export default function Layout() {
   useEnsureDailyReminder();
+  useApologyNotice();
   const scheme = useColorScheme();
   const [darkPref, setDarkPref] = useState<boolean | null>(null);
   useEffect(() => {

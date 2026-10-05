@@ -52,6 +52,33 @@ export async function scheduleTrashFullNotif(count: number) {
   });
 }
 
+// Excuses pour l'incident du 2 octobre 2026: la mise à jour OTA a restauré un index de
+// reprise devenu incompatible avec la pile filtrée, laissant l'app sur l'écran de
+// chargement. Message unique, verrouillé par une clé dédiée — il ne repartira pas au
+// prochain démarrage, et pas non plus chez qui a coupé les notifications.
+const APOLOGY_KEY = "@app_notice_1_0_20_apology";
+
+export async function maybeSendApologyNotice(): Promise<void> {
+  try {
+    if (await AsyncStorage.getItem(APOLOGY_KEY)) return;
+    if (!(await isNotificationsEnabled())) return;
+    // On ne réclame pas la permission pour une excuse: si elle n'est pas déjà
+    // accordée, on se contente de ne rien envoyer.
+    const { status } = await Notifications.getPermissionsAsync();
+    if (status !== "granted") return;
+
+    // Posée avant l'envoi: une erreur d'envoi ne doit pas faire réessayer indéfiniment.
+    await AsyncStorage.setItem(APOLOGY_KEY, "1");
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Désolé pour la panne 🙏",
+        body: "La dernière mise à jour bloquait l'app sur l'écran de chargement et ralentissait l'affichage des photos. C'est corrigé. Merci de ta patience.",
+      },
+      trigger: null,
+    });
+  } catch {}
+}
+
 export async function isNotificationsEnabled(): Promise<boolean> {
   const val = await AsyncStorage.getItem(NOTIF_KEY);
   return val !== "false";

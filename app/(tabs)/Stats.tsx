@@ -27,7 +27,9 @@ import {
 
 const TRASH_KEY = "@app_trash";
 const FAVORITES_KEY = "@app_favorites";
-const CARD_INDEX_KEY = "@gallery_last_index_v2";
+const TOTAL_SWIPES_KEY = "@app_swipes_total";
+/** Hérité: l'ancien compteur de swipes, avant qu'il cesse d'être un index de pile. */
+const LEGACY_INDEX_KEY = "@gallery_last_index_v2";
 const DARK_MODE_KEY = "@app_dark_mode";
 const FREED_SIZE_KEY = "@app_freed_bytes";
 const DELETED_COUNT_KEY = "@app_deleted_count";
@@ -116,11 +118,12 @@ export default function StatsScreen() {
 
   const loadData = useCallback(async () => {
     try {
-    const [dm, trashRaw, favRaw, indexRaw, freedRaw, deletedRaw] = await Promise.all([
+    const [dm, trashRaw, favRaw, totalRaw, legacyTotalRaw, freedRaw, deletedRaw] = await Promise.all([
       AsyncStorage.getItem(DARK_MODE_KEY),
       AsyncStorage.getItem(TRASH_KEY),
       AsyncStorage.getItem(FAVORITES_KEY),
-      AsyncStorage.getItem(CARD_INDEX_KEY),
+      AsyncStorage.getItem(TOTAL_SWIPES_KEY),
+      AsyncStorage.getItem(LEGACY_INDEX_KEY),
       AsyncStorage.getItem(FREED_SIZE_KEY),
       AsyncStorage.getItem(DELETED_COUNT_KEY),
     ]);
@@ -130,7 +133,10 @@ export default function StatsScreen() {
     setTrashCount(trash.length);
     const favs: MediaItem[] = favRaw ? JSON.parse(favRaw) : [];
     setFavCount(favs.length);
-    setTotalSwiped(indexRaw ? Number(indexRaw) : 0);
+    // Le compteur à vie fait foi; l'ancienne clé ne sert que si l'écran principal n'a
+    // pas encore tourné une fois pour la migrer.
+    const totalSource = totalRaw ?? legacyTotalRaw;
+    setTotalSwiped(totalSource ? Number(totalSource) || 0 : 0);
     setFreedSize(freedRaw ? Number(freedRaw) : 0);
     setDeletedCount(deletedRaw ? Number(deletedRaw) : 0);
 
