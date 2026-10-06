@@ -57,10 +57,20 @@ export async function scheduleTrashFullNotif(count: number) {
 // chargement. Message unique, verrouillé par une clé dédiée — il ne repartira pas au
 // prochain démarrage, et pas non plus chez qui a coupé les notifications.
 const APOLOGY_KEY = "@app_notice_1_0_20_apology";
+// Marqueur « cette install existait avant le correctif »: cette clé était l'index de
+// reprise, écrite par toutes les versions jusqu'à la 1.0.19 et plus jamais depuis. Une
+// installation neuve ne l'a donc pas — sans ce garde, quelqu'un qui découvre l'app
+// aujourd'hui recevait des excuses pour une panne qu'il n'a jamais vue.
+const PRE_FIX_MARKER_KEY = "@gallery_last_index_v2";
 
 export async function maybeSendApologyNotice(): Promise<void> {
   try {
     if (await AsyncStorage.getItem(APOLOGY_KEY)) return;
+    if ((await AsyncStorage.getItem(PRE_FIX_MARKER_KEY)) === null) {
+      // Install neuve: on verrouille pour ne pas repasser ce test à chaque lancement.
+      await AsyncStorage.setItem(APOLOGY_KEY, "n/a");
+      return;
+    }
     if (!(await isNotificationsEnabled())) return;
     // On ne réclame pas la permission pour une excuse: si elle n'est pas déjà
     // accordée, on se contente de ne rien envoyer.
