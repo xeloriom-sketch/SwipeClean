@@ -23,6 +23,7 @@ import { Image } from "expo-image";
 import { unlockAndNotify, checkStorageMilestones, notifyAchievement } from "../../utils/achievements";
 import { resolveMediaUri } from "../../utils/mediaUri";
 import { deleteAssetsInBatches } from "../../utils/mediaDelete";
+import { recordFreedBytes } from "../../utils/swipeStats";
 
 const { width } = Dimensions.get("window");
 
@@ -241,6 +242,9 @@ export default function TrashScreen() {
                 AsyncStorage.setItem(FREED_SIZE_KEY, String(newTotalBytes)),
                 AsyncStorage.setItem(DELETED_COUNT_KEY, String((prevCount ? Number(prevCount) : 0) + deletedIds.length)),
               ]);
+
+              // L'espace libéré nourrit aussi le graphe hebdomadaire, qui était plat.
+              recordFreedBytes(freedBytes).catch(() => {});
 
               if (remaining.length === 0) unlockAndNotify("trash_emptied");
 

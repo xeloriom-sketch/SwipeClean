@@ -20,7 +20,37 @@ import { Image } from "expo-image";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { usePopup } from "../../components/Popup";
 import AppLoader from "../../components/AppLoader";
-import { deleteAssetsInBatches } from "../../utils/mediaDelete";
+import { deleteAssetsInBatches, measureAssetsBytes } from "../../utils/mediaDelete";
+import { recordFreedBytes } from "../../utils/swipeStats";
+import { checkStorageMilestones, notifyAchievement } from "../../utils/achievements";
+
+const FREED_SIZE_KEY = "@app_freed_bytes";
+const DELETED_COUNT_KEY = "@app_deleted_count";
+
+/**
+ * Comptabilise une suppression de doublons. L'écran ne touchait aucun compteur: le
+ * nettoyage qui libère le plus d'espace n'apparaissait ni dans les statistiques, ni
+ * dans les succès « X Go libérés », alors que la corbeille, elle, créditait les siens.
+ */
+async function creditDeletion(deletedIds: string[], bytes: number): Promise<void> {
+  if (!deletedIds.length) return;
+  try {
+    recordFreedBytes(bytes).catch(() => {});
+    const [prevBytes, prevCount] = await Promise.all([
+      AsyncStorage.getItem(FREED_SIZE_KEY),
+      AsyncStorage.getItem(DELETED_COUNT_KEY),
+    ]);
+    const newTotalBytes = (prevBytes ? Number(prevBytes) : 0) + bytes;
+    await Promise.all([
+      AsyncStorage.setItem(FREED_SIZE_KEY, String(newTotalBytes)),
+      AsyncStorage.setItem(DELETED_COUNT_KEY, String((prevCount ? Number(prevCount) : 0) + deletedIds.length)),
+    ]);
+    if (bytes > 0) {
+      const achievement = await checkStorageMilestones(newTotalBytes);
+      if (achievement) notifyAchievement(achievement);
+    }
+  } catch {}
+}
 
 const { width } = Dimensions.get("window");
 const DARK_MODE_KEY = "@app_dark_mode";
@@ -374,7 +404,10 @@ export default function DuplicatesScreen() {
                 // Un refus de la boîte de dialogue système retirait quand même le
                 // groupe de la liste: les doublons semblaient supprimés alors qu'ils
                 // étaient toujours sur l'appareil.
-                const { ok } = await deleteAssetsInBatches(toDelete.map((a) => a.id));
+                const targetIds = toDelete.map((a) => a.id);
+                const bytes = await measureAssetsBytes(targetIds);
+                const { ok, deletedIds } = await deleteAssetsInBatches(targetIds);
+                await creditDeletion(deletedIds, deletedIds.length === targetIds.length ? bytes : 0);
                 if (!ok) {
                   showPopup({
                     icon: "⚠️",
@@ -418,7 +451,9 @@ export default function DuplicatesScreen() {
             try {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
               const ids = groups.flatMap((g) => g.items.slice(1).map((a) => a.id)); // garde le 1er de chaque groupe
+              const bytes = await measureAssetsBytes(ids);
               const { ok, deletedIds } = await deleteAssetsInBatches(ids);
+              await creditDeletion(deletedIds, deletedIds.length === ids.length ? bytes : 0);
               if (!ok) {
                 // Relance un scan plutôt que de deviner quels groupes ont survécu.
                 showPopup({

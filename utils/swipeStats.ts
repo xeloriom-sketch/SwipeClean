@@ -53,9 +53,25 @@ export async function recordSwipe(
     cache[key] = { deletedMB: 0, keptCount: 0, starredCount: 0, swipedCount: 0 };
   }
   cache[key].swipedCount++;
-  if (direction === "left") cache[key].deletedMB += (fileSize ?? 0) / 1_048_576;
-  else if (direction === "right") cache[key].keptCount++;
+  // `deletedMB` n'est plus crédité ici. Deux raisons: `fileSize` vaut toujours
+  // `undefined` sur un item de la pile (il n'est renseigné qu'après coup, dans la
+  // corbeille), donc on ajoutait systématiquement zéro — la statistique était morte;
+  // et un swipe à gauche ne supprime rien, il met en corbeille. L'espace est désormais
+  // compté par `recordFreedBytes`, appelé là où les fichiers disparaissent vraiment.
+  if (direction === "right") cache[key].keptCount++;
   else if (direction === "top") cache[key].starredCount++;
+  scheduleFlush(cache);
+}
+
+/** Espace réellement libéré, appelé après une suppression confirmée par le système. */
+export async function recordFreedBytes(bytes: number): Promise<void> {
+  if (!bytes || bytes <= 0) return;
+  const cache = await getCache();
+  const key = todayKey();
+  if (!cache[key]) {
+    cache[key] = { deletedMB: 0, keptCount: 0, starredCount: 0, swipedCount: 0 };
+  }
+  cache[key].deletedMB += bytes / 1_048_576;
   scheduleFlush(cache);
 }
 

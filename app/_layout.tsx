@@ -6,6 +6,8 @@ import { usePopup } from "../components/Popup";
 import * as Updates from "expo-updates";
 import * as Notifications from "expo-notifications";
 import { isNotificationsEnabled, maybeSendApologyNotice, scheduleDailyReminder } from "../utils/notifications";
+import RootErrorBoundary from "../components/RootErrorBoundary";
+import { loadPersistedLogs } from "../utils/devLogger";
 
 // Doit être au niveau module (avant tout render) pour que les notifs s'affichent en foreground
 Notifications.setNotificationHandler({
@@ -37,6 +39,12 @@ function useEnsureDailyReminder() {
 }
 
 function useApologyNotice() {
+  // Relit le journal de la session précédente: c'est lui qui raconte un crash ou un
+  // blocage, et il était perdu au redémarrage.
+  useEffect(() => {
+    loadPersistedLogs();
+  }, []);
+
   useEffect(() => {
     // Après le premier rendu, et une seule fois dans la vie de l'install.
     const t = setTimeout(() => {
@@ -85,7 +93,9 @@ export default function Layout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
-      <Stack screenOptions={{ headerShown: false }} />
+      <RootErrorBoundary>
+        <Stack screenOptions={{ headerShown: false }} />
+      </RootErrorBoundary>
       {popup}
     </GestureHandlerRootView>
   );

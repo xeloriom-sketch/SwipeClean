@@ -19,6 +19,10 @@ const SWIPES_PER_AD = 15;
 // le délai écoulé.
 const MIN_GAP_MS = 60 * 1000;
 
+/** Écart minimal entre deux chargements forcés par un créneau dû (anti-rafale). */
+const FORCED_LOAD_MIN_GAP_MS = 60 * 1000;
+let lastForcedLoadAt = 0;
+
 const RELOAD_AFTER_CLOSE_MS = 1000;
 const RETRY_BASE_MS = 30000;
 const RETRY_MAX_MS = 15 * 60 * 1000;
@@ -300,13 +304,20 @@ export function onSwipeForAd() {
   // qu'elle sera chargée au lieu d'attendre un nouveau cycle complet.
   devLog("Ads", `seuil atteint mais aucune pub prête (chargement: ${loading})`, "warn");
   if (loading) return;
-  // Un créneau dû ne doit pas patienter derrière un backoff de plusieurs minutes :
-  // c'est précisément le moment où il faut retenter, et le palier repart de zéro
-  // puisque la tentative est déclenchée par l'utilisateur.
-  if (timer) {
-    clearTimer();
-    retryCount = 0;
+
+  // Un créneau dû peut court-circuiter le backoff, mais une fois par minute au plus.
+  // Avant, chaque swipe remettait `retryCount` à zéro et relançait une requête: en
+  // no-fill persistant — le cas courant d'une app à faible trafic — cent swipes
+  // produisaient cinquante à cent requêtes d'interstitiel en deux minutes. AdMob
+  // dégrade le taux de correspondance sur ce profil, voire marque le trafic comme
+  // invalide. Le commentaire précédent présentait ce comportement comme voulu.
+  const since = Date.now() - lastForcedLoadAt;
+  if (since < FORCED_LOAD_MIN_GAP_MS) {
+    devLog("Ads", `relance ignorée (${Math.ceil((FORCED_LOAD_MIN_GAP_MS - since) / 1000)}s à attendre)`);
+    return;
   }
+  lastForcedLoadAt = Date.now();
+  if (timer) clearTimer();
   loadAd();
 }
 
@@ -319,6 +330,7 @@ export function resetAds() {
   swipesSinceAd = 0;
   adsShown = 0;
   lastShownAt = 0;
+  lastForcedLoadAt = 0;
   due = false;
   initialized = false;
   if (appStateSub) {

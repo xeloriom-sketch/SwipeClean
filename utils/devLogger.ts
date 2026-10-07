@@ -1,8 +1,19 @@
-// utils/devLogger.ts — in-memory log store, no persistence (ephemeral per session)
+// utils/devLogger.ts — journal de session, persisté pour survivre à un crash
+//
+// Il était purement en mémoire. Or ce qui compte, c'est précisément ce qui s'est passé
+// avant un plantage ou un blocage — perdu au redémarrage, et inaccessible de toute
+// façon puisqu'il faut atteindre les Réglages pour le lire. Les entrées sont donc
+// écrites sur disque (file debouncée, vidée au passage en arrière-plan) et la session
+// précédente est rechargée au démarrage.
+import { queueWrite } from "./storageQueue";
+
 export type LogLevel = "info" | "warn" | "error";
 export type LogEntry = { ts: number; tag: string; msg: string; level: LogLevel };
 
 const MAX = 400;
+/** Ce qu'on garde sur disque: assez pour comprendre, pas assez pour peser. */
+const PERSIST_MAX = 150;
+export const LOGS_KEY = "@app_logs";
 const _logs: LogEntry[] = [];
 const _subs = new Set<() => void>();
 
@@ -24,7 +35,37 @@ function _notify() {
 export function devLog(tag: string, msg: string, level: LogLevel = "info") {
   if (_logs.length >= MAX) _logs.shift();
   _logs.push({ ts: Date.now(), tag, msg, level });
+  _persist();
   _notify();
+}
+
+// Debounce long: le journal ne doit pas peser sur le chemin du swipe. `queueWrite`
+// fait le reste, y compris le vidage au passage en arrière-plan.
+let _persistScheduled = false;
+function _persist() {
+  if (_persistScheduled) return;
+  _persistScheduled = true;
+  setTimeout(() => {
+    _persistScheduled = false;
+    queueWrite(LOGS_KEY, _logs.slice(-PERSIST_MAX), 2000);
+  }, 1500);
+}
+
+/** Journal de la session précédente, relu au démarrage. Vide si aucun. */
+let _previous: LogEntry[] = [];
+
+export function getPreviousSessionLogs(): readonly LogEntry[] {
+  return _previous;
+}
+
+export async function loadPersistedLogs(): Promise<void> {
+  try {
+    const AsyncStorage = require("@react-native-async-storage/async-storage").default;
+    const raw = await AsyncStorage.getItem(LOGS_KEY);
+    if (!raw) return;
+    const parsed = JSON.parse(raw);
+    if (Array.isArray(parsed)) _previous = parsed.filter((e) => e && typeof e.msg === "string");
+  } catch {}
 }
 
 export function getLogs(): readonly LogEntry[] {

@@ -107,6 +107,16 @@ const SORT_KEY = "@app_sort_order";
 const SOUND_KEY = "@app_sound";
 const AUTO_DARK_KEY = "@app_dark_auto";
 const AUTO_TRASH_DAYS_KEY = "@app_auto_trash_days";
+// Plafonds de persistance. Ils existent pour que le JSON réécrit à chaque swipe ne
+// grossisse pas sans fin, mais l'éviction doit rester cohérente: un id évincé d'une
+// liste doit sortir du cache correspondant, sinon la photo devient invisible *et*
+// inatteignable (ni dans la pile, ni dans la corbeille).
+const TRASH_CAP = 1000;
+// Un favori évincé est une perte d'intention pure, sans aucun moyen de la récupérer:
+// le plafond est donc large, et les objets stockés sont petits.
+const FAV_CAP = 5000;
+const KEPT_CAP = 10000;
+
 const BATCH_SIZE = 60;
 const PRELOAD_THRESHOLD = 10;
 // Plafond d'un seul appel à `fetchAssets`, pour ne pas bloquer sur une photothèque de
@@ -383,7 +393,47 @@ const SwipeableCard = React.forwardRef<SwipeableCardRef, {
     }
   }, []);
 
+  // Verrou « cette carte ne part qu'une fois ». Gauche/droite animent `translateX`
+  // quand haut/bas animent `translateY`: deux axes distincts, donc deux animations qui
+  // ne s'annulent pas. Appuyer sur ✕ puis sur ★ en moins de 400 ms (les boutons sont
+  // voisins) faisait aboutir les deux, et `onSwipe` partait deux fois sur la même
+  // photo — qui atterrissait à la fois dans la corbeille et dans les favoris.
+  const committed = useSharedValue(false);
+
   const SWIPE_THRESHOLD_X = SCREEN_WIDTH * 0.25;
+
+  /** Envoie la carte hors écran puis valide le swipe, une seule fois. */
+  const flyOff = useCallback(
+    (direction: Exclude<SwipeDirection, null>) => {
+      "worklet";
+      if (committed.value) return;
+      committed.value = true;
+
+      const duration = direction === "bottom" ? 380 : 400;
+      const config = { duration, easing: Easing.in(Easing.quad) } as const;
+      const settle = (done?: boolean) => {
+        "worklet";
+        if (!done) return;
+        runOnJS(onSwipe)(direction);
+        // Pas de `withDelay` ici: `stackProgress` est partagé avec la carte suivante,
+        // et un délai de 60 ms écrasait la montée de celle-ci en swipe rapide — la
+        // carte du dessous retombait à 0.95 puis « popait ».
+        stackProgress.value = 0;
+      };
+
+      stackProgress.value = withTiming(1, { duration });
+      if (direction === "left") {
+        translateX.value = withTiming(-SCREEN_WIDTH * 1.5, config, settle);
+      } else if (direction === "right") {
+        translateX.value = withTiming(SCREEN_WIDTH * 1.5, config, settle);
+      } else if (direction === "top") {
+        translateY.value = withTiming(-SCREEN_HEIGHT * 1.5, config, settle);
+      } else {
+        translateY.value = withTiming(SCREEN_HEIGHT * 1.5, config, settle);
+      }
+    },
+    [committed, onSwipe, stackProgress, translateX, translateY]
+  );
   const SWIPE_THRESHOLD_Y = SCREEN_HEIGHT * 0.15;
 
   const cardStyle = useAnimatedStyle(() => {
@@ -516,46 +566,19 @@ const SwipeableCard = React.forwardRef<SwipeableCardRef, {
         swipeDir.value = null;
       }
     })
-    .onEnd(() => {
-      const FLYOFF = { duration: 400, easing: Easing.in(Easing.quad) } as const;
-      if (swipeDir.value === "left") {
-        stackProgress.value = withTiming(1, { duration: 400 });
-        translateX.value = withTiming(-SCREEN_WIDTH * 1.5, FLYOFF, (done) => {
-          if (done) {
-            runOnJS(onSwipe)("left");
-            stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
-          }
-        });
-      } else if (swipeDir.value === "right") {
-        stackProgress.value = withTiming(1, { duration: 400 });
-        translateX.value = withTiming(SCREEN_WIDTH * 1.5, FLYOFF, (done) => {
-          if (done) {
-            runOnJS(onSwipe)("right");
-            stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
-          }
-        });
-      } else if (swipeDir.value === "top") {
-        stackProgress.value = withTiming(1, { duration: 400 });
-        translateY.value = withTiming(-SCREEN_HEIGHT * 1.5, FLYOFF, (done) => {
-          if (done) {
-            runOnJS(onSwipe)("top");
-            stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
-          }
-        });
-      } else if (swipeDir.value === "bottom") {
-        stackProgress.value = withTiming(1, { duration: 380 });
-        translateY.value = withTiming(SCREEN_HEIGHT * 1.5, { duration: 380, easing: Easing.in(Easing.quad) }, (done) => {
-          if (done) {
-            runOnJS(onSwipe)("bottom");
-            stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
-          }
-        });
-      } else {
+    .onEnd((_e, success) => {
+      // `onEnd` est aussi appelé sur CANCELLED/FAILED (interstitiel qui s'ouvre, appel
+      // entrant, volet de notifications). Comme `swipeDir` est déjà positionné dès le
+      // franchissement du seuil dans `onUpdate`, l'ignorer faisait partir la carte et
+      // validait le swipe sans que le doigt ait été relâché en zone de validation.
+      if (!success || swipeDir.value === null) {
         translateX.value = withSpring(0, { damping: 26, stiffness: 140 });
         translateY.value = withSpring(0, { damping: 26, stiffness: 140 });
         stackProgress.value = withSpring(0, { damping: 26, stiffness: 140 });
         swipeDir.value = null;
+        return;
       }
+      flyOff(swipeDir.value);
     });
 
   // Double-tap : ouvre le fullscreen. Tap simple : effet rebond.
@@ -587,40 +610,7 @@ const SwipeableCard = React.forwardRef<SwipeableCardRef, {
 
   useImperativeHandle(ref, () => ({
     triggerSwipe: (direction) => {
-      const FLYOFF = { duration: 400, easing: Easing.in(Easing.quad) } as const;
-      if (direction === "left") {
-        stackProgress.value = withTiming(1, { duration: 400 });
-        translateX.value = withTiming(-SCREEN_WIDTH * 1.5, FLYOFF, (done) => {
-          if (done) {
-            runOnJS(onSwipe)("left");
-            stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
-          }
-        });
-      } else if (direction === "right") {
-        stackProgress.value = withTiming(1, { duration: 400 });
-        translateX.value = withTiming(SCREEN_WIDTH * 1.5, FLYOFF, (done) => {
-          if (done) {
-            runOnJS(onSwipe)("right");
-            stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
-          }
-        });
-      } else if (direction === "top") {
-        stackProgress.value = withTiming(1, { duration: 400 });
-        translateY.value = withTiming(-SCREEN_HEIGHT * 1.5, FLYOFF, (done) => {
-          if (done) {
-            runOnJS(onSwipe)("top");
-            stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
-          }
-        });
-      } else if (direction === "bottom") {
-        stackProgress.value = withTiming(1, { duration: 380 });
-        translateY.value = withTiming(SCREEN_HEIGHT * 1.5, { duration: 380, easing: Easing.in(Easing.quad) }, (done) => {
-          if (done) {
-            runOnJS(onSwipe)("bottom");
-            stackProgress.value = withDelay(60, withTiming(0, { duration: 1 }));
-          }
-        });
-      }
+      flyOff(direction);
     },
   }));
 
@@ -1012,6 +1002,46 @@ export default function GalleryScreen() {
     }, [sortOldest])
   );
 
+  // Corbeille et favoris sont écrits par d'autres écrans (Trash.tsx, Favorites.tsx),
+  // et comme la navigation est un `push`, cet écran n'est jamais démonté: ses refs
+  // restaient figées sur l'état du démarrage. Vider la corbeille puis revenir swiper
+  // réécrivait donc l'ancienne liste par-dessus — la corbeille vidée se repeuplait de
+  // photos qui n'existaient plus. Même chose pour un favori retiré, qui revenait.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      (async () => {
+        try {
+          const [trashRaw, favRaw] = await AsyncStorage.multiGet([TRASH_KEY, FAVORITES_KEY]);
+          if (cancelled) return;
+
+          const parse = <T,>(raw: string | null, fallback: T): T => {
+            if (!raw) return fallback;
+            try {
+              return (JSON.parse(raw) as T) ?? fallback;
+            } catch {
+              return fallback;
+            }
+          };
+
+          const trash = parse<Array<MediaItem & { trashedAt?: number }>>(trashRaw[1], []);
+          if (Array.isArray(trash)) {
+            trashRef.current = trash;
+            trashCache.current = new Set(trash.map((t) => t.id));
+            setTrashCount(trash.length);
+            Notifications.setBadgeCountAsync(trash.length).catch(() => {});
+          }
+
+          const favs = parse<MediaItem[]>(favRaw[1], []);
+          if (Array.isArray(favs)) favoritesRef.current = favs;
+        } catch {}
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [])
+  );
+
   // Auto dark mode — sync to system scheme when enabled
   useEffect(() => {
     if (darkAuto) setDarkMode(systemScheme === "dark");
@@ -1307,8 +1337,16 @@ export default function GalleryScreen() {
   }, []);
 
   const addToTrash = useCallback((item: MediaItem) => {
+    // Dédoublonnage, comme `addToFavorites` et `addToKept` le font déjà: sans lui, une
+    // photo pouvait figurer deux fois dans la corbeille et y être comptée deux fois.
+    if (trashRef.current.some((t) => t.id === item.id)) return;
     const entry = { ...item, trashedAt: Date.now() };
-    trashRef.current = [entry, ...trashRef.current].slice(0, 1000);
+    const next = [entry, ...trashRef.current];
+    // L'entrée évincée garde sinon son id dans `trashCache`: la photo n'est alors ni
+    // dans la corbeille, ni supprimée, ni re-proposée au tri — définitivement perdue de
+    // vue. On la relâche pour qu'elle revienne dans la pile.
+    for (const evicted of next.slice(TRASH_CAP)) trashCache.current.delete(evicted.id);
+    trashRef.current = next.slice(0, TRASH_CAP);
     setTrashCount(trashRef.current.length);
     queueWrite(TRASH_KEY, trashRef.current);
     Notifications.setBadgeCountAsync(trashRef.current.length).catch(() => {});
@@ -1337,7 +1375,7 @@ export default function GalleryScreen() {
 
   const addToFavorites = useCallback((item: MediaItem) => {
     if (favoritesRef.current.some((f) => f.id === item.id)) return;
-    favoritesRef.current = [item, ...favoritesRef.current].slice(0, 1000);
+    favoritesRef.current = [item, ...favoritesRef.current].slice(0, FAV_CAP);
     AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify(favoritesRef.current)).catch(() => {});
   }, []);
 
@@ -1346,7 +1384,12 @@ export default function GalleryScreen() {
     keptCache.current.add(id);
     // Écriture depuis le miroir mémoire — évite les races read-modify-write sur swipes rapides
     if (!keptListRef.current.includes(id)) {
-      keptListRef.current = [id, ...keptListRef.current].slice(0, 10000);
+      const next = [id, ...keptListRef.current];
+      // Le `Set` en mémoire était illimité alors que seuls 10 000 ids étaient
+      // persistés: au redémarrage, les plus anciennes « gardées » repassaient à trier.
+      // On évince des deux côtés pour que la session et le disque disent la même chose.
+      for (const evicted of next.slice(KEPT_CAP)) keptCache.current.delete(evicted);
+      keptListRef.current = next.slice(0, KEPT_CAP);
       queueWrite(KEPT_KEY, keptListRef.current);
     }
   }, []);
@@ -1481,7 +1524,11 @@ export default function GalleryScreen() {
     await AsyncStorage.removeItem(KEPT_KEY);
     fetchGeneration.current++;
     stackProgress.value = 0;
-    trashCache.current.clear();
+    // La corbeille n'est pas concernée par « recommencer le tri »: on la re-sème depuis
+    // `trashRef` au lieu de vider le cache. Le vider remettait les photos en attente de
+    // suppression dans la pile — et comme `addToTrash` ne dédoublonne pas, un nouveau
+    // swipe à gauche les y ajoutait une seconde fois.
+    trashCache.current = new Set(trashRef.current.map((t) => t.id));
     keptCache.current.clear();
     keptListRef.current = [];
     fetchedIds.current.clear();

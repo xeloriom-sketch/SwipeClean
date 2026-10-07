@@ -7,6 +7,32 @@
 // ce qui la rend éligible à la destruction sous pression mémoire.
 import * as MediaLibrary from "expo-media-library";
 
+/**
+ * Taille cumulée d'une liste d'assets, mesurée avant suppression.
+ *
+ * L'écran des doublons ne mesure rien pendant son analyse (c'est délibéré: un
+ * `getAssetInfoAsync` par photo rendrait le scan interminable), donc la mesure se fait
+ * au moment de supprimer, et seulement sur ce qui va l'être. Les échecs comptent zéro
+ * plutôt que de faire échouer l'ensemble.
+ */
+export async function measureAssetsBytes(ids: string[]): Promise<number> {
+  const { File } = require("expo-file-system");
+  const sizes = await Promise.allSettled(
+    ids.map(async (id): Promise<number> => {
+      try {
+        const info = await MediaLibrary.getAssetInfoAsync(id);
+        const localUri = info.localUri;
+        if (localUri && !localUri.startsWith("ph://")) {
+          const size = new File(localUri).size;
+          if (size > 0) return size;
+        }
+      } catch {}
+      return 0;
+    })
+  );
+  return sizes.reduce((sum, r) => sum + (r.status === "fulfilled" ? r.value : 0), 0);
+}
+
 const BATCH_SIZE = 100;
 const BREATHE_MS = 150;
 
