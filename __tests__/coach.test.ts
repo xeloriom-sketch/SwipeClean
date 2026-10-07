@@ -52,4 +52,31 @@ describe("tutoriel guidé", () => {
     expect(dirs).toEqual(["left", "right", "top"]);
     expect(new Set(dirs).size).toBe(dirs.length);
   });
+
+  it("ignore le swipe vers le bas, qui ne décide rien", () => {
+    // Sans ça, neuf swipes vers le bas « terminaient » le tutoriel sans qu'aucun des
+    // trois gestes enseignés n'ait été fait.
+    let state = INITIAL_COACH;
+    for (let i = 0; i < 9; i++) state = advanceCoach(state, "bottom");
+    expect(state).toEqual(INITIAL_COACH);
+  });
+
+  it("ne compte pas un essai sur un swipe vers le bas", () => {
+    const after = advanceCoach({ step: 0, attempts: 2 }, "bottom");
+    expect(after.attempts).toBe(2);
+    expect(after.step).toBe(0);
+  });
+
+  it("isExpected est faux sur une direction qui n'est pas celle demandée", () => {
+    expect(isExpected(INITIAL_COACH, "right")).toBe(false);
+    expect(isExpected(INITIAL_COACH, "bottom")).toBe(false);
+  });
+
+  it("chaque étape a une consigne et une conséquence non vides", () => {
+    for (const step of COACH_STEPS) {
+      expect(step.gesture.trim().length).toBeGreaterThan(0);
+      expect(step.detail.trim().length).toBeGreaterThan(0);
+      expect(step.done.trim().length).toBeGreaterThan(0);
+    }
+  });
 });

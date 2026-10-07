@@ -21,9 +21,8 @@
 // L'alignement sur la carte ne repose sur aucun calcul: on reproduit la même pile de
 // flex que l'écran (en-tête, zone centrale, barre de boutons), donc le cadre suit la
 // carte sur n'importe quel appareil.
-import React, { useEffect } from "react";
-import { View, Text, StyleSheet, Dimensions, Platform } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import React, { useEffect, useState } from "react";
+import { AccessibilityInfo, View, Text, StyleSheet, Dimensions, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
@@ -46,66 +45,61 @@ const HEADER_H = 50;
 const ACTIONS_H = (Platform.OS === "ios" ? 12 : 8) * 2 + Math.min(Math.round(SCREEN_WIDTH * 0.16), 66);
 
 /** Les couleurs et icônes que l'écran peint réellement pendant le geste. */
-const LOOK: Record<CoachDirection, { tint: string; icon: keyof typeof Ionicons.glyphMap; rotate: string }> = {
-  left: { tint: "rgba(255, 68, 88, 0.92)", icon: "close", rotate: "0deg" },
-  right: { tint: "rgba(76, 255, 94, 0.92)", icon: "heart", rotate: "180deg" },
-  top: { tint: "rgba(0, 180, 230, 0.92)", icon: "star", rotate: "90deg" },
-  bottom: { tint: "rgba(110, 110, 120, 0.92)", icon: "play-skip-forward", rotate: "270deg" },
+const LOOK: Record<CoachDirection, {
+  tint: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  /** Vrai quand la teinte est trop claire pour une icône blanche (ratio < 3:1). */
+  darkIcon: boolean;
+}> = {
+  left: { tint: "rgba(255, 68, 88, 0.92)", icon: "close", darkIcon: false },
+  right: { tint: "rgba(76, 255, 94, 0.92)", icon: "heart", darkIcon: true },
+  top: { tint: "rgba(0, 180, 230, 0.92)", icon: "star", darkIcon: true },
+  bottom: { tint: "rgba(110, 110, 120, 0.92)", icon: "play-skip-forward", darkIcon: false },
 };
 
-const SOLID: Record<CoachDirection, string> = {
-  left: "#FF4458",
-  right: "#4CFF5E",
-  top: "#00B4E6",
-  bottom: "#6E6E78",
-};
-
-/** Le badge exact de l'app, montré au repos: le reconnaître avant de le déclencher. */
-function Badge({ tint, icon }: { tint: string; icon: keyof typeof Ionicons.glyphMap }) {
+/**
+ * Le badge exact de l'app, montré au repos: le reconnaître avant de le déclencher.
+ *
+ * Opacité pleine, comme dans l'app. Une version précédente le faisait respirer entre
+ * 50 % et 78 %: sur une photo claire le contraste tombait à 1,2:1 et l'icône
+ * disparaissait — on enseignait un objet qui n'existe pas. Seule l'échelle respire, et
+ * pas du tout si l'appareil demande moins d'animations.
+ *
+ * L'icône passe en sombre sur le vert et le cyan: un cœur blanc sur #4CFF5E ne donne
+ * que 1,32:1. Ce défaut existe aussi dans l'app elle-même, il est noté pour plus tard.
+ */
+function Badge({ tint, icon, darkIcon, reduceMotion }: {
+  tint: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  darkIcon: boolean;
+  reduceMotion: boolean;
+}) {
   const pulse = useSharedValue(0);
   useEffect(() => {
+    if (reduceMotion) return;
     pulse.value = withRepeat(withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.quad) }), -1, true);
-  }, [pulse]);
+  }, [pulse, reduceMotion]);
 
   const style = useAnimatedStyle(() => ({
-    transform: [{ scale: interpolate(pulse.value, [0, 1], [1, 1.07]) }],
-    opacity: interpolate(pulse.value, [0, 1], [0.5, 0.78]),
+    transform: [{ scale: interpolate(pulse.value, [0, 1], [1, 1.06]) }],
   }));
 
   return (
     <Animated.View style={[styles.badge, { backgroundColor: tint }, style]}>
-      <Ionicons name={icon} size={54} color="#FFF" />
+      <Ionicons name={icon} size={60} color={darkIcon ? "#0B0B0B" : "#FFF"} />
     </Animated.View>
-  );
-}
-
-/** Trois chevrons sur le bord visé: ils disent où aller, sans flèche décorative. */
-function Chevrons({ tint, rotate }: { tint: string; rotate: string }) {
-  const wave = useSharedValue(0);
-  useEffect(() => {
-    wave.value = withRepeat(withTiming(1, { duration: 1400, easing: Easing.inOut(Easing.quad) }), -1, true);
-  }, [wave]);
-
-  // Une seule valeur animée pour les trois chevrons: le décalage entre eux passe par
-  // leur opacité de base, pas par trois animations distinctes.
-  const style = useAnimatedStyle(() => ({
-    opacity: interpolate(wave.value, [0, 1], [0.25, 1]),
-    transform: [{ translateX: interpolate(wave.value, [0, 1], [0, -9]) }],
-  }));
-
-  return (
-    <View style={[styles.chevrons, { transform: [{ rotate }] }]} pointerEvents="none">
-      <Animated.View style={[styles.chevronRow, style]}>
-        <Ionicons name="chevron-back" size={26} color={tint} />
-        <Ionicons name="chevron-back" size={26} color={tint} style={{ opacity: 0.66, marginLeft: -6 }} />
-        <Ionicons name="chevron-back" size={26} color={tint} style={{ opacity: 0.38, marginLeft: -6 }} />
-      </Animated.View>
-    </View>
   );
 }
 
 export default function SwipeCoach({ state }: { state: CoachState }) {
   const enter = useSharedValue(0);
+  const [reduceMotion, setReduceMotion] = useState(false);
+
+  useEffect(() => {
+    AccessibilityInfo.isReduceMotionEnabled().then(setReduceMotion).catch(() => {});
+    const sub = AccessibilityInfo.addEventListener("reduceMotionChanged", setReduceMotion);
+    return () => sub.remove();
+  }, []);
   const step = state.step === null ? null : COACH_STEPS[state.step];
 
   useEffect(() => {
@@ -122,17 +116,18 @@ export default function SwipeCoach({ state }: { state: CoachState }) {
   if (!step) return null;
 
   const look = LOOK[step.dir];
-  const solid = SOLID[step.dir];
 
   return (
+    // Pas de SafeAreaView ici: `absoluteFill` est deja positionne dans la boite de
+    // padding du SafeAreaView de l'ecran. En ajouter un comptait les insets deux fois
+    // et decalait tout le cadre de la hauteur de l'encoche.
     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-      <SafeAreaView style={styles.safe} pointerEvents="none">
+      <View style={styles.safe} pointerEvents="none">
         <View style={{ height: HEADER_H }} />
 
         <View style={styles.zone} pointerEvents="none">
           <View style={styles.cardFrame} pointerEvents="none">
-            <Badge tint={look.tint} icon={look.icon} />
-            <Chevrons tint={solid} rotate={look.rotate} />
+            <Badge tint={look.tint} icon={look.icon} darkIcon={look.darkIcon} reduceMotion={reduceMotion} />
 
             <LinearGradient
               colors={["rgba(8,9,11,0)", "rgba(8,9,11,0.55)", "rgba(8,9,11,0.93)"]}
@@ -142,18 +137,6 @@ export default function SwipeCoach({ state }: { state: CoachState }) {
             />
 
             <Animated.View style={[styles.copy, enterStyle]} pointerEvents="none">
-              <View style={styles.segments}>
-                {COACH_STEPS.map((_, i) => (
-                  <View
-                    key={i}
-                    style={[
-                      styles.segment,
-                      i === state.step && styles.segmentActive,
-                      i <= (state.step ?? 0) ? { backgroundColor: solid } : null,
-                    ]}
-                  />
-                ))}
-              </View>
               <Text style={styles.gesture}>{step.gesture}</Text>
               <Text style={styles.detail}>{step.detail}</Text>
             </Animated.View>
@@ -161,7 +144,7 @@ export default function SwipeCoach({ state }: { state: CoachState }) {
         </View>
 
         <View style={{ height: ACTIONS_H }} />
-      </SafeAreaView>
+      </View>
     </View>
   );
 }
@@ -193,24 +176,18 @@ const styles = StyleSheet.create({
   },
   chevronRow: { flexDirection: "row", alignItems: "center", marginTop: -40 },
   foot: { position: "absolute", left: 0, right: 0, bottom: 0, height: 250 },
-  copy: { position: "absolute", left: 22, right: 22, bottom: 20 },
-  segments: { flexDirection: "row", gap: 5, marginBottom: 13 },
-  segment: {
-    width: 11,
-    height: 3,
-    borderRadius: 2,
-    backgroundColor: "rgba(255,255,255,0.2)",
-  },
-  segmentActive: { width: 26 },
+  // bottom 56 et non 20: `MediaCard` affiche toujours la date et les dimensions dans
+  // les ~46 derniers points de la carte. La consigne se posait dessus.
+  copy: { position: "absolute", left: 22, right: 22, bottom: 56 },
   gesture: {
     color: "#fff",
-    fontSize: 27,
-    fontWeight: "800",
-    letterSpacing: -0.8,
-    lineHeight: 31,
+    fontSize: 22,
+    fontWeight: "700",
+    letterSpacing: -0.5,
+    lineHeight: 27,
   },
   detail: {
-    color: "rgba(255,255,255,0.66)",
+    color: "rgba(255,255,255,0.85)",
     fontSize: 15,
     lineHeight: 21,
     marginTop: 5,

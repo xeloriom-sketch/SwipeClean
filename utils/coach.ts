@@ -65,6 +65,11 @@ export const INITIAL_COACH: CoachState = { step: 0, attempts: 0 };
 export function advanceCoach(state: CoachState, direction: CoachDirection): CoachState {
   if (state.step === null) return state;
 
+  // Glisser vers le bas ne fait que reporter la photo: ce n'est pas une décision, et
+  // ça n'enseigne rien. Sans cette sortie, neuf swipes vers le bas « terminaient » le
+  // tutoriel sans qu'aucun des trois gestes n'ait été fait.
+  if (direction === "bottom") return state;
+
   const current = COACH_STEPS[state.step];
   if (!current) return { step: null, attempts: 0 };
 

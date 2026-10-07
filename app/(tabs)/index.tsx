@@ -895,6 +895,8 @@ export default function GalleryScreen() {
   // visible maintenant que la reprise se fait à l'index 0.
   const [cachesReady, setCachesReady] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  /** Miroir de `permissionDenied`, lisible tout de suite dans le bootstrap. */
+  const permissionDeniedRef = useRef(false);
   /** `step: null` = pas de tutoriel en cours (cas de loin le plus courant). */
   const [coach, setCoach] = useState<CoachState>({ step: null, attempts: 0 });
   const cursorRef = useRef<string | undefined>(undefined);
@@ -911,6 +913,8 @@ export default function GalleryScreen() {
   const totalSwipesRef = useRef(0);
   /** Incrémenté par tout ce qui vide la pile: un fetch en vol devient périmé. */
   const fetchGeneration = useRef(0);
+  /** Le tutoriel n'est armé qu'une fois par montage de l'écran. */
+  const coachArmedRef = useRef(false);
   const persistTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(
@@ -1042,8 +1046,17 @@ export default function GalleryScreen() {
           // « Revoir le tutoriel » efface la clé puis revient ici. L'écran étant déjà
           // monté, le bootstrap ne rejoue pas: c'est donc au retour de focus de
           // relancer le tutoriel.
+          //
+          // Une seule fois par montage, sinon: le header reste cliquable par-dessus le
+          // tutoriel, et un aller-retour vers la Corbeille — précisément ce que donne
+          // envie de faire le message « elle est à la corbeille » — remettait le
+          // tutoriel à l'étape 1 sur une autre photo, progression perdue.
+          if (coachArmedRef.current) return;
           const onboarded = await AsyncStorage.getItem(ONBOARDED_KEY);
-          if (!cancelled && !onboarded) setCoach(INITIAL_COACH);
+          if (!cancelled && !onboarded) {
+            coachArmedRef.current = true;
+            setCoach(INITIAL_COACH);
+          }
         } catch {}
       })();
       return () => {
@@ -1163,7 +1176,14 @@ export default function GalleryScreen() {
           // Repli vers l'ancien tutoriel illustré quand il n'y a rien à montrer: accès
           // refusé, ou galerie vide. Apprendre sur sa propre photo suppose d'en avoir
           // une.
-          if (loaded > 0) {
+          if (permissionDeniedRef.current) {
+            // Accès refusé: l'écran de permission dit quoi faire. L'envoyer dans
+            // l'ancien tutoriel illustré lui faisait traverser six écrans avant de
+            // découvrir le vrai problème.
+            AsyncStorage.setItem(ONBOARDED_KEY, "true").catch(() => {});
+            markWhatsNewSeen();
+          } else if (loaded > 0) {
+            coachArmedRef.current = true;
             setCoach(INITIAL_COACH);
             // Quelqu'un qui installe aujourd'hui n'a pas de « nouveautés » à découvrir:
             // la liste serait son premier écran, par-dessus le tutoriel.
@@ -1224,10 +1244,12 @@ export default function GalleryScreen() {
             // Sans cet état, le rendu tombait sur `hasMore === true` et affichait le
             // chargement à vie: ni message, ni bouton, et `permGranted` n'étant jamais
             // réévalué il fallait tuer l'app même après avoir accordé l'accès.
+            permissionDeniedRef.current = true;
             setPermissionDenied(true);
             return 0;
           }
           permGranted.current = true;
+          permissionDeniedRef.current = false;
           setPermissionDenied(false);
         }
 
@@ -1334,6 +1356,7 @@ export default function GalleryScreen() {
   // photothèque en revenant, sans avoir à tuer l'app.
   const resumeAfterPermission = useCallback(() => {
     permGranted.current = true;
+    permissionDeniedRef.current = false;
     setPermissionDenied(false);
     hasMoreRef.current = true;
     setHasMore(true);
@@ -1362,6 +1385,18 @@ export default function GalleryScreen() {
   // arrière-plan. Avec un `setItem` direct et son debounce, Android pouvait tuer le
   // process avant l'échéance — et comme les paliers de succès testent une égalité
   // exacte, un palier perdu l'était définitivement.
+  // Plus rien à trier avant la fin du tutoriel (une galerie de deux photos, par
+  // exemple): on le clôt. Sinon le composant est démonté par le rendu de l'état « tout
+  // est traité », la clé n'est jamais posée, et le lancement suivant renvoie vers
+  // l'ancien écran illustré.
+  useEffect(() => {
+    if (coach.step === null) return;
+    if (hasMore || isFetching.current) return;
+    if (assets[currentIndex]) return;
+    setCoach({ step: null, attempts: 0 });
+    AsyncStorage.setItem(ONBOARDED_KEY, "true").catch(() => {});
+  }, [coach.step, hasMore, assets, currentIndex]);
+
   const persistTotalSwipes = useCallback(() => {
     queueWrite(TOTAL_SWIPES_KEY, totalSwipesRef.current);
   }, []);
@@ -1665,6 +1700,7 @@ export default function GalleryScreen() {
 
   if (!topCard) {
     if (hasMore || isFetching.current) return <FancyLoader dark={darkMode} />;
+
     return (
       <SafeAreaView
         style={[
