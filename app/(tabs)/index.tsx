@@ -973,11 +973,6 @@ export default function GalleryScreen() {
     return () => { if (t !== null) clearTimeout(t); };
   }, []);
 
-  const skipCoach = useCallback(() => {
-    setCoach({ step: null, attempts: 0 });
-    AsyncStorage.setItem(ONBOARDED_KEY, "true").catch(() => {});
-  }, []);
-
   const handleOpenWhatsNew = () => {
     setShowWhatsNew(true);
     setWhatsNewBadge(false);
@@ -1984,13 +1979,7 @@ export default function GalleryScreen() {
 
       {popup}
 
-      <SwipeCoach
-        state={coach}
-        darkMode={darkMode}
-        topInset={insets.top}
-        bottomInset={insets.bottom}
-        onSkip={skipCoach}
-      />
+      <SwipeCoach state={coach} />
 
       <WhatsNewModal
         visible={showWhatsNew && coach.step === null}

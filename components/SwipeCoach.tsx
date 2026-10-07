@@ -1,191 +1,218 @@
-// components/SwipeCoach.tsx — tutoriel guidé, par-dessus le vrai écran de tri
+// components/SwipeCoach.tsx — tutoriel guidé, posé sur le vrai écran de tri
 //
 // Parti pris: on n'explique pas l'app, on la fait utiliser. La personne apprend sur sa
-// propre photo, dans son propre thème, avec la vraie carte et les vrais boutons — il
-// n'y a donc rien à transposer en sortant du tutoriel, puisqu'on n'en sort pas.
+// propre photo, dans son thème, avec la vraie carte et les vrais boutons — il n'y a
+// rien à transposer en sortant du tutoriel, puisqu'on n'en sort pas.
 //
-// Le voile assombrit les bandes au-dessus et en dessous de la carte, jamais la carte
-// elle-même: elle reste nette, et surtout elle reste touchable. Un voile plein écran
-// aurait intercepté le geste qu'on demande justement de faire.
+// Deux règles tirées d'une première version ratée:
+//
+// 1. AUCUNE bande. La version précédente assombrissait deux bandes pleine largeur en
+//    haut et en bas. Mesuré sur iPhone 14: la bande haute mangeait 70 pt du haut de la
+//    photo, la bande basse 18 pt des boutons, et son bouton « Passer » tombait *dans*
+//    l'emprise de la carte — un geste commencé là sautait le tutoriel au lieu de
+//    swiper. La consigne s'écrit donc sur la photo elle-même, dans le dégradé de pied
+//    que l'app utilise déjà pour la date.
+//
+// 2. `pointerEvents="none"` partout, sans exception et sans aucun élément tactile. Le
+//    tutoriel se termine en trois gestes et avance de toute façon après trois essais:
+//    il n'a pas besoin d'un bouton « Passer », et s'en passer garantit qu'il ne peut
+//    pas intercepter le geste qu'il demande.
+//
+// L'alignement sur la carte ne repose sur aucun calcul: on reproduit la même pile de
+// flex que l'écran (en-tête, zone centrale, barre de boutons), donc le cadre suit la
+// carte sur n'importe quel appareil.
 import React, { useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, StyleSheet, Dimensions, Platform } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
   withRepeat,
-  withSequence,
   withTiming,
   withDelay,
   Easing,
+  interpolate,
 } from "react-native-reanimated";
-import { COACH_STEPS, type CoachState } from "../utils/coach";
+import { COACH_STEPS, type CoachDirection, type CoachState } from "../utils/coach";
 
-const ARROW: Record<string, { icon: keyof typeof Ionicons.glyphMap; dx: number; dy: number }> = {
-  left: { icon: "arrow-back", dx: -1, dy: 0 },
-  right: { icon: "arrow-forward", dx: 1, dy: 0 },
-  top: { icon: "arrow-up", dx: 0, dy: -1 },
-  bottom: { icon: "arrow-down", dx: 0, dy: 1 },
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
+const CARD_W = SCREEN_WIDTH * 0.9;
+const CARD_H = SCREEN_HEIGHT * 0.7;
+
+/** Doit suivre `styles.header` et `styles.globalActions` de l'écran de tri. */
+const HEADER_H = 50;
+const ACTIONS_H = (Platform.OS === "ios" ? 12 : 8) * 2 + Math.min(Math.round(SCREEN_WIDTH * 0.16), 66);
+
+/** Les couleurs et icônes que l'écran peint réellement pendant le geste. */
+const LOOK: Record<CoachDirection, { tint: string; icon: keyof typeof Ionicons.glyphMap; rotate: string }> = {
+  left: { tint: "rgba(255, 68, 88, 0.92)", icon: "close", rotate: "0deg" },
+  right: { tint: "rgba(76, 255, 94, 0.92)", icon: "heart", rotate: "180deg" },
+  top: { tint: "rgba(0, 180, 230, 0.92)", icon: "star", rotate: "90deg" },
+  bottom: { tint: "rgba(110, 110, 120, 0.92)", icon: "play-skip-forward", rotate: "270deg" },
 };
 
-/** Flèche qui part dans la direction demandée, en boucle. */
-function DirectionHint({ dir, tint }: { dir: string; tint: string }) {
-  const progress = useSharedValue(0);
-  const conf = ARROW[dir] ?? ARROW.left;
+const SOLID: Record<CoachDirection, string> = {
+  left: "#FF4458",
+  right: "#4CFF5E",
+  top: "#00B4E6",
+  bottom: "#6E6E78",
+};
 
+/** Le badge exact de l'app, montré au repos: le reconnaître avant de le déclencher. */
+function Badge({ tint, icon }: { tint: string; icon: keyof typeof Ionicons.glyphMap }) {
+  const pulse = useSharedValue(0);
   useEffect(() => {
-    progress.value = withRepeat(
-      withSequence(
-        withTiming(1, { duration: 900, easing: Easing.out(Easing.quad) }),
-        withDelay(250, withTiming(0, { duration: 0 }))
-      ),
-      -1,
-      false
-    );
-  }, [dir, progress]);
+    pulse.value = withRepeat(withTiming(1, { duration: 1800, easing: Easing.inOut(Easing.quad) }), -1, true);
+  }, [pulse]);
 
   const style = useAnimatedStyle(() => ({
-    opacity: progress.value < 0.15 ? progress.value / 0.15 : 1 - (progress.value - 0.15) / 0.85,
-    transform: [
-      { translateX: conf.dx * 34 * progress.value },
-      { translateY: conf.dy * 34 * progress.value },
-    ],
+    transform: [{ scale: interpolate(pulse.value, [0, 1], [1, 1.07]) }],
+    opacity: interpolate(pulse.value, [0, 1], [0.5, 0.78]),
   }));
 
   return (
-    <Animated.View style={style}>
-      <Ionicons name={conf.icon} size={30} color={tint} />
+    <Animated.View style={[styles.badge, { backgroundColor: tint }, style]}>
+      <Ionicons name={icon} size={54} color="#FFF" />
     </Animated.View>
   );
 }
 
-export default function SwipeCoach({
-  state,
-  darkMode,
-  onSkip,
-  topInset,
-  bottomInset,
-}: {
-  state: CoachState;
-  darkMode: boolean;
-  onSkip: () => void;
-  topInset: number;
-  bottomInset: number;
-}) {
-  if (state.step === null) return null;
-  const step = COACH_STEPS[state.step];
-  if (!step) return null;
+/** Trois chevrons sur le bord visé: ils disent où aller, sans flèche décorative. */
+function Chevrons({ tint, rotate }: { tint: string; rotate: string }) {
+  const wave = useSharedValue(0);
+  useEffect(() => {
+    wave.value = withRepeat(withTiming(1, { duration: 1400, easing: Easing.inOut(Easing.quad) }), -1, true);
+  }, [wave]);
 
-  const veil = darkMode ? "rgba(0,0,0,0.78)" : "rgba(0,0,0,0.62)";
-  const tint = "rgba(255,255,255,0.9)";
+  // Une seule valeur animée pour les trois chevrons: le décalage entre eux passe par
+  // leur opacité de base, pas par trois animations distinctes.
+  const style = useAnimatedStyle(() => ({
+    opacity: interpolate(wave.value, [0, 1], [0.25, 1]),
+    transform: [{ translateX: interpolate(wave.value, [0, 1], [0, -9]) }],
+  }));
 
   return (
-    // `box-none`: le conteneur ne capte rien, seuls ses enfants tactiles le font. Sans
-    // ça, le voile avalerait le geste qu'on demande de faire sur la carte.
-    <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-      {/* Bande haute: consigne + progression */}
-      <View style={[styles.band, { backgroundColor: veil, paddingTop: topInset + 14 }]} pointerEvents="box-none">
-        <View style={styles.dots}>
-          {COACH_STEPS.map((_, i) => (
-            <View
-              key={i}
-              style={[
-                styles.dot,
-                i === state.step && styles.dotActive,
-                i < (state.step ?? 0) && styles.dotDone,
-              ]}
+    <View style={[styles.chevrons, { transform: [{ rotate }] }]} pointerEvents="none">
+      <Animated.View style={[styles.chevronRow, style]}>
+        <Ionicons name="chevron-back" size={26} color={tint} />
+        <Ionicons name="chevron-back" size={26} color={tint} style={{ opacity: 0.66, marginLeft: -6 }} />
+        <Ionicons name="chevron-back" size={26} color={tint} style={{ opacity: 0.38, marginLeft: -6 }} />
+      </Animated.View>
+    </View>
+  );
+}
+
+export default function SwipeCoach({ state }: { state: CoachState }) {
+  const enter = useSharedValue(0);
+  const step = state.step === null ? null : COACH_STEPS[state.step];
+
+  useEffect(() => {
+    if (state.step === null) return;
+    enter.value = 0;
+    enter.value = withDelay(60, withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) }));
+  }, [state.step, enter]);
+
+  const enterStyle = useAnimatedStyle(() => ({
+    opacity: enter.value,
+    transform: [{ translateY: interpolate(enter.value, [0, 1], [10, 0]) }],
+  }));
+
+  if (!step) return null;
+
+  const look = LOOK[step.dir];
+  const solid = SOLID[step.dir];
+
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      <SafeAreaView style={styles.safe} pointerEvents="none">
+        <View style={{ height: HEADER_H }} />
+
+        <View style={styles.zone} pointerEvents="none">
+          <View style={styles.cardFrame} pointerEvents="none">
+            <Badge tint={look.tint} icon={look.icon} />
+            <Chevrons tint={solid} rotate={look.rotate} />
+
+            <LinearGradient
+              colors={["rgba(8,9,11,0)", "rgba(8,9,11,0.55)", "rgba(8,9,11,0.93)"]}
+              locations={[0, 0.46, 1]}
+              style={styles.foot}
+              pointerEvents="none"
             />
-          ))}
+
+            <Animated.View style={[styles.copy, enterStyle]} pointerEvents="none">
+              <View style={styles.segments}>
+                {COACH_STEPS.map((_, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.segment,
+                      i === state.step && styles.segmentActive,
+                      i <= (state.step ?? 0) ? { backgroundColor: solid } : null,
+                    ]}
+                  />
+                ))}
+              </View>
+              <Text style={styles.gesture}>{step.gesture}</Text>
+              <Text style={styles.detail}>{step.detail}</Text>
+            </Animated.View>
+          </View>
         </View>
 
-        <Text style={styles.instruction}>{step.instruction}</Text>
-
-        {state.attempts > 0 && (
-          <Text style={styles.nudge}>
-            {`Essaie dans l'autre sens — ${
-              step.dir === "left"
-                ? "vers la gauche"
-                : step.dir === "right"
-                  ? "vers la droite"
-                  : "vers le haut"
-            }.`}
-          </Text>
-        )}
-
-        <TouchableOpacity onPress={onSkip} hitSlop={{ top: 12, bottom: 12, left: 16, right: 16 }}>
-          <Text style={styles.skip}>Passer le tutoriel</Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Bande basse: la flèche, au-dessus des vrais boutons qui restent visibles */}
-      <View
-        style={[styles.bottomBand, { backgroundColor: veil, paddingBottom: bottomInset + 10 }]}
-        pointerEvents="box-none"
-      >
-        <DirectionHint dir={step.dir} tint={tint} />
-        <Text style={styles.hintText}>
-          {state.step === COACH_STEPS.length - 1
-            ? "Les boutons en bas font la même chose, sans les mains."
-            : "Fais-le sur ta photo — c'est vraiment ta galerie."}
-        </Text>
-      </View>
+        <View style={{ height: ACTIONS_H }} />
+      </SafeAreaView>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  band: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    paddingHorizontal: 26,
-    paddingBottom: 20,
+  safe: { flex: 1 },
+  zone: { flex: 1, marginTop: 4, marginBottom: 8, alignItems: "center", justifyContent: "center" },
+  cardFrame: {
+    width: CARD_W,
+    height: CARD_H,
+    borderRadius: 24,
+    overflow: "hidden",
     alignItems: "center",
-    gap: 10,
+    justifyContent: "center",
   },
-  bottomBand: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingTop: 16,
-    paddingHorizontal: 26,
+  badge: {
+    width: 108,
+    height: 108,
+    borderRadius: 54,
     alignItems: "center",
-    gap: 6,
+    justifyContent: "center",
+    marginBottom: 40,
   },
-  dots: { flexDirection: "row", gap: 6, marginBottom: 2 },
-  dot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: "rgba(255,255,255,0.22)",
+  chevrons: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "flex-start",
+    justifyContent: "center",
+    paddingLeft: 14,
   },
-  dotActive: { width: 20, backgroundColor: "#fff" },
-  dotDone: { backgroundColor: "rgba(255,255,255,0.5)" },
-  instruction: {
+  chevronRow: { flexDirection: "row", alignItems: "center", marginTop: -40 },
+  foot: { position: "absolute", left: 0, right: 0, bottom: 0, height: 250 },
+  copy: { position: "absolute", left: 22, right: 22, bottom: 20 },
+  segments: { flexDirection: "row", gap: 5, marginBottom: 13 },
+  segment: {
+    width: 11,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: "rgba(255,255,255,0.2)",
+  },
+  segmentActive: { width: 26 },
+  gesture: {
     color: "#fff",
-    fontSize: 19,
-    fontWeight: "700",
-    lineHeight: 26,
-    textAlign: "center",
+    fontSize: 27,
+    fontWeight: "800",
+    letterSpacing: -0.8,
+    lineHeight: 31,
   },
-  nudge: {
-    color: "rgba(255,255,255,0.65)",
-    fontSize: 14,
-    lineHeight: 20,
-    textAlign: "center",
-  },
-  skip: {
-    color: "rgba(255,255,255,0.45)",
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 2,
-  },
-  hintText: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 13.5,
-    lineHeight: 19,
-    textAlign: "center",
+  detail: {
+    color: "rgba(255,255,255,0.66)",
+    fontSize: 15,
+    lineHeight: 21,
+    marginTop: 5,
   },
 });

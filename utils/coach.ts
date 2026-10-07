@@ -14,27 +14,32 @@ export type CoachDirection = "left" | "right" | "top" | "bottom";
 export type CoachStep = {
   /** Geste attendu à cette étape. */
   dir: CoachDirection;
-  /** Consigne, à l'impératif: on dit quoi faire, pas ce que l'app sait faire. */
-  instruction: string;
-  /** Confirmation affichée une fois le geste réussi. */
+  /** Le geste, en gros: c'est ce qu'il faut faire, pas ce que l'app sait faire. */
+  gesture: string;
+  /** La conséquence, en dessous. Court: on est posé sur une photo, pas sur une page. */
+  detail: string;
+  /** Confirmation, une fois le geste réussi. */
   done: string;
 };
 
 export const COACH_STEPS: CoachStep[] = [
   {
     dir: "left",
-    instruction: "Glisse cette photo vers la gauche pour la mettre à la corbeille",
-    done: "Elle est à la corbeille — tu pourras la récupérer, rien n'est supprimé tout de suite.",
+    gesture: "Glisse à gauche",
+    detail: "pour jeter. Elle part à la corbeille : tu pourras la récupérer.",
+    done: "À la corbeille. Récupérable à tout moment.",
   },
   {
     dir: "right",
-    instruction: "Vers la droite pour la garder",
-    done: "Gardée. Elle reste dans ta galerie, intacte.",
+    gesture: "Glisse à droite",
+    detail: "pour garder. Elle reste dans ta galerie et ne te sera plus proposée.",
+    done: "Gardée.",
   },
   {
     dir: "top",
-    instruction: "Vers le haut pour la mettre en favori",
-    done: "En favori. Tu la retrouveras dans l'onglet Favoris.",
+    gesture: "Glisse vers le haut",
+    detail: "pour mettre en favori. Les boutons en bas font la même chose, sans les mains.",
+    done: "En favori. À toi de jouer.",
   },
 ];
 
