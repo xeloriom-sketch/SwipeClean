@@ -16,6 +16,40 @@ export type ChangelogEntry = {
 
 export const CHANGELOG: ChangelogEntry[] = [
   {
+    version: "1.0.22",
+    tagline: "On apprend en triant, pas avant.",
+    features: [
+      {
+        icon: "hand-left-outline",
+        color: "#1EB0AD",
+        title: "Un tutoriel sur tes vraies photos",
+        description:
+          "Fini l'écran d'explications à part : le tutoriel se joue directement sur l'écran de tri, avec ta galerie. Trois gestes, vingt secondes, et tu es déjà en train de trier.",
+      },
+      {
+        icon: "shield-checkmark-outline",
+        color: "#30D158",
+        title: "Tes photos ne bougent plus toutes seules",
+        description:
+          "Une suppression refusée n'est plus comptée comme faite, la corbeille vidée ne se repeuple plus, et une photo ne peut plus atterrir à la fois dans la corbeille et dans les favoris.",
+      },
+      {
+        icon: "stats-chart-outline",
+        color: "#FF9500",
+        title: "Des statistiques enfin justes",
+        description:
+          "L'espace libéré est compté au moment où les fichiers disparaissent vraiment — et le ménage des doublons y est enfin inclus.",
+      },
+      {
+        icon: "medkit-outline",
+        color: "#AF52DE",
+        title: "Un filet en cas de pépin",
+        description:
+          "Si l'app rencontre une erreur, tu vois un écran de récupération au lieu d'un écran blanc, avec un bouton pour nous envoyer le rapport.",
+      },
+    ],
+  },
+  {
     version: "1.0.20",
     tagline: "Tes favoris, enfin rangés.",
     features: [

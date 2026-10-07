@@ -33,6 +33,9 @@ jobs:
       - name: Lint
         run: npx eslint . --max-warnings=-1
 
+      - name: Tests
+        run: npx jest --ci
+
       # Vérifie que Metro sait réellement produire le bundle. Un import cassé ou un
       # asset manquant échoue ici plutôt que sur le téléphone de l'utilisateur.
       - name: Bundle de contrôle

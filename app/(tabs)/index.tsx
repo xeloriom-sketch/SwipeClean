@@ -36,6 +36,8 @@ import { devLog } from "../../utils/devLogger";
 import { resolveMediaUri } from "../../utils/mediaUri";
 import { queueWrite, flushWrites } from "../../utils/storageQueue";
 import { initAds, onSwipeForAd } from "../../utils/ads";
+import SwipeCoach from "../../components/SwipeCoach";
+import { INITIAL_COACH, advanceCoach, isExpected, type CoachState } from "../../utils/coach";
 
 // react-native-video requires a native build — not available in Expo Go
 let VideoPlayer: React.ComponentType<any> | null = null;
@@ -893,6 +895,8 @@ export default function GalleryScreen() {
   // visible maintenant que la reprise se fait à l'index 0.
   const [cachesReady, setCachesReady] = useState(false);
   const [permissionDenied, setPermissionDenied] = useState(false);
+  /** `step: null` = pas de tutoriel en cours (cas de loin le plus courant). */
+  const [coach, setCoach] = useState<CoachState>({ step: null, attempts: 0 });
   const cursorRef = useRef<string | undefined>(undefined);
   const hasMoreRef = useRef(true);
   const trashRef = useRef<Array<MediaItem & { trashedAt?: number }>>([]);
@@ -969,6 +973,11 @@ export default function GalleryScreen() {
     return () => { if (t !== null) clearTimeout(t); };
   }, []);
 
+  const skipCoach = useCallback(() => {
+    setCoach({ step: null, attempts: 0 });
+    AsyncStorage.setItem(ONBOARDED_KEY, "true").catch(() => {});
+  }, []);
+
   const handleOpenWhatsNew = () => {
     setShowWhatsNew(true);
     setWhatsNewBadge(false);
@@ -1034,6 +1043,12 @@ export default function GalleryScreen() {
 
           const favs = parse<MediaItem[]>(favRaw[1], []);
           if (Array.isArray(favs)) favoritesRef.current = favs;
+
+          // « Revoir le tutoriel » efface la clé puis revient ici. L'écran étant déjà
+          // monté, le bootstrap ne rejoue pas: c'est donc au retour de focus de
+          // relancer le tutoriel.
+          const onboarded = await AsyncStorage.getItem(ONBOARDED_KEY);
+          if (!cancelled && !onboarded) setCoach(INITIAL_COACH);
         } catch {}
       })();
       return () => {
@@ -1068,12 +1083,11 @@ export default function GalleryScreen() {
     const t0 = Date.now();
     (async () => {
       try {
-        // First launch → onboarding
+        // Premier lancement: on ne quitte plus l'écran. Le tutoriel se joue ici même,
+        // sur la vraie carte et les vraies photos — c'est décidé plus bas, une fois
+        // qu'on sait s'il y a bien quelque chose à trier.
         const onboarded = await AsyncStorage.getItem(ONBOARDED_KEY);
-        if (!onboarded) {
-          router.replace("/Onboarding");
-          return;
-        }
+        const needsCoach = !onboarded;
 
         // Auto-empty trash if configured
         const [trashRaw, autoTrashRaw, favRaw, keptRaw] = await Promise.all([
@@ -1148,7 +1162,24 @@ export default function GalleryScreen() {
         }
         // Les caches sont peuplés: le chargement peut filtrer correctement.
         setCachesReady(true);
-        await fetchAssets();
+        const loaded = await fetchAssets();
+
+        if (needsCoach) {
+          // Repli vers l'ancien tutoriel illustré quand il n'y a rien à montrer: accès
+          // refusé, ou galerie vide. Apprendre sur sa propre photo suppose d'en avoir
+          // une.
+          if (loaded > 0) {
+            setCoach(INITIAL_COACH);
+            // Quelqu'un qui installe aujourd'hui n'a pas de « nouveautés » à découvrir:
+            // la liste serait son premier écran, par-dessus le tutoriel.
+            markWhatsNewSeen();
+            setShowWhatsNew(false);
+            setWhatsNewBadge(false);
+          } else {
+            router.replace("/Onboarding");
+            return;
+          }
+        }
         const elapsed = Date.now() - t0;
         if (elapsed < SPLASH_MIN_MS) {
           await new Promise((r) => setTimeout(r, SPLASH_MIN_MS - elapsed));
@@ -1181,8 +1212,10 @@ export default function GalleryScreen() {
   };
 
   const fetchAssets = useCallback(
-    async (force = false) => {
-      if (isFetching.current || (!hasMoreRef.current && !force)) return;
+    async (force = false): Promise<number> => {
+      // Renvoie le nombre de cartes obtenues: le bootstrap s'en sert pour savoir s'il y
+      // a de quoi jouer le tutoriel sur de vraies photos.
+      if (isFetching.current || (!hasMoreRef.current && !force)) return 0;
       isFetching.current = true;
       // `fetchTick` ne doit repartir que si le curseur a bougé. Sinon une permission
       // refusée ou un `getAssetsAsync` qui échoue relancerait l'effet de préchargement
@@ -1197,7 +1230,7 @@ export default function GalleryScreen() {
             // chargement à vie: ni message, ni bouton, et `permGranted` n'étant jamais
             // réévalué il fallait tuer l'app même après avoir accordé l'accès.
             setPermissionDenied(true);
-            return;
+            return 0;
           }
           permGranted.current = true;
           setPermissionDenied(false);
@@ -1260,7 +1293,7 @@ export default function GalleryScreen() {
         // réinjectait des photos dans l'ancien ordre dans une pile qu'on vient de vider.
         if (gen !== fetchGeneration.current) {
           devLog("Fetch", "résultat périmé ignoré (tri changé pendant le chargement)", "warn");
-          return;
+          return 0;
         }
 
         if (items.length > 0) {
@@ -1275,9 +1308,11 @@ export default function GalleryScreen() {
         hasMoreRef.current = hasNextPage;
         setHasMore(hasNextPage);
         advanced = true;
+        return items.length;
       } catch (err: any) {
         logger.error("fetchAssets", err);
         devLog("Fetch", `fetchAssets FAILED: ${err?.message ?? err}`, "error");
+        return 0;
       } finally {
         isFetching.current = false;
         // Fait repasser l'effet de préchargement même quand la page n'a rien donné:
@@ -1454,6 +1489,16 @@ export default function GalleryScreen() {
       // Compteur à vie, pas l'index de la pile: les paliers de succès testent une
       // égalité exacte, et l'index repart de 0 à chaque session depuis qu'il ne
       // compte plus que les photos restant à trier.
+      // Le tutoriel se nourrit des vrais swipes: il n'y a pas de geste de
+      // démonstration, c'est le geste réel sur la photo réelle qui fait avancer.
+      if (coach.step !== null) {
+        const good = isExpected(coach, direction);
+        if (good) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        const next = advanceCoach(coach, direction);
+        setCoach(next);
+        if (next.step === null) AsyncStorage.setItem(ONBOARDED_KEY, "true").catch(() => {});
+      }
+
       totalSwipesRef.current += 1;
       const newSwipeTotal = totalSwipesRef.current;
       persistTotalSwipes();
@@ -1488,7 +1533,7 @@ export default function GalleryScreen() {
         }, 1500);
       }
     },
-    [currentIndex, assets, triggerHaptics, addToTrash, addToFavorites, addToKept, persistTotalSwipes, soundEnabled]
+    [currentIndex, assets, triggerHaptics, addToTrash, addToFavorites, addToKept, persistTotalSwipes, soundEnabled, coach]
   );
 
   const handleUndo = useCallback(() => {
@@ -1939,8 +1984,16 @@ export default function GalleryScreen() {
 
       {popup}
 
+      <SwipeCoach
+        state={coach}
+        darkMode={darkMode}
+        topInset={insets.top}
+        bottomInset={insets.bottom}
+        onSkip={skipCoach}
+      />
+
       <WhatsNewModal
-        visible={showWhatsNew}
+        visible={showWhatsNew && coach.step === null}
         dark={darkMode}
         onClose={handleCloseWhatsNew}
       />

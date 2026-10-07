@@ -391,8 +391,11 @@ export default function SettingsScreen() {
           <TouchableOpacity
             style={styles.optionRow}
             onPress={async () => {
+              // Renvoie vers l'écran de tri, pas vers l'ancien tutoriel illustré: le
+              // tutoriel se joue désormais sur la vraie carte, et `@app_onboarded`
+              // effacé suffit à le relancer au prochain affichage de l'écran.
               await AsyncStorage.removeItem("@app_onboarded");
-              router.push("/Onboarding");
+              router.replace("/");
             }}
           >
             <View>
