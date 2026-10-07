@@ -24,6 +24,20 @@ jobs:
       - name: Install dependencies
         run: yarn install --frozen-lockfile
 
+      # Ces deux étapes sont bloquantes et passent AVANT toute publication: un `eas
+      # update` part chez des milliers d'installs sans qu'aucun humain ne relise, donc
+      # c'est le dernier filet. Une erreur de typage partait jusqu'ici en production.
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Lint
+        run: npx eslint . --max-warnings=-1
+
+      # Vérifie que Metro sait réellement produire le bundle. Un import cassé ou un
+      # asset manquant échoue ici plutôt que sur le téléphone de l'utilisateur.
+      - name: Bundle de contrôle
+        run: npx expo export --platform android --output-dir /tmp/ota-smoke
+
       - name: Setup EAS
         uses: expo/expo-github-action@v8
         with:

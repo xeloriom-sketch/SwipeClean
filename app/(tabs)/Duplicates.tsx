@@ -371,7 +371,19 @@ export default function DuplicatesScreen() {
             onPress: async () => {
               try {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-                await deleteAssetsInBatches(toDelete.map((a) => a.id));
+                // Un refus de la boîte de dialogue système retirait quand même le
+                // groupe de la liste: les doublons semblaient supprimés alors qu'ils
+                // étaient toujours sur l'appareil.
+                const { ok } = await deleteAssetsInBatches(toDelete.map((a) => a.id));
+                if (!ok) {
+                  showPopup({
+                    icon: "⚠️",
+                    title: "Suppression annulée",
+                    message: "Les doublons sont toujours sur ton appareil.",
+                    buttons: [{ text: "OK", style: "default" }],
+                  });
+                  return;
+                }
                 setGroups((prev) => prev?.filter((g) => g.key !== group.key) ?? null);
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               } catch {
@@ -406,7 +418,19 @@ export default function DuplicatesScreen() {
             try {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
               const ids = groups.flatMap((g) => g.items.slice(1).map((a) => a.id)); // garde le 1er de chaque groupe
-              await deleteAssetsInBatches(ids);
+              const { ok, deletedIds } = await deleteAssetsInBatches(ids);
+              if (!ok) {
+                // Relance un scan plutôt que de deviner quels groupes ont survécu.
+                showPopup({
+                  icon: "⚠️",
+                  title: deletedIds.length ? "Suppression partielle" : "Suppression annulée",
+                  message: deletedIds.length
+                    ? `${deletedIds.length} doublon${deletedIds.length > 1 ? "s" : ""} supprimé${deletedIds.length > 1 ? "s" : ""}. Relance une analyse pour voir ce qu'il reste.`
+                    : "Aucun doublon n'a été supprimé.",
+                  buttons: [{ text: "OK", style: "default" }],
+                });
+                return;
+              }
               setGroups([]);
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               showPopup({

@@ -902,6 +902,7 @@ export default function GalleryScreen() {
   // revenaient dans la pile. Invisible tant que l'index restauré les sautait, bien
   // visible maintenant que la reprise se fait à l'index 0.
   const [cachesReady, setCachesReady] = useState(false);
+  const [permissionDenied, setPermissionDenied] = useState(false);
   const cursorRef = useRef<string | undefined>(undefined);
   const hasMoreRef = useRef(true);
   const trashRef = useRef<Array<MediaItem & { trashedAt?: number }>>([]);
@@ -920,13 +921,8 @@ export default function GalleryScreen() {
 
   useEffect(
     () => () => {
-      // Le timer est annulé, donc on écrit le compteur nous-mêmes: sinon jusqu'à 800 ms
-      // de swipes disparaissaient du total à vie (et donc des paliers de succès).
-      if (persistTimer.current) {
-        clearTimeout(persistTimer.current);
-        persistTimer.current = null;
-        AsyncStorage.setItem(TOTAL_SWIPES_KEY, String(totalSwipesRef.current)).catch(() => {});
-      }
+      if (persistTimer.current) clearTimeout(persistTimer.current);
+      // `flushWrites` couvre maintenant aussi le compteur de swipes, passé par la file.
       flushWrites();
     },
     []
@@ -1166,8 +1162,15 @@ export default function GalleryScreen() {
       try {
         if (!permGranted.current) {
           const { status } = await MediaLibrary.requestPermissionsAsync();
-          if (status !== "granted") return;
+          if (status !== "granted") {
+            // Sans cet état, le rendu tombait sur `hasMore === true` et affichait le
+            // chargement à vie: ni message, ni bouton, et `permGranted` n'étant jamais
+            // réévalué il fallait tuer l'app même après avoir accordé l'accès.
+            setPermissionDenied(true);
+            return;
+          }
           permGranted.current = true;
+          setPermissionDenied(false);
         }
 
         // Une page entièrement déjà triée (keptCache / trashCache) ne produisait aucune
@@ -1266,12 +1269,41 @@ export default function GalleryScreen() {
   // La valeur est relue dans le timer, jamais capturée: le bootstrap restaure le
   // compteur de façon asynchrone, et un swipe arrivé avant cette restauration aurait
   // sinon écrit « 1 » par-dessus un total de plusieurs centaines.
+  // Relance une demande d'accès. Utilisé par le bouton « Réessayer » et au retour sur
+  // l'écran: quelqu'un qui accorde l'accès dans les réglages système doit retrouver sa
+  // photothèque en revenant, sans avoir à tuer l'app.
+  const resumeAfterPermission = useCallback(() => {
+    permGranted.current = true;
+    setPermissionDenied(false);
+    hasMoreRef.current = true;
+    setHasMore(true);
+    fetchAssets(true);
+  }, [fetchAssets]);
+
+  /** Bouton « Réessayer »: peut ouvrir la boîte de dialogue système. */
+  const retryPermission = useCallback(async () => {
+    const { status } = await MediaLibrary.requestPermissionsAsync();
+    if (status === "granted") resumeAfterPermission();
+  }, [resumeAfterPermission]);
+
+  /** Retour sur l'écran: on se contente de relire le statut, sans rien demander. */
+  useFocusEffect(
+    useCallback(() => {
+      if (!permissionDenied) return;
+      MediaLibrary.getPermissionsAsync()
+        .then(({ status }) => {
+          if (status === "granted") resumeAfterPermission();
+        })
+        .catch(() => {});
+    }, [permissionDenied, resumeAfterPermission])
+  );
+
+  // Passe par `storageQueue`: son listener AppState vide la file au passage en
+  // arrière-plan. Avec un `setItem` direct et son debounce, Android pouvait tuer le
+  // process avant l'échéance — et comme les paliers de succès testent une égalité
+  // exacte, un palier perdu l'était définitivement.
   const persistTotalSwipes = useCallback(() => {
-    if (persistTimer.current) clearTimeout(persistTimer.current);
-    persistTimer.current = setTimeout(() => {
-      persistTimer.current = null;
-      AsyncStorage.setItem(TOTAL_SWIPES_KEY, String(totalSwipesRef.current)).catch(() => {});
-    }, 800);
+    queueWrite(TOTAL_SWIPES_KEY, totalSwipesRef.current);
   }, []);
 
   const addToTrash = useCallback((item: MediaItem) => {
@@ -1499,6 +1531,47 @@ export default function GalleryScreen() {
   }));
 
   if (loading) return <FancyLoader dark={darkMode} />;
+
+  if (permissionDenied) {
+    return (
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: darkMode ? "#121212" : "#F5F5F5" }]}
+      >
+        <View style={styles.emptyContainer}>
+          <Ionicons
+            name="images-outline"
+            size={72}
+            color={darkMode ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.3)"}
+          />
+          <Text style={[styles.emptyText, { color: darkMode ? "#fff" : "#000", marginTop: 16 }]}>
+            Accès aux photos refusé
+          </Text>
+          <Text
+            style={{
+              color: darkMode ? "rgba(255,255,255,0.45)" : "rgba(0,0,0,0.4)",
+              fontSize: 15,
+              lineHeight: 21,
+              marginTop: 8,
+              textAlign: "center",
+            }}
+          >
+            SwipeClean a besoin de voir ta photothèque pour t&apos;aider à la trier. Rien
+            n&apos;est envoyé nulle part : tout reste sur ton téléphone.
+          </Text>
+          <TouchableOpacity onPress={retryPermission} activeOpacity={0.85} style={{ marginTop: 28 }}>
+            <View style={styles.resetBtnGradient}>
+              <Text style={styles.resetBtnText}>Réessayer</Text>
+            </View>
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => Linking.openSettings()} activeOpacity={0.7} style={{ marginTop: 14 }}>
+            <Text style={{ color: darkMode ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.45)", fontSize: 14 }}>
+              Ouvrir les réglages
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   const topCard = assets[currentIndex];
   const bottomCard = assets[currentIndex + 1];

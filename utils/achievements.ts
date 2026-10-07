@@ -53,29 +53,58 @@ export async function getUnlocked(): Promise<Achievement[]> {
   }
 }
 
-export async function checkAndUnlock(
-  id: string
-): Promise<Achievement | null> {
-  try {
-    const raw = await AsyncStorage.getItem(KEY);
-    const unlocked: Record<string, number> = raw ? JSON.parse(raw) : {};
-    if (unlocked[id]) return null;
-    unlocked[id] = Date.now();
-    await AsyncStorage.setItem(KEY, JSON.stringify(unlocked));
-    return ALL_ACHIEVEMENTS.find((a) => a.id === id) ?? null;
-  } catch {
-    return null;
-  }
+// Les déblocages sont sérialisés sur cette chaîne. `checkAndUnlock` fait un
+// lire-modifier-écrire sans verrou, et l'écran principal en lance jusqu'à trois en
+// parallèle sur un même swipe (`first_trash`, palier de swipes, `night_swipe`): les
+// trois lisaient la même valeur et le dernier écrivain gagnait. Comme les paliers
+// testent une égalité exacte, un succès écrasé était perdu à vie.
+let writeChain: Promise<unknown> = Promise.resolve();
+
+function serialize<T>(task: () => Promise<T>): Promise<T> {
+  const next = writeChain.then(task, task);
+  writeChain = next.catch(() => {});
+  return next;
 }
 
+export function checkAndUnlock(id: string): Promise<Achievement | null> {
+  return serialize(async () => {
+    try {
+      const raw = await AsyncStorage.getItem(KEY);
+      const unlocked: Record<string, number> = raw ? JSON.parse(raw) : {};
+      if (unlocked[id]) return null;
+      unlocked[id] = Date.now();
+      await AsyncStorage.setItem(KEY, JSON.stringify(unlocked));
+      return ALL_ACHIEVEMENTS.find((a) => a.id === id) ?? null;
+    } catch {
+      return null;
+    }
+  });
+}
+
+const SWIPE_MILESTONES: Array<[number, string]> = [
+  [1, "first_swipe"], [10, "swipes_10"], [50, "swipes_50"],
+  [100, "swipes_100"], [200, "swipes_200"], [500, "swipes_500"],
+  [1000, "swipes_1000"], [2000, "swipes_2000"], [5000, "swipes_5000"],
+];
+
+/**
+ * Débloque tous les paliers atteints, pas seulement celui dont le total est l'égalité
+ * exacte. L'égalité stricte rendait un palier inaccessible dès que le compteur le
+ * franchissait sans s'y arrêter: une écriture perdue en arrière-plan, ou la reprise du
+ * compteur depuis l'ancienne clé (quelqu'un passant d'un coup de 0 à 347 swipes) et les
+ * paliers 1, 10, 50, 100 et 200 ne se déclenchaient plus jamais.
+ *
+ * Une seule notification malgré tout: on renvoie le plus haut palier nouvellement
+ * débloqué.
+ */
 export async function checkSwipeMilestones(totalSwiped: number): Promise<Achievement | null> {
-  const milestones: Record<number, string> = {
-    1: "first_swipe", 10: "swipes_10", 50: "swipes_50",
-    100: "swipes_100", 200: "swipes_200", 500: "swipes_500",
-    1000: "swipes_1000", 2000: "swipes_2000", 5000: "swipes_5000",
-  };
-  const id = milestones[totalSwiped];
-  return id ? checkAndUnlock(id) : null;
+  let highest: Achievement | null = null;
+  for (const [threshold, id] of SWIPE_MILESTONES) {
+    if (totalSwiped < threshold) break;
+    const unlocked = await checkAndUnlock(id);
+    if (unlocked) highest = unlocked;
+  }
+  return highest;
 }
 
 export async function checkNightSwipe(): Promise<Achievement | null> {

@@ -204,12 +204,31 @@ export default function TrashScreen() {
                   return 0;
                 })
               );
-              const freedBytes = sizes.reduce(
-                (s, r) => s + (r.status === "fulfilled" ? r.value : 0), 0
-              );
+              const { ok, deletedIds } = await deleteAssetsInBatches(ids);
 
-              await deleteAssetsInBatches(ids);
-              const remaining = items.filter(i => !selectedIds[i.id]);
+              // Seules les photos que le système a confirmées quittent la corbeille et
+              // comptent dans l'espace libéré. Un refus de la boîte de dialogue Android
+              // les laissait sortir de la corbeille alors qu'elles étaient toujours sur
+              // l'appareil — et créditait les statistiques et les succès au passage.
+              const deleted = new Set(deletedIds);
+              const freedBytes = toDelete.reduce((sum, item, idx) => {
+                if (!deleted.has(item.id)) return sum;
+                const r = sizes[idx];
+                return sum + (r.status === "fulfilled" ? r.value : 0);
+              }, 0);
+
+              if (!ok) {
+                showPopup({
+                  icon: "⚠️",
+                  title: deletedIds.length ? "Suppression partielle" : "Suppression annulée",
+                  message: deletedIds.length
+                    ? `${deletedIds.length} photo${deletedIds.length > 1 ? "s" : ""} supprimée${deletedIds.length > 1 ? "s" : ""}. Les autres sont restées dans la corbeille.`
+                    : "Aucune photo n'a été supprimée. Elles sont toujours dans la corbeille.",
+                  buttons: [{ text: "OK", style: "default" }],
+                });
+              }
+
+              const remaining = items.filter(i => !deleted.has(i.id));
               await persist(remaining);
 
               // Accumuler l'espace libéré ET le nombre de photos supprimées
@@ -220,7 +239,7 @@ export default function TrashScreen() {
               const newTotalBytes = (prevBytes ? Number(prevBytes) : 0) + freedBytes;
               await Promise.all([
                 AsyncStorage.setItem(FREED_SIZE_KEY, String(newTotalBytes)),
-                AsyncStorage.setItem(DELETED_COUNT_KEY, String((prevCount ? Number(prevCount) : 0) + toDelete.length)),
+                AsyncStorage.setItem(DELETED_COUNT_KEY, String((prevCount ? Number(prevCount) : 0) + deletedIds.length)),
               ]);
 
               if (remaining.length === 0) unlockAndNotify("trash_emptied");
